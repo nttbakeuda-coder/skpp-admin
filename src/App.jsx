@@ -2,7 +2,13 @@ import { useState, useEffect, useCallback } from "react";
 
 const API_URL = "https://script.google.com/macros/s/AKfycbxdSGg9F6P4FpNJsr3jhVklVKTqxFjepQbs4mHblDDv2ySMXD8nkZfrhMcEgz8IcPOoeA/exec";
 
-const JALUR = { A: "Jalur A – Tanpa Pangkat Pengabdian", B: "Jalur B – Ada Pangkat Pengabdian" };
+// ==========================================
+// PENGATURAN AKUN LOGIN STAF (Silakan Ubah)
+// ==========================================
+const AKUN_STAF = {
+  username: "adminbakeuda",
+  password: "skppntt2026"
+};
 
 const TAHAPAN_A = [
   { id: "A1", label: "Berkas Diterima di Loket", icon: "📥", pelaksana: "Staf Pengampuh OPD", keterangan: "Berkas pengajuan SKPP diterima dan dicatat dalam buku register." },
@@ -36,17 +42,8 @@ async function apiGet(params) {
 }
 
 async function apiPost(body) {
-  const res = await fetch(API_URL, {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+  const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(body) });
   return res.json();
-}
-
-function getProgress(p) {
-  const tahapan = p.jalur === "A" ? TAHAPAN_A : TAHAPAN_B;
-  const selesai = Array.isArray(p.tahapSelesai) ? p.tahapSelesai : (p.tahapSelesai || "").split(",").filter(Boolean);
-  return Math.round((selesai.length / tahapan.length) * 100);
 }
 
 function normalizeP(p) {
@@ -58,38 +55,59 @@ function normalizeP(p) {
 }
 
 export default function App() {
+  // State untuk Keamanan Login
+  const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem("isLoggedIn") === "true");
+  const [inputUser, setInputUser] = useState("");
+  const [inputPass, setInputPass] = useState("");
+  const [loginError, setLoginError] = useState("");
+
+  // State Data Dashboard
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errLoad, setErrLoad] = useState("");
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("semua");
-  const [selected, setSelected] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [showUpdate, setShowUpdate] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState("");
 
   const load = useCallback(async () => {
+    if (!isLoggedIn) return;
     setLoading(true); setErrLoad("");
     try {
       const res = await apiGet({ action: "daftarSemua" });
       if (res.ok) setData(res.data.map(normalizeP));
       else setErrLoad(res.pesan);
     } catch {
-      setErrLoad("Gagal memuat data. Periksa koneksi atau URL Apps Script.");
+      setErrLoad("Gagal memuat data. Periksa koneksi.");
     }
     setLoading(false);
-  }, []);
+  }, [isLoggedIn]);
 
   useEffect(() => { load(); }, [load]);
 
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (inputUser === AKUN_STAF.username && inputPass === AKUN_STAF.password) {
+      localStorage.setItem("isLoggedIn", "true");
+      setIsLoggedIn(true);
+      setLoginError("");
+    } else {
+      setLoginError("Username atau Password salah!");
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("isLoggedIn");
+    setIsLoggedIn(false);
+    setInputUser("");
+    setInputPass("");
+  };
 
   const handleInputBaru = async (formData) => {
     setSaving(true);
     try {
       const res = await apiPost({ action: "inputBaru", data: formData });
-      if (res.ok) { showToast(`✓ ${res.id} berhasil disimpan`); setShowForm(false); load(); }
+      if (res.ok) { alert(`✓ ${res.id} berhasil disimpan`); setShowForm(false); load(); }
       else alert("Gagal menyimpan: " + res.pesan);
     } catch { alert("Gagal terhubung ke server."); }
     setSaving(false);
@@ -102,12 +120,46 @@ export default function App() {
     return matchS && matchF;
   });
 
-  const stats = { total: data.length, proses: data.filter(d=>d.status==="proses").length, selesai: data.filter(d=>d.status==="selesai").length, kembali: data.filter(d=>d.status==="kembali").length };
+  const stats = { 
+    total: data.length, 
+    proses: data.filter(d=>d.status==="proses").length, 
+    selesai: data.filter(d=>d.status==="selesai").length, 
+    kembali: data.filter(d=>d.status==="kembali").length 
+  };
 
+  // Tampilan Halaman Login jika Belum Autentikasi
+  if (!isLoggedIn) {
+    return (
+      <div style={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center", background: "#f1f5f9", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+        <div style={{ background: "white", padding: "32px", borderRadius: "12px", boxShadow: "0 10px 25px rgba(0,0,0,0.05)", width: "100%", maxWidth: "400px", border: "1px solid #e2e8f0" }}>
+          <div style={{ textAlign: "center", marginBottom: "24px" }}>
+            <h2 style={{ margin: "0 0 8px 0", fontWeight: 800, color: "#0f1e3c" }}>Login Staf</h2>
+            <p style={{ margin: 0, color: "#64748b", fontSize: "14px" }}>Dashboard Internal SKPP Bakeuda NTT</p>
+          </div>
+          
+          {loginError && <div style={{ background: "#fee2e2", color: "#991b1b", padding: "10px", borderRadius: "6px", fontSize: "13px", fontWeight: 600, marginBottom: "16px", textAlign: "center" }}>{loginError}</div>}
+          
+          <form onSubmit={handleLogin}>
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>Username</label>
+              <input style={{ width: "100%", padding: "10px", border: "1.5px solid #e2e8f0", borderRadius: "8px", boxSizing: "border-box", outline: "none" }} value={inputUser} onChange={e => setInputUser(e.target.value)} required />
+            </div>
+            <div style={{ marginBottom: "20px" }}>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>Password</label>
+              <input type="password" style={{ width: "100%", padding: "10px", border: "1.5px solid #e2e8f0", borderRadius: "8px", boxSizing: "border-box", outline: "none" }} value={inputPass} onChange={e => setInputPass(e.target.value)} required />
+            </div>
+            <button type="submit" style={{ width: "100%", padding: "12px", background: "#1d4ed8", color: "white", border: "none", borderRadius: "8px", fontWeight: 700, cursor: "pointer" }}>Masuk ke Dashboard</button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Tampilan Utama Dashboard Staf (Jika sudah Login)
   return (
     <div className="container" style={{ padding: "24px", maxWidth: "1200px", margin: "0 auto" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=400;600;700;800&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; color: #1e293b; margin:0; }
         .card { background: white; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.05); border: 1px solid #e2e8f0; margin-bottom: 24px; overflow: hidden; }
         .card-header { padding: 18px 22px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; background: #fff; }
@@ -118,10 +170,10 @@ export default function App() {
         .btn { padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; border: none; }
         .btn-primary { background: #1d4ed8; color: white; }
         .btn-secondary { background: #f1f5f9; color: #334155; }
+        .btn-danger { background: #fee2e2; color: #b91c1c; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
         th { background: #f8fafc; padding: 12px 14px; font-weight: 700; color: #475569; border-bottom: 2px solid #e2e8f0; }
         td { padding: 14px; border-bottom: 1px solid #f1f5f9; }
-        tr:hover td { background: #f8fafc; cursor: pointer; }
         .badge { padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
         .badge-blue { background: #dbeafe; color: #1d4ed8; }
         .badge-green { background: #d1fae5; color: #065f46; }
@@ -131,9 +183,12 @@ export default function App() {
         .form-label { display:block; font-size:12px; font-weight:700; color:#475569; margin-bottom:4px; }
       `}</style>
 
-      <div style={{ marginBottom: "24px" }}>
-        <h1 style={{ fontSize: "24px", fontWeight: 800, color: "#0f1e3c", margin: 0 }}>Dashboard Internal SKPP</h1>
-        <p style={{ color: "#64748b", margin: "4px 0 0 0", fontSize: "14px" }}>Sistem Penginputan Data & Verifikasi Internal - Bakeuda NTT</p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+        <div>
+          <h1 style={{ fontSize: "24px", fontWeight: 800, color: "#0f1e3c", margin: 0 }}>Dashboard Internal SKPP</h1>
+          <p style={{ color: "#64748b", margin: "4px 0 0 0", fontSize: "14px" }}>Sistem Penginputan Data & Verifikasi Internal - Bakeuda NTT</p>
+        </div>
+        <button className="btn btn-danger" onClick={handleLogout} style={{ fontWeight: 700 }}>Keluar (Logout)</button>
       </div>
 
       {/* STATS */}
@@ -163,7 +218,7 @@ export default function App() {
           </select>
         </div>
 
-        {loading ? <div style={{ padding: "40px", textalign: "center", color: "#64748b" }}>Memuat Data...</div> : (
+        {loading ? <div style={{ padding: "40px", textAlign: "center", color: "#64748b" }}>Memuat Data...</div> : (
           <div style={{ overflowX: "auto" }}>
             <table>
               <thead>
