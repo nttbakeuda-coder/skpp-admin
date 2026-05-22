@@ -261,26 +261,70 @@ export default function App() {
 
             <h4 style={{ marginBottom: "12px", borderBottom:"2px solid #f1f5f9", paddingBottom:"6px", margin:0 }}>Progres Tahapan</h4>
             <div style={{ display:"flex", flexDirection:"column", marginTop:"10px" }}>
-              {(selected.jalur === "B" ? TAHAPAN_B : TAHAPAN_A).map((step) => {
-                const isSelesai = Array.isArray(selected.tahapSelesai) && selected.tahapSelesai.includes(step.id);
-                const isAktif = String(selected.tahapAktif) === String(step.id);
+      {/* DIMULAI DARI BARIS 264 - PERULANGAN MAP UNTUK TAHAPAN */}
+{((selected && selected.jalur === "B") ? TAHAPAN_B : TAHAPAN_A).map((step) => {
+  const isSelesai = Array.isArray(selected?.tahapSelesai) && selected.tahapSelesai.includes(step.id);
+  const isAktif = String(selected?.tahapAktif) === String(step.id);
 
-                return (
-                  <div key={step.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 0", borderBottom:"1px solid #f1f5f9" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
-                      <span style={{ fontSize:"16px" }}>{step.icon}</span>
-                      <div style={{ display:"flex", flexDirection:"column" }}>
-                        <span style={{ fontSize:"13px", fontWeight: isAktif ? "bold" : "normal", color: isSelesai || isAktif ? "#1e293b" : "#94a3b8" }}>{step.label}</span>
-                        {isAktif && <span style={{ fontSize:"11px", color:"#1d4ed8" }}>Pelaksana: {step.pelaksana}</span>}
-                      </div>
-                    </div>
-                    {isSelesai ? (
-                      <span className="btn-selesai" style={{ padding:"4px 8px" }}>✓ Selesai</span>
-                    ) : isAktif ? (
-                      <button className="btn-update" onClick={() => setShowUpdate(step)}>Update Tahap ↓</button>
-                    ) : (
-                      <span style={{ fontSize:"11px", color:"#cbd5e1" }}>Menunggu</span>
-                    )}
+  return (
+    <div 
+      key={step.id} 
+      style={{ 
+        display: "flex", 
+        alignItems: "center", 
+        justifyContent: "space-between", 
+        padding: "12px 16px", 
+        border: isAktif ? "1px solid #2563eb" : "1px solid #e2e8f0", 
+        borderRadius: "8px",
+        background: isSelesai ? "#f0fdf4" : isAktif ? "#ffffff" : "#f8fafc",
+        marginBottom: "8px",
+        boxShadow: isAktif ? "0 1px 3px rgba(37,99,235,0.1)" : "none"
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <span style={{ 
+          color: isSelesai ? "#16a34a" : isAktif ? "#2563eb" : "#94a3b8", 
+          fontWeight: "bold",
+          fontSize: "14px"
+        }}>
+          {isSelesai ? "✓" : isAktif ? "☑" : "○"}
+        </span>
+        <span style={{ 
+          fontSize: "13px", 
+          fontWeight: isAktif ? "bold" : "500", 
+          color: isSelesai ? "#16a34a" : isAktif ? "#1e293b" : "#64748b" 
+        }}>
+          {step.label}
+        </span>
+      </div>
+
+      {isSelesai ? (
+        <span style={{ fontSize: "12px", color: "#16a34a", fontWeight: "bold" }}>Selesai</span>
+      ) : isAktif ? (
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowUpdate(step);
+          }} 
+          style={{ 
+            background: "#1d4ed8", 
+            color: "white", 
+            border: "none", 
+            padding: "6px 14px", 
+            borderRadius: "6px", 
+            fontSize: "12px", 
+            fontWeight: "bold", 
+            cursor: "pointer"
+          }}
+        >
+          Update →
+        </button>
+      ) : (
+        <span style={{ fontSize: "11px", color: "#94a3b8" }}>Menunggu</span>
+      )}
+    </div>
+  );
+})}
                   </div>
                 );
               })}
