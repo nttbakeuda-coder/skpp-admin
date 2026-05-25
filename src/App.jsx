@@ -25,6 +25,63 @@ function cetakTandaTerima(p) {
   window.open(`${TANDA_TERIMA_URL}?${params.toString()}`, "_blank");
 }
 
+const DAFTAR_OPD = [
+  "Dinas Pendidikan dan Kebudayaan Provinsi NTT",
+  "Dinas Kesehatan Provinsi NTT",
+  "Dinas Pekerjaan Umum dan Perumahan Rakyat Provinsi NTT",
+  "Satuan Polisi Pamong Praja Provinsi NTT",
+  "Badan Penanggulangan Bencana Daerah Provinsi NTT",
+  "Dinas Sosial Provinsi NTT",
+  "Dinas Ketenagakerjaan dan Transmigrasi Provinsi NTT",
+  "Dinas Pemberdayaan Perempuan, Perlindungan Anak, Pengendalian Penduduk dan Keluarga Berencana Provinsi NTT",
+  "Dinas Lingkungan Hidup dan Kehutanan Provinsi NTT",
+  "Dinas Kependudukan dan Pencatatan Sipil Provinsi NTT",
+  "Dinas Pemberdayaan Masyarakat dan Desa Provinsi NTT",
+  "Dinas Perhubungan Provinsi NTT",
+  "Dinas Komunikasi dan Informatika Provinsi NTT",
+  "Dinas Koperasi, Usaha Kecil dan Menengah Provinsi NTT",
+  "Dinas Penanaman Modal dan Pelayanan Terpadu Satu Pintu Provinsi NTT",
+  "Dinas Kepemudaan dan Olahraga Provinsi NTT",
+  "Dinas Kearsipan dan Perpustakaan Provinsi NTT",
+  "Dinas Kelautan dan Perikanan Provinsi NTT",
+  "Dinas Pariwisata dan Ekonomi Kreatif Provinsi NTT",
+  "Dinas Pertanian dan Ketahanan Pangan Provinsi NTT",
+  "Dinas Peternakan Provinsi NTT",
+  "Dinas Energi dan Sumber Daya Mineral Provinsi NTT",
+  "Dinas Perindustrian dan Perdagangan Provinsi NTT",
+  "Sekretariat Daerah Provinsi NTT",
+  "Sekretariat Dewan Perwakilan Rakyat Daerah Provinsi NTT",
+  "Badan Perencanaan Pembangunan, Riset dan Inovasi Daerah Provinsi NTT",
+  "Badan Pendapatan dan Aset Daerah Provinsi NTT",
+  "Badan Keuangan Daerah Provinsi NTT",
+  "Badan Kepegawaian Daerah Provinsi NTT",
+  "Badan Pengembangan Sumber Daya Manusia Daerah Provinsi NTT",
+  "Badan Pengelola Perbatasan Daerah Provinsi NTT",
+  "Badan Penghubung di Jakarta Provinsi NTT",
+  "Inspektorat Daerah Provinsi NTT",
+  "Badan Kesatuan Bangsa dan Politik Provinsi NTT"
+];
+
+const DAFTAR_PANGKAT = [
+  "Juru Muda / I-a",
+  "Juru Muda Tingkat I / I-b",
+  "Juru / I-c",
+  "Juru Tingkat I / I-d",
+  "Pengatur Muda / II-a",
+  "Pengatur Muda Tingkat I / II-b",
+  "Pengatur / II-c",
+  "Pengatur Tingkat I / II-d",
+  "Penata Muda / III-a",
+  "Penata Muda Tingkat I / III-b",
+  "Penata / III-c",
+  "Penata Tingkat I / III-d",
+  "Pembina / IV-a",
+  "Pembina Tingkat I / IV-b",
+  "Pembina Utama Muda / IV-c",
+  "Pembina Utama Madya / IV-d",
+  "Pembina Utama / IV-e"
+];
+
 // ─── DATA TAHAPAN ─────────────────────────────────────────────────────────────
 const TAHAPAN_A = [
   { id:"A1", label:"Berkas Diterima di Loket",      icon:"📥", pelaksana:"Staf Loket" },
@@ -661,10 +718,40 @@ function InputBaru({ onClose, onSave, saving }) {
             <div className="form-group"><label className="form-label">NIP *</label><input className="form-control" value={form.nip} onChange={e=>set("nip",e.target.value)} placeholder="18 digit" style={{fontFamily:"var(--mono)"}} /></div>
           </div>
           <div className="grid-2">
-            <div className="form-group"><label className="form-label">OPD / Instansi *</label><input className="form-control" value={form.opd} onChange={e=>set("opd",e.target.value)} /></div>
+          <div className="form-group">
+            <label>OPD / Instansi</label>
+            <select
+            className="form-control"
+            value={editForm?.opd || ""}
+            onChange={(e) => setEditForm({ ...editForm, opd: e.target.value })}
+            required
+            >
+            <option value="">-- Pilih OPD / Instansi --</option>
+            {DAFTAR_OPD.map((opd, index) => (
+            <option key={index} value={opd}>
+            {opd}
+            </option>
+            ))}
+            </select>
+          </div>
             <div className="form-group"><label className="form-label">Jabatan Terakhir</label><input className="form-control" value={form.jabatan} onChange={e=>set("jabatan",e.target.value)} /></div>
           </div>
-          <div className="form-group"><label className="form-label">Pangkat / Golongan</label><input className="form-control" value={form.pangkat} onChange={e=>set("pangkat",e.target.value)} placeholder="Contoh: Pembina / IV-a" /></div>
+          <div className="form-group">
+            <label>Pangkat / Golongan</label>
+            <select
+            className="form-control"
+            value={editForm?.pangkat || ""}
+            onChange={(e) => setEditForm({ ...editForm, pangkat: e.target.value })}
+            required
+            >
+            <option value="">-- Pilih Pangkat / Golongan --</option>
+            {DAFTAR_PANGKAT.map((pangkat, index) => (
+            <option key={index} value={pangkat}>
+            {pangkat}
+            </option>
+            ))}
+            </select>
+          </div>
           <div className="grid-2">
             <div className="form-group">
               <label className="form-label">Keperluan SKPP</label>
