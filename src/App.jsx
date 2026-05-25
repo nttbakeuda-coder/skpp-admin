@@ -692,7 +692,7 @@ function PageDashboard({ data, loading }) {
 }
 
 // ─── HALAMAN PENGAJUAN ────────────────────────────────────────────────────────
-function PagePengajuan({ data, loading, onRefresh, onDetail, onInputBaru, onExport }) {
+function PagePengajuan({ data, loading, onRefresh, onDetail, onInputBaru, onExport, user }) {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("semua");
   const [filterJalur, setFilterJalur] = useState("semua");
@@ -711,7 +711,9 @@ function PagePengajuan({ data, loading, onRefresh, onDetail, onInputBaru, onExpo
           <div style={{display:"flex",gap:8}}>
             <button className="btn btn-ghost btn-sm" onClick={()=>onExport(filtered)} disabled={filtered.length===0}>⬇ Export CSV</button>
             <button className="btn btn-secondary btn-sm" onClick={onRefresh} disabled={loading}>⟳ Refresh</button>
+            {user?.role !== "staf" && (
             <button className="btn btn-primary btn-sm" onClick={onInputBaru}>+ Input Baru</button>
+            )}
           </div>
         </div>
         <div style={{padding:"12px 20px",borderBottom:"1px solid var(--g100)",display:"flex",gap:10,flexWrap:"wrap"}}>
@@ -1001,8 +1003,8 @@ export default function App() {
           </div>
           <div className="content">
             {page==="dashboard" && <PageDashboard data={data} loading={loading} />}
-            {page==="pengajuan" && <PagePengajuan data={data} loading={loading} onRefresh={load} onDetail={setSelected} onInputBaru={()=>setShowInput(true)} onExport={exportCSV} />}
-            {page==="input" && <div className="card card-body"><PagePengajuan data={[]} loading={false} onRefresh={()=>{}} onDetail={()=>{}} onInputBaru={()=>setShowInput(true)} onExport={()=>{}} /></div>}
+            {page==="pengajuan" && <PagePengajuan data={data} loading={loading} onRefresh={load} onDetail={setSelected} onInputBaru={()=>setShowInput(true)} onExport={exportCSV} user={user} />}
+            {page==="input" && <div className="card card-body"><PagePengajuan data={[]} loading={false} onRefresh={()=>{}} onDetail={()=>{}} onInputBaru={()=>setShowInput(true)} onExport={()=>{}} user={user} /></div>}
             {page==="riwayat" && <PageRiwayat data={data} loading={loading} onDetail={setSelected} />}
             {page==="users" && user.role==="admin" && <PageUsers />}
             {page==="users" && user.role!=="admin" && <div className="alert alert-red"><span>🚫</span><span>Anda tidak memiliki akses ke halaman ini. Hanya Admin yang dapat mengelola akun staf.</span></div>}
