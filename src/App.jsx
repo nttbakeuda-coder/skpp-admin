@@ -721,17 +721,17 @@ function InputBaru({ onClose, onSave, saving }) {
           <div className="form-group">
             <label>OPD / Instansi</label>
             <select
-            className="form-control"
-            value={editForm?.opd || ""}
-            onChange={(e) => setEditForm({ ...editForm, opd: e.target.value })}
-            required
+              className="form-control"
+              value={newForm?.opd || ""}
+              onChange={(e) => setNewForm({ ...newForm, opd: e.target.value })}
+              required
             >
-            <option value="">-- Pilih OPD / Instansi --</option>
-            {DAFTAR_OPD.map((opd, index) => (
-            <option key={index} value={opd}>
-            {opd}
-            </option>
-            ))}
+              <option value="">-- Pilih OPD / Instansi --</option>
+              {DAFTAR_OPD.map((opd, index) => (
+                <option key={index} value={opd}>
+                  {opd}
+                </option>
+              ))}
             </select>
           </div>
             <div className="form-group"><label className="form-label">Jabatan Terakhir</label><input className="form-control" value={form.jabatan} onChange={e=>set("jabatan",e.target.value)} /></div>
@@ -739,17 +739,17 @@ function InputBaru({ onClose, onSave, saving }) {
           <div className="form-group">
             <label>Pangkat / Golongan</label>
             <select
-            className="form-control"
-            value={editForm?.pangkat || ""}
-            onChange={(e) => setEditForm({ ...editForm, pangkat: e.target.value })}
-            required
+              className="form-control"
+              value={newForm?.pangkat || ""}
+              onChange={(e) => setNewForm({ ...newForm, pangkat: e.target.value })}
+              required
             >
-            <option value="">-- Pilih Pangkat / Golongan --</option>
-            {DAFTAR_PANGKAT.map((pangkat, index) => (
-            <option key={index} value={pangkat}>
-            {pangkat}
-            </option>
-            ))}
+              <option value="">-- Pilih Pangkat / Golongan --</option>
+              {DAFTAR_PANGKAT.map((pangkat, index) => (
+                <option key={index} value={pangkat}>
+                  {pangkat}
+                </option>
+              ))}
             </select>
           </div>
           <div className="grid-2">
