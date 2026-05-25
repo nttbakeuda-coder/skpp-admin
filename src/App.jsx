@@ -676,6 +676,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
                     nextStepId: nextStepId, 
                     catatan: catatan, 
                     isKembali: isKembali 
+                    isFinal: stepAktif.final === true
                     });
                     }}
                     >
