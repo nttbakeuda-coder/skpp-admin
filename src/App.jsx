@@ -35,7 +35,7 @@ const AKUN_STAF = [
 
 // ─── DATA TAHAPAN ─────────────────────────────────────────────────────────────
 const TAHAPAN_A = [
-  { id:"A1", label:"Berkas Diterima di Loket",      icon:"📥", pelaksana:"Staf Pengampuh OPD" },
+  { id:"A1", label:"Berkas Diterima di Loket",      icon:"📥", pelaksana:"Staf Loket" },
   { id:"A2", label:"Verifikasi Kelengkapan Berkas", icon:"🔍", pelaksana:"Staf Pengampuh OPD" },
   { id:"A3", label:"Verifikasi Data PNS",           icon:"👤", pelaksana:"Staf Pengampuh OPD" },
   { id:"A4", label:"Pembuatan Draft SKPP",          icon:"📝", pelaksana:"Penyusun SKPP" },
@@ -44,7 +44,7 @@ const TAHAPAN_A = [
   { id:"A7", label:"SKPP Siap Diserahkan",          icon:"🎉", pelaksana:"Staf Pengampuh OPD", final:true },
 ];
 const TAHAPAN_B = [
-  { id:"B1",  label:"Berkas Diterima di Loket",            icon:"📥", pelaksana:"Staf Pengampuh OPD" },
+  { id:"B1",  label:"Berkas Diterima di Loket",            icon:"📥", pelaksana:"Staf Loket" },
   { id:"B2",  label:"Verifikasi Kelengkapan Berkas",       icon:"🔍", pelaksana:"Staf Pengampuh OPD" },
   { id:"B3",  label:"Identifikasi Pangkat Pengabdian",     icon:"🏅", pelaksana:"Staf Pengampuh OPD" },
   { id:"B4",  label:"Perhitungan Kekurangan (SIMgaji)",    icon:"🖥️", pelaksana:"Operator SIMgaji" },
