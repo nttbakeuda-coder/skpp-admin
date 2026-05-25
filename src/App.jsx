@@ -172,7 +172,7 @@ function exportCSV(data) {
   const rows = data.map(p => [
     p.id, p.nama, p.nip, p.opd, p.jabatan, p.pangkat, p.alasan,
     p.jalur==="A"?"Tanpa Pangkat Pengabdian":"Ada Pangkat Pengabdian",
-    p.status==="selesai"?"Selesai":p.status==="kembali"?"Dikembalikan":"Diproses",
+    (p.status==="selesai"||getProgress(p)===100)?"Selesai":p.status==="kembali"?"Dikembalikan":"Diproses",
     getProgress(p)+"%", p.tanggalMasuk||"", p.tanggalSelesai||"", p.nomorSKPP||""
   ]);
   const csv = [headers,...rows].map(r=>r.map(c=>`"${(c||"").toString().replace(/"/g,'""')}"`).join(",")).join("\n");
@@ -527,9 +527,13 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
 }
 
 // ─── STATUS BADGE ─────────────────────────────────────────────────────────────
-function SBadge({ s }) {
-  if (s==="selesai") return <span className="badge badge-green">✓ Selesai</span>;
-  if (s==="kembali") return <span className="badge badge-amber">↩ Dikembalikan</span>;
+function SBadge({ s, p }) {
+  // Backwards-compatible: accept either status string via `s` or full pengajuan object via `p`
+  const status = s || (p && p.status) || "proses";
+  // If full object provided, prefer computed progress to determine finished state
+  const prog = p ? getProgress(p) : null;
+  if (prog === 100 || status === "selesai") return <span className="badge badge-green">✓ Selesai</span>;
+  if (status === "kembali") return <span className="badge badge-amber">↩ Dikembalikan</span>;
   return <span className="badge badge-blue">⟳ Diproses</span>;
 }
 
@@ -584,8 +588,8 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
             <div style={{ fontWeight:800, fontSize:17, color:"var(--navy)" }}>{p.nama}</div>
             <div style={{ fontSize:12, color:"var(--g500)", marginTop:2 }}>{p.opd} · {p.alasan} · {p.jalur==="A"?"Jalur A":"Jalur B"}</div>
           </div>
-          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-            <SBadge s={p.status} />
+            <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+            <SBadge p={p} />
             <button className="modal-close" onClick={onClose} disabled={saving}>✕</button>
           </div>
         </div>
@@ -635,7 +639,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
 
           {tab==="proses" && (
             <div>
-              {p.status==="selesai" ? (
+              {(p.status==="selesai"||prog===100) ? (
                 <div className="alert alert-green"><span>🎉</span><span>SKPP sudah selesai dan diserahkan. Tidak ada tahap yang perlu diupdate.</span></div>
               ) : stepAktif ? (
                 <div>
@@ -884,7 +888,12 @@ function InputBaru({ onClose, onSave, saving }) {
 
 // ─── HALAMAN DASHBOARD ────────────────────────────────────────────────────────
 function PageDashboard({ data, loading }) {
-  const s = { total:data.length, proses:data.filter(d=>d.status==="proses").length, selesai:data.filter(d=>d.status==="selesai").length, kembali:data.filter(d=>d.status==="kembali").length };
+  const s = {
+    total: data.length,
+    proses: data.filter(d => !(d.status==="selesai" || getProgress(d)===100) && d.status!=="kembali").length,
+    selesai: data.filter(d => d.status==="selesai" || getProgress(d)===100).length,
+    kembali: data.filter(d=>d.status==="kembali").length
+  };
   const bulanIni = data.filter(d => { const dt=new Date(d.tanggalMasuk); const n=new Date(); return dt.getMonth()===n.getMonth()&&dt.getFullYear()===n.getFullYear(); }).length;
   const byOPD = data.reduce((acc,p) => { acc[p.opd]=(acc[p.opd]||0)+1; return acc; }, {});
   const topOPD = Object.entries(byOPD).sort((a,b)=>b[1]-a[1]).slice(0,5);
@@ -950,7 +959,9 @@ function PagePengajuan({ data, loading, onRefresh, onDetail, onInputBaru, onExpo
   const filtered = data.filter(p => {
     const q = search.toLowerCase();
     const ms = !q||p.id?.toLowerCase().includes(q)||p.nama?.toLowerCase().includes(q)||p.nip?.toString().includes(q)||p.opd?.toLowerCase().includes(q);
-    const mf = filterStatus==="semua"||p.status===filterStatus;
+    const mf = filterStatus==="semua" || (
+      filterStatus==="selesai" ? (p.status==="selesai"||getProgress(p)===100) : p.status===filterStatus
+    );
     const mj = filterJalur==="semua"||p.jalur===filterJalur;
     return ms&&mf&&mj;
   });
@@ -1013,7 +1024,7 @@ function PagePengajuan({ data, loading, onRefresh, onDetail, onInputBaru, onExpo
                           <span style={{fontSize:11,fontWeight:700,color:"var(--g500)",minWidth:28}}>{prog}%</span>
                         </div>
                       </td>
-                      <td><SBadge s={p.status} /></td>
+                      <td><SBadge p={p} /></td>
                       <td style={{fontSize:12,color:"var(--g500)",whiteSpace:"nowrap"}}>{p.tanggalMasuk}</td>
                     </tr>
                   );
@@ -1030,7 +1041,7 @@ function PagePengajuan({ data, loading, onRefresh, onDetail, onInputBaru, onExpo
 
 // ─── HALAMAN RIWAYAT / ARSIP ──────────────────────────────────────────────────
 function PageRiwayat({ data, loading, onDetail }) {
-  const selesai = data.filter(d=>d.status==="selesai");
+  const selesai = data.filter(d=>d.status==="selesai"||getProgress(d)===100);
   const [search, setSearch] = useState("");
   const filtered = selesai.filter(p => {
     const q=search.toLowerCase();
@@ -1210,7 +1221,23 @@ export default function App() {
       const res = await apiPost({ action:"updateTahap", data:updateData });
       if (res.ok) {
         showToast(updateData.isKembali?"↩ Berkas dikembalikan":"✓ Tahap berhasil diperbarui");
+        // refresh list first
         await load();
+
+        // Jika nextStepId kosong, berarti tahap terakhir telah diselesaikan — beri tahu server untuk menandai selesai
+        if (updateData.nextStepId === "") {
+          try {
+            const tanggalSelesai = new Date().toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"});
+            const mark = await apiPost({ action: "setSelesai", id: updateData.pengajuanId, tanggalSelesai });
+            if (mark.ok) {
+              showToast("✓ Pengajuan ditandai Selesai pada server");
+              await load();
+            }
+          } catch (e) {
+            console.warn("Gagal menandai selesai:", e);
+          }
+        }
+
         const refreshed = await apiGet({ action:"detail", id:updateData.pengajuanId });
         if(refreshed.ok) setSelected(norm(refreshed.data));
       } else alert("Gagal: "+res.pesan);
