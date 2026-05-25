@@ -700,127 +700,6 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
   );
 }
 
-// ─── SEARCHABLE SELECT ────────────────────────────────────────────────────────
-function SearchableSelect({ label, value, onChange, options, placeholder = "-- Pilih --" }) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const ref = useRef(null);
-  const inputRef = useRef(null);
-
-  const filtered = options.filter(o => o.toLowerCase().includes(query.toLowerCase()));
-
-  useEffect(() => {
-    function handleClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  useEffect(() => {
-    if (open && inputRef.current) inputRef.current.focus();
-  }, [open]);
-
-  const select = (opt) => {
-    onChange(opt);
-    setQuery("");
-    setOpen(false);
-  };
-
-  const clear = (e) => {
-    e.stopPropagation();
-    onChange("");
-    setQuery("");
-  };
-
-  return (
-    <div className="form-group" ref={ref} style={{ position: "relative" }}>
-      {label && <label className="form-label">{label}</label>}
-      {/* Trigger */}
-      <div
-        onClick={() => setOpen(o => !o)}
-        style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "9px 12px", border: `1.5px solid ${open ? "var(--blue2)" : "var(--g200)"}`,
-          borderRadius: "var(--rs)", background: "white", cursor: "pointer",
-          fontSize: 13, color: value ? "var(--g800)" : "var(--g400)",
-          userSelect: "none", transition: "border-color .15s",
-        }}
-      >
-        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {value || placeholder}
-        </span>
-        <span style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, marginLeft: 6 }}>
-          {value && (
-            <span
-              onClick={clear}
-              style={{ color: "var(--g400)", fontSize: 14, lineHeight: 1, padding: "0 2px", borderRadius: 4 }}
-              title="Hapus pilihan"
-            >✕</span>
-          )}
-          <span style={{ color: "var(--g400)", fontSize: 10, transition: "transform .15s", display: "inline-block", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>▼</span>
-        </span>
-      </div>
-
-      {/* Dropdown panel */}
-      {open && (
-        <div style={{
-          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 2000,
-          background: "white", border: "1.5px solid var(--g200)", borderRadius: "var(--rs)",
-          boxShadow: "0 8px 24px rgba(0,0,0,.12)", overflow: "hidden",
-        }}>
-          {/* Search input */}
-          <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--g100)", display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ color: "var(--g400)", fontSize: 13 }}>🔍</span>
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Ketik untuk mencari..."
-              style={{
-                flex: 1, border: "none", outline: "none", fontSize: 13,
-                fontFamily: "var(--font)", color: "var(--g800)", background: "transparent",
-              }}
-            />
-            {query && (
-              <span onClick={() => setQuery("")} style={{ color: "var(--g400)", cursor: "pointer", fontSize: 13 }}>✕</span>
-            )}
-          </div>
-          {/* Options list */}
-          <div style={{ maxHeight: 220, overflowY: "auto" }}>
-            {filtered.length === 0 ? (
-              <div style={{ padding: "12px 14px", fontSize: 12, color: "var(--g400)", textAlign: "center" }}>
-                Tidak ditemukan
-              </div>
-            ) : filtered.map((opt, i) => (
-              <div
-                key={i}
-                onClick={() => select(opt)}
-                style={{
-                  padding: "9px 14px", fontSize: 13, cursor: "pointer",
-                  background: value === opt ? "var(--blue-pale)" : "white",
-                  color: value === opt ? "var(--blue)" : "var(--g800)",
-                  fontWeight: value === opt ? 600 : 400,
-                  borderLeft: value === opt ? "3px solid var(--blue)" : "3px solid transparent",
-                  transition: "background .1s",
-                }}
-                onMouseEnter={e => { if (value !== opt) e.currentTarget.style.background = "var(--g50)"; }}
-                onMouseLeave={e => { if (value !== opt) e.currentTarget.style.background = "white"; }}
-              >
-                {opt}
-              </div>
-            ))}
-          </div>
-          {/* Count info */}
-          <div style={{ padding: "5px 14px", borderTop: "1px solid var(--g100)", fontSize: 11, color: "var(--g400)" }}>
-            {filtered.length} dari {options.length} pilihan
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── INPUT BARU ───────────────────────────────────────────────────────────────
 function InputBaru({ onClose, onSave, saving }) {
   const [form, setForm] = useState({ nama:"", nip:"", opd:"", jabatan:"", pangkat:"", alasan:"Pensiun", jalur:"A" });
@@ -838,22 +717,34 @@ function InputBaru({ onClose, onSave, saving }) {
             <div className="form-group"><label className="form-label">NIP *</label><input className="form-control" value={form.nip} onChange={e=>set("nip",e.target.value)} placeholder="18 digit" style={{fontFamily:"var(--mono)"}} /></div>
           </div>
           <div className="grid-2">
-            <SearchableSelect
-              label="OPD / Instansi *"
+          <div className="form-group">
+            <label className="form-label">OPD / Instansi *</label>
+            <select
+              className="form-control"
               value={form.opd}
-              onChange={v => set("opd", v)}
-              options={DAFTAR_OPD}
-              placeholder="-- Pilih OPD / Instansi --"
-            />
+              onChange={(e) => set("opd", e.target.value)}
+            >
+              <option value="">-- Pilih OPD / Instansi --</option>
+              {DAFTAR_OPD.map((opd, index) => (
+                <option key={index} value={opd}>{opd}</option>
+              ))}
+            </select>
+          </div>
             <div className="form-group"><label className="form-label">Jabatan Terakhir</label><input className="form-control" value={form.jabatan} onChange={e=>set("jabatan",e.target.value)} /></div>
           </div>
-          <SearchableSelect
-            label="Pangkat / Golongan"
-            value={form.pangkat}
-            onChange={v => set("pangkat", v)}
-            options={DAFTAR_PANGKAT}
-            placeholder="-- Pilih Pangkat / Golongan --"
-          />
+          <div className="form-group">
+            <label className="form-label">Pangkat / Golongan *</label>
+            <select
+              className="form-control"
+              value={form.pangkat}
+              onChange={(e) => set("pangkat", e.target.value)}
+            >
+              <option value="">-- Pilih Pangkat / Golongan --</option>
+              {DAFTAR_PANGKAT.map((pangkat, index) => (
+                <option key={index} value={pangkat}>{pangkat}</option>
+              ))}
+            </select>
+          </div>
           <div className="grid-2">
             <div className="form-group">
               <label className="form-label">Keperluan SKPP</label>
