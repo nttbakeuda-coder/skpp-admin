@@ -592,15 +592,36 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
                     <input type="checkbox" checked={isKembali} readOnly style={{width:15,height:15}} />
                     <div><div style={{fontWeight:700,fontSize:13,color:"#92400e"}}>Kembalikan Berkas</div><div style={{fontSize:11,color:"#b45309"}}>Berkas tidak lengkap/sesuai, perlu dikembalikan ke pemohon</div></div>
                   </div>
-                  <button 
-                     className="btn" 
-                     style={{ width:"100%", justifyContent:"center", background: isKembali ? "var(--red)" : "var(--blue)", color:"white", opacity: !cekIzinProses(user?.role, stepAktif.pelaksana) ? 0.6 : 1 }}
-                     disabled={saving || !cekIzinProses(user?.role, stepAktif.pelaksana)}
-                     onClick={()=>onUpdate({ pengajuanId:p.id, stepId:stepAktif.id, nextStepId: nextStepId, catatan:catatan, isKembali:isKembali })}
-                     >
-                     {saving ? "⏳ Menyimpan..." : 
-                     !cekIzinProses(user?.role, stepAktif.pelaksana) ? `🔒 Khusus: ${stepAktif.pelaksana}` :
-                     isKembali ? "↩ Kembalikan Berkas" : "✔ Tandai Tahap Ini Selesai"}
+                  <button
+                    className="btn"
+                    style={{ 
+                    width: "100%", 
+                    justifyContent: "center", 
+                    background: isKembali ? "var(--red)" : "var(--blue)", 
+                    color: "white", 
+                    opacity: !cekIzinProses(user?.role, stepAktif.pelaksana) ? 0.6 : 1 
+                    }}
+                    disabled={saving || !cekIzinProses(user?.role, stepAktif.pelaksana)}
+                    onClick={() => {
+                    // 1. Cari tahu posisi nomor urut tahap aktif saat ini
+                    const indexSaatIni = tahapan.findIndex(t => t.id === stepAktif.id);
+    
+                    // 2. Tentukan ID tahap selanjutnya (misal: dari B1 ke B2)
+                    const nextStepId = indexSaatIni < tahapan.length - 1 ? tahapan[indexSaatIni + 1].id : "";
+    
+                    // 3. Jalankan fungsi update dengan membawa data lengkap
+                    onUpdate({ 
+                    pengajuanId: p.id, 
+                    stepId: stepAktif.id, 
+                    nextStepId: nextStepId, 
+                    catatan: catatan, 
+                    isKembali: isKembali 
+                    });
+                    }}
+                    >
+                    {saving ? "⏳ Menyimpan..." : 
+                    !cekIzinProses(user?.role, stepAktif.pelaksana) ? `🔒 Khusus: ${stepAktif.pelaksana}` : 
+                    isKembali ? "↩ Kembalikan Berkas" : "✔ Tandai Tahap Ini Selesai"}
                   </button>
                 </div>
               ) : (
