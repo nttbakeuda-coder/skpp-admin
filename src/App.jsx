@@ -1,30 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
-// ============================================================
-//  GANTI URL INI dengan URL deployment Apps Script Anda
-// ============================================================
-const API_URL = "https://script.google.com/macros/s/AKfycbxdSGg9F6P4FpNJsr3jhVklVKTqxFjepQbs4mHblDDv2ySMXD8nkZfrhMcEgz8IcPOoeA/exec";
-
-// URL halaman tanda terima (sesuaikan dengan URL deploy Anda)
-const TANDA_TERIMA_URL = "/tanda_terima_SKPP.html";
-
-// Fungsi cetak tanda terima — buka di tab baru dengan data via URL params
-function cetakTandaTerima(p) {
-  const params = new URLSearchParams({
-    id:      p.id      || "",
-    kode:    p.kodeAkses || "",
-    nama:    p.nama    || "",
-    nip:     p.nip     || "",
-    jabatan: p.jabatan || "",
-    pangkat: p.pangkat || "",
-    opd:     p.opd     || "",
-    alasan:  p.alasan  || "",
-    jalur:   p.jalur   || "A",
-    tgl:     p.tanggalMasuk || "",
-  });
-  window.open(`${TANDA_TERIMA_URL}?${params.toString()}`, "_blank");
-}
-
 const DAFTAR_OPD = [
   "Dinas Pendidikan dan Kebudayaan Provinsi NTT",
   "Dinas Kesehatan Provinsi NTT",
@@ -81,6 +56,30 @@ const DAFTAR_PANGKAT = [
   "Pembina Utama Madya / IV-d",
   "Pembina Utama / IV-e"
 ];
+// ============================================================
+//  GANTI URL INI dengan URL deployment Apps Script Anda
+// ============================================================
+const API_URL = "https://script.google.com/macros/s/AKfycbxdSGg9F6P4FpNJsr3jhVklVKTqxFjepQbs4mHblDDv2ySMXD8nkZfrhMcEgz8IcPOoeA/exec";
+
+// URL halaman tanda terima (sesuaikan dengan URL deploy Anda)
+const TANDA_TERIMA_URL = "/tanda_terima_SKPP.html";
+
+// Fungsi cetak tanda terima — buka di tab baru dengan data via URL params
+function cetakTandaTerima(p) {
+  const params = new URLSearchParams({
+    id:      p.id      || "",
+    kode:    p.kodeAkses || "",
+    nama:    p.nama    || "",
+    nip:     p.nip     || "",
+    jabatan: p.jabatan || "",
+    pangkat: p.pangkat || "",
+    opd:     p.opd     || "",
+    alasan:  p.alasan  || "",
+    jalur:   p.jalur   || "A",
+    tgl:     p.tanggalMasuk || "",
+  });
+  window.open(`${TANDA_TERIMA_URL}?${params.toString()}`, "_blank");
+}
 
 // ─── DATA TAHAPAN ─────────────────────────────────────────────────────────────
 const TAHAPAN_A = [
