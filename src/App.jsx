@@ -452,7 +452,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak }) {
           <div className="tabs">
             {["info","proses","riwayat"].map(t => (
               <div key={t} className={`tab ${tab===t?"active":""}`} onClick={()=>setTab(t)}>
-                {t==="info"?"Informasi PNS":t==="proses"?"Update Proses":"Riwayat Lengkap"}
+                {t==="info"?"Data Pegawai":t==="proses"?"Update Proses":"Riwayat Lengkap"}
               </div>
             ))}
           </div>
@@ -686,7 +686,7 @@ function PagePengajuan({ data, loading, onRefresh, onDetail, onInputBaru, onExpo
             <table>
               <thead>
                 <tr>
-                  <th>No. Pengajuan</th><th>Nama PNS</th><th>NIP</th><th>OPD</th>
+                  <th>No. Pengajuan</th><th>Nama Pegawai</th><th>NIP</th><th>OPD</th>
                   <th>Keperluan</th><th>Jalur</th><th style={{width:130}}>Progress</th>
                   <th>Status</th><th>Tgl Masuk</th>
                 </tr>
