@@ -39,9 +39,9 @@ const TAHAPAN_A = [
   { id:"A2", label:"Verifikasi Kelengkapan Berkas", icon:"🔍", pelaksana:"Staf Pengampuh OPD" },
   { id:"A3", label:"Verifikasi Data PNS",           icon:"👤", pelaksana:"Staf Pengampuh OPD" },
   { id:"A4", label:"Pembuatan Draft SKPP",          icon:"📝", pelaksana:"Penyusun SKPP" },
-  { id:"A5", label:"Pemeriksaan & Paraf Kasubid",   icon:"✅", pelaksana:"Staf Pengampuh OPD → Kasubid" },
-  { id:"A6", label:"Penempelan Foto & Penomoran",   icon:"📸", pelaksana:"Staf Perbendaharaan" },
-  { id:"A7", label:"SKPP Siap Diserahkan",          icon:"🎉", pelaksana:"Staf Pengampuh OPD", final:true },
+  { id:"A5", label:"Verifikasi & Proses Tanda Tangan Pimpinan",   icon:"✅", pelaksana:"Staf Pengampuh OPD → Kasubid → Kuasa BUD" },
+  { id:"A6", label:"Penempelan Foto & Penomoran",   icon:"📸", pelaksana:"Staf Loket" },
+  { id:"A7", label:"SKPP Siap Diserahkan",          icon:"🎉", pelaksana:"Staf Loket", final:true },
 ];
 const TAHAPAN_B = [
   { id:"B1",  label:"Berkas Diterima di Loket",            icon:"📥", pelaksana:"Staf Loket" },
@@ -52,9 +52,9 @@ const TAHAPAN_B = [
   { id:"B6",  label:"SPP-SPM Diterima dari OPD",          icon:"📋", pelaksana:"Staf Perbendaharaan" },
   { id:"B7",  label:"Proses SP2D Kekurangan Pangkat",     icon:"💳", pelaksana:"Staf Perbendaharaan" },
   { id:"B8",  label:"Pembuatan Draft SKPP",               icon:"📝", pelaksana:"Penyusun SKPP" },
-  { id:"B9",  label:"Pemeriksaan & Paraf Kasubid",        icon:"✅", pelaksana:"Staf Pengampuh OPD → Kasubid" },
-  { id:"B10", label:"Penempelan Foto & Penomoran",        icon:"📸", pelaksana:"Staf Perbendaharaan" },
-  { id:"B11", label:"SKPP Siap Diserahkan",               icon:"🎉", pelaksana:"Staf Pengampuh OPD", final:true },
+  { id:"B9",  label:"Verifikasi & Proses Tanda Tangan Pimpinan",        icon:"✅", pelaksana:"Staf Pengampuh OPD → Kasubid → Kuasa BUD" },
+  { id:"B10", label:"Penempelan Foto & Penomoran",        icon:"📸", pelaksana:"Staf Loket" },
+  { id:"B11", label:"SKPP Siap Diserahkan",               icon:"🎉", pelaksana:"Staf Loket", final:true },
 ];
 
 // ─── API ──────────────────────────────────────────────────────────────────────
