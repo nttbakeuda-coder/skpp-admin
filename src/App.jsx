@@ -404,13 +404,18 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
       </div>
       <div className="sidebar-nav">
         <div className="nav-section">Menu Utama</div>
-        {items.map(it => (
-          <div key={it.id} className={`nav-item ${active===it.id?"active":""}`} onClick={()=>onChange(it.id)}>
-            <span className="ni">{it.icon}</span>
-            <span style={{ flex:1 }}>{it.label}</span>
-            {it.badge>0 && <span className="nav-badge">{it.badge}</span>}
-          </div>
-        ))}
+        {items.map(it => {
+        // JIKA yang login adalah "staf" (Staf Pengampuh OPD), SEMBUNYIKAN menu Input Baru
+        if (user.role === "staf" && it.id === "input") return null;
+  
+        return (
+         <div key={it.id} className={`nav-item ${active===it.id?"active":""}`} onClick={()=>onChange(it.id)}>
+          <span className="ni">{it.icon}</span>
+          <span style={{ flex: 1 }}>{it.label}</span>
+          {it.badge > 0 && <span className="nav-badge">{it.badge}</span>}
+         </div>
+          );
+        })}
         {user.role === "admin" && (
           <>
             <div className="nav-section">Administrasi</div>
