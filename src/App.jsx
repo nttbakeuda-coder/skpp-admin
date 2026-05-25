@@ -48,6 +48,41 @@ const TAHAPAN_B = [
   { id:"B10", label:"Penempelan Foto & Penomoran",        icon:"📸", pelaksana:"Staf Loket" },
   { id:"B11", label:"SKPP Siap Diserahkan",               icon:"🎉", pelaksana:"Staf Loket", final:true },
 ];
+const cekIzinProses = (userRole, pelaksanaTahapan) => {
+  // 1. Admin selalu punya akses penuh
+  if (userRole === "admin") return true;
+
+  // 2. Mengakomodir Staf Perbendaharaan & Kerja Sama Bersama (Simultan)
+  if (
+    pelaksanaTahapan === "Staf Perbendaharaan" || 
+    pelaksanaTahapan === "Operator / Staf Perbendaharaan"
+  ) {
+    return userRole === "operator" || userRole === "staf";
+  }
+
+  // 3. Khusus Operator / Staf Loket
+  if (
+    pelaksanaTahapan === "Staf Loket" || 
+    pelaksanaTahapan === "Operator SIMgaji"
+  ) {
+    return userRole === "operator";
+  }
+
+  // 4. Khusus Staf Pengampuh OPD / Penyusun SKPP
+  if (
+    pelaksanaTahapan === "Staf Pengampuh OPD" || 
+    pelaksanaTahapan === "Penyusun SKPP"
+  ) {
+    return userRole === "staf";
+  }
+
+  // 5. Mengakomodir tahapan multi-level (Kasubid & Kuasa BUD)
+  if (pelaksanaTahapan?.includes("Kasubid") || pelaksanaTahapan?.includes("Kuasa BUD")) {
+    return userRole === "staf" || userRole === "admin";
+  }
+
+  return false;
+};
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 async function apiGet(params) {
@@ -477,7 +512,7 @@ function Timeline({ p }) {
 }
 
 // ─── DETAIL MODAL ─────────────────────────────────────────────────────────────
-function DetailModal({ p, onClose, onUpdate, saving, onCetak }) {
+function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
   const [tab, setTab] = useState("info");
   const [catatan, setCatatan] = useState("");
   const [isKembali, setIsKembali] = useState(false);
@@ -557,9 +592,15 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak }) {
                     <input type="checkbox" checked={isKembali} readOnly style={{width:15,height:15}} />
                     <div><div style={{fontWeight:700,fontSize:13,color:"#92400e"}}>Kembalikan Berkas</div><div style={{fontSize:11,color:"#b45309"}}>Berkas tidak lengkap/sesuai, perlu dikembalikan ke pemohon</div></div>
                   </div>
-                  <button className="btn" style={{ width:"100%", justifyContent:"center", background:isKembali?"#d97706":"var(--green)", color:"white" }} disabled={saving}
-                    onClick={()=>onUpdate({ pengajuanId:p.id, stepId:stepAktif.id, catatan:catatan||stepAktif.pelaksana, isKembali, jalur:p.jalur, isFinal:stepAktif.final||false, nextStepId:(tahapan[tahapan.findIndex(t=>t.id===stepAktif.id)+1]?.id||"") })}>
-                    {saving?"⟳ Menyimpan...":isKembali?"↩ Kembalikan Berkas":"✓ Tandai Tahap Ini Selesai"}
+                  <button 
+                     className="btn" 
+                     style={{ width:"100%", justifyContent:"center", background: isKembali ? "var(--red)" : "var(--blue)", color:"white", opacity: !cekIzinProses(user?.role, stepAktif.pelaksana) ? 0.6 : 1 }}
+                     disabled={saving || !cekIzinProses(user?.role, stepAktif.pelaksana)}
+                     onClick={()=>onUpdate({ pengajuanId:p.id, stepId:stepAktif.id, catatan:catatan, isKembali:isKembali })}
+                     >
+                     {saving ? "⏳ Menyimpan..." : 
+                     !cekIzinProses(user?.role, stepAktif.pelaksana) ? `🔒 Khusus: ${stepAktif.pelaksana}` :
+                     isKembali ? "↩ Kembalikan Berkas" : "✔ Tandai Tahap Ini Selesai"}
                   </button>
                 </div>
               ) : (
@@ -1014,7 +1055,7 @@ export default function App() {
 
       {selected && (
         <DetailModal p={selected} onClose={()=>setSelected(null)} onUpdate={handleUpdate} saving={saving}
-          onCetak={() => cetakTandaTerima(selected)} />
+          onCetak={() => cetakTandaTerima(selected)} user={user} />
       )}
       {(showInput || page==="input") && (
         <InputBaru onClose={()=>{ setShowInput(false); if(page==="input") setPage("pengajuan"); }} onSave={handleInputBaru} saving={saving} />
