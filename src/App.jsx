@@ -606,7 +606,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
             <div>
               <div style={{ background:"var(--g50)", borderRadius:10, padding:"14px 16px", marginBottom:16 }}>
                 <div className="grid-2" style={{ gap:8 }}>
-                  {[["NIP", p.nip, true],["Jabatan",p.jabatan],["Pangkat",p.pangkat],["Keperluan",p.alasan],["Tgl Masuk",p.tanggalMasuk],["Est. Selesai",p.estimasiSelesai]].map(([l,v,mono])=>(
+                  {[["NIP", p.nip, true],["Jabatan",p.jabatan],["Pangkat",p.pangkat],["Keperluan",p.alasan],["Tgl Masuk",p.tanggalMasuk],[p.status==="selesai"?"Tgl Selesai":"Est. Selesai", p.status==="selesai"?p.tanggalSelesai:p.estimasiSelesai]].map(([l,v,mono])=>(
                     <div key={l} className="info-row">
                       <span className="info-lbl">{l}</span>
                       <span className="info-val" style={mono?{fontFamily:"var(--mono)",fontSize:12}:{}}>{v||"-"}</span>
