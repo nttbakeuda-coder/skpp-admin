@@ -398,7 +398,7 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
         <div className="sidebar-user-role">{user.opd}</div>
         <div style={{ marginTop:6 }}>
           <span className={`badge ${user.role==="admin"?"badge-purple":user.role==="operator"?"badge-amber":"badge-blue"}`}>
-            {user.role==="admin"?"Admin":user.role==="operator"?"Staf Loket":"Staf"}
+            {user.role==="admin"?"Admin":user.role==="operator"?"Staf Loket":"Staf Pengampuh OPD"}
           </span>
         </div>
       </div>
