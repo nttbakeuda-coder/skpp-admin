@@ -391,14 +391,14 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
       <div className="sidebar-brand">
         <div className="sidebar-logo">📄</div>
         <div className="sidebar-title">SKPP Tracker Admin</div>
-        <div className="sidebar-sub">Bidang Perbendaharaan – BPKD</div>
+        <div className="sidebar-sub">Bidang Perbendaharaan – Badan Keuangan Daerah Provinsi NTT</div>
       </div>
       <div className="sidebar-user">
         <div className="sidebar-user-name">{user.nama}</div>
         <div className="sidebar-user-role">{user.opd}</div>
         <div style={{ marginTop:6 }}>
           <span className={`badge ${user.role==="admin"?"badge-purple":user.role==="operator"?"badge-amber":"badge-blue"}`}>
-            {user.role==="admin"?"Admin":user.role==="operator"?"Operator SIMgaji":"Staf"}
+            {user.role==="admin"?"Admin":user.role==="operator"?"Staf Loket":"Staf"}
           </span>
         </div>
       </div>
