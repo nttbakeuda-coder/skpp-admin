@@ -25,14 +25,6 @@ function cetakTandaTerima(p) {
   window.open(`${TANDA_TERIMA_URL}?${params.toString()}`, "_blank");
 }
 
-// ─── AKUN STAF (simpan di sini atau nanti bisa dari Google Sheets) ───────────
-const AKUN_STAF = [
-  { id: "1", username: "admin",    password: "admin123",   nama: "Administrator",         role: "admin",  opd: "Semua OPD" },
-  { id: "2", username: "budi",     password: "budi123",    nama: "Budi Santoso, S.AP.",   role: "staf",   opd: "Pengampuh Dinas Pendidikan" },
-  { id: "3", username: "sari",     password: "sari123",    nama: "Sari Dewi, A.Md.",      role: "staf",   opd: "Pengampuh Dinas PU & Setda" },
-  { id: "4", username: "operator", password: "op123",      nama: "Rudi Hartono",          role: "operator", opd: "Operator SIMgaji" },
-];
-
 // ─── DATA TAHAPAN ─────────────────────────────────────────────────────────────
 const TAHAPAN_A = [
   { id:"A1", label:"Berkas Diterima di Loket",      icon:"📥", pelaksana:"Staf Loket" },
@@ -298,33 +290,86 @@ function Toast({ msg, onDone }) {
 
 // ─── LOGIN ───────────────────────────────────────────────────────────────────
 function Login({ onLogin }) {
-  const [user, setUser] = useState(""); const [pass, setPass] = useState(""); const [err, setErr] = useState("");
-  const submit = () => {
-    const found = AKUN_STAF.find(a => a.username === user.trim() && a.password === pass);
-    if (found) { setErr(""); onLogin(found); }
-    else setErr("Username atau password salah.");
+  const [user, setUser] = useState("");
+  const [pass, setPass] = useState("");
+  const [err, setErr] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const submit = async () => {
+    if (!user.trim() || !pass) {
+      setErr("Username dan password wajib diisi.");
+      return;
+    }
+
+    setIsLoggingIn(true);
+    setErr("");
+
+    try {
+      // Mengirim request login ke backend Apps Script yang terhubung ke Google Sheets
+      // Pastikan fungsi 'apiPost' sudah tersedia di dalam kod anda untuk menghantar data
+      const res = await apiPost({ 
+        action: "login", 
+        username: user.trim(), 
+        password: pass 
+      });
+
+      if (res && res.ok) {
+        localStorage.setItem("isLoggedIn", "true");
+        localStorage.setItem("namaStaf", res.nama);
+        localStorage.setItem("roleStaf", res.role);
+        
+        // Memanggil fungsi onLogin bawaan aplikasi untuk masuk ke dashboard
+        onLogin({ username: user.trim(), nama: res.nama, role: res.role });
+      } else {
+        setErr(res.pesan || "Username atau password salah.");
+      }
+    } catch (e) {
+      setErr("Gagal terhubung ke server database.");
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
+
   return (
     <div className="login-bg">
       <div className="login-card">
-        <div className="login-logo">📄</div>
-        <div style={{ fontWeight:800, fontSize:22, color:"var(--navy)", marginBottom:4 }}>SKPP Admin</div>
-        <div style={{ fontSize:13, color:"var(--g500)", marginBottom:28 }}>Bidang Perbendaharaan – BPKD</div>
-        {err && <div className="alert alert-red" style={{ marginBottom:14 }}><span>⚠️</span><span>{err}</span></div>}
+        <div className="login-logo">📁</div>
+        <div style={{ fontWeight: 800, fontSize: 22, color: "var(--navy)", marginBottom: 4 }}>SKPP Admin</div>
+        <div style={{ fontSize: 13, color: "var(--g500)", marginBottom: 28 }}>Bidang Perbendaharaan BKD NTT</div>
+        
+        {err && <div className="alert alert-red" style={{ marginBottom: 14 }}><span>⚠️</span> <span>{err}</span></div>}
+        
         <div className="form-group">
           <label className="form-label">Username</label>
-          <input className="form-control" value={user} onChange={e=>setUser(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} placeholder="Masukkan username" autoFocus />
+          <input 
+            className="form-control" 
+            value={user} 
+            onChange={e => setUser(e.target.value)} 
+            onKeyDown={e => e.key === "Enter" && submit()}
+            disabled={isLoggingIn}
+          />
         </div>
-        <div className="form-group" style={{ marginBottom:20 }}>
+        
+        <div className="form-group" style={{ marginBottom: 20 }}>
           <label className="form-label">Password</label>
-          <input className="form-control" type="password" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} placeholder="Masukkan password" />
+          <input 
+            type="password" 
+            className="form-control" 
+            value={pass} 
+            onChange={e => setPass(e.target.value)} 
+            onKeyDown={e => e.key === "Enter" && submit()}
+            disabled={isLoggingIn}
+          />
         </div>
-        <button className="btn btn-primary" style={{ width:"100%", justifyContent:"center", padding:"11px" }} onClick={submit}>
-          Masuk ke Dashboard →
+        
+        <button 
+          className="btn btn-primary" 
+          style={{ width: "100%", justifyContent: "center", padding: 12, cursor: isLoggingIn ? "wait" : "pointer", opacity: isLoggingIn ? 0.7 : 1 }}
+          onClick={submit}
+          disabled={isLoggingIn}
+        >
+          {isLoggingIn ? "Memeriksa Akun..." : "Masuk ke Dashboard →"}
         </button>
-        <div style={{ marginTop:20, padding:12, background:"var(--g50)", borderRadius:8, fontSize:11, color:"var(--g500)" }}>
-          <strong>Demo:</strong> admin/admin123 · budi/budi123 · sari/sari123 · operator/op123
-        </div>
       </div>
     </div>
   );
