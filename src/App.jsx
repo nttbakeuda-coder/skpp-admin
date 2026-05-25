@@ -718,36 +718,30 @@ function InputBaru({ onClose, onSave, saving }) {
           </div>
           <div className="grid-2">
           <div className="form-group">
-            <label>OPD / Instansi</label>
+            <label className="form-label">OPD / Instansi *</label>
             <select
               className="form-control"
-              value={newForm?.opd || ""}
-              onChange={(e) => setNewForm({ ...newForm, opd: e.target.value })}
-              required
+              value={form.opd}
+              onChange={(e) => set("opd", e.target.value)}
             >
               <option value="">-- Pilih OPD / Instansi --</option>
               {DAFTAR_OPD.map((opd, index) => (
-                <option key={index} value={opd}>
-                  {opd}
-                </option>
+                <option key={index} value={opd}>{opd}</option>
               ))}
             </select>
           </div>
             <div className="form-group"><label className="form-label">Jabatan Terakhir</label><input className="form-control" value={form.jabatan} onChange={e=>set("jabatan",e.target.value)} /></div>
           </div>
           <div className="form-group">
-            <label>Pangkat / Golongan</label>
+            <label className="form-label">Pangkat / Golongan *</label>
             <select
               className="form-control"
-              value={newForm?.pangkat || ""}
-              onChange={(e) => setNewForm({ ...newForm, pangkat: e.target.value })}
-              required
+              value={form.pangkat}
+              onChange={(e) => set("pangkat", e.target.value)}
             >
               <option value="">-- Pilih Pangkat / Golongan --</option>
               {DAFTAR_PANGKAT.map((pangkat, index) => (
-                <option key={index} value={pangkat}>
-                  {pangkat}
-                </option>
+                <option key={index} value={pangkat}>{pangkat}</option>
               ))}
             </select>
           </div>
