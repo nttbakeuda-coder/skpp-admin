@@ -596,7 +596,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
                      className="btn" 
                      style={{ width:"100%", justifyContent:"center", background: isKembali ? "var(--red)" : "var(--blue)", color:"white", opacity: !cekIzinProses(user?.role, stepAktif.pelaksana) ? 0.6 : 1 }}
                      disabled={saving || !cekIzinProses(user?.role, stepAktif.pelaksana)}
-                     onClick={()=>onUpdate({ pengajuanId:p.id, stepId:stepAktif.id, catatan:catatan, isKembali:isKembali })}
+                     onClick={()=>onUpdate({ pengajuanId:p.id, stepId:stepAktif.id, nextStepId: nextStepId, catatan:catatan, isKembali:isKembali })}
                      >
                      {saving ? "⏳ Menyimpan..." : 
                      !cekIzinProses(user?.role, stepAktif.pelaksana) ? `🔒 Khusus: ${stepAktif.pelaksana}` :
