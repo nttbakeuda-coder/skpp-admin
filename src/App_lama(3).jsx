@@ -576,8 +576,6 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
   const [tab, setTab] = useState("info");
   const [catatan, setCatatan] = useState("");
   const [isKembali, setIsKembali] = useState(false);
-  const [nomorUrut, setNomorUrut] = useState("");
-  const isPenomoran = (stepId) => stepId === "A6" || stepId === "B10";
   const tahapan = p.jalur==="A" ? TAHAPAN_A : TAHAPAN_B;
   const stepAktif = tahapan.find(t => t.id === p.tahapAktif && !p.tahapSelesai.includes(t.id));
   const prog = getProgress(p);
@@ -608,23 +606,13 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
             <div>
               <div style={{ background:"var(--g50)", borderRadius:10, padding:"14px 16px", marginBottom:16 }}>
                 <div className="grid-2" style={{ gap:8 }}>
-                  {[
-                    ["NIP", p.nip, true],
-                    ["Jabatan", p.jabatan],
-                    ["Pangkat", p.pangkat],
-                    ["Keperluan", p.alasan],
-                    ["Kasubid", p.kasubid],
-                    ["Tgl Masuk", p.tanggalMasuk],
-                    [p.status==="selesai" ? "Tgl Selesai" : "Est. Selesai", p.status==="selesai" ? p.tanggalSelesai : p.estimasiSelesai],
-                  ].map(([l,v,mono])=>(
+                  {[["NIP", p.nip, true],["Jabatan",p.jabatan],["Pangkat",p.pangkat],["Keperluan",p.alasan],["Tgl Masuk",p.tanggalMasuk],[p.status==="selesai"?"Tgl Selesai":"Est. Selesai", p.status==="selesai"?p.tanggalSelesai:p.estimasiSelesai]].map(([l,v,mono])=>(
                     <div key={l} className="info-row">
                       <span className="info-lbl">{l}</span>
-                      <span className="info-val" style={{
-                        ...(mono?{fontFamily:"var(--mono)",fontSize:12}:{}),
-                        ...(l==="Tgl Selesai"?{color:"var(--green)",fontWeight:700}:{})
-                      }}>{v||"-"}</span>
+                      <span className="info-val" style={mono?{fontFamily:"var(--mono)",fontSize:12}:{}}>{v||"-"}</span>
                     </div>
                   ))}
+                  {p.tanggalSelesai && <div className="info-row"><span className="info-lbl">Tgl Selesai</span><span className="info-val" style={{color:"var(--green)",fontWeight:700}}>{p.tanggalSelesai}</span></div>}
                   {p.nomorSKPP && <div className="info-row"><span className="info-lbl">No. SKPP</span><span className="info-val" style={{color:"var(--green)",fontWeight:700,fontFamily:"var(--mono)"}}>{p.nomorSKPP}</span></div>}
                   {p.kodeAkses && (
                     <div style={{background:"var(--navy)",borderRadius:10,padding:"12px 16px",marginTop:12,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
@@ -656,30 +644,6 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
               ) : stepAktif ? (
                 <div>
                   <div className="alert alert-blue" style={{ marginBottom:14 }}><span>ℹ️</span><div><strong>Tahap aktif: {stepAktif.icon} {stepAktif.label}</strong><br/><span style={{fontSize:12}}>Pelaksana: {stepAktif.pelaksana}</span></div></div>
-                  {isPenomoran(stepAktif.id) && (
-                    <div style={{background:"#f0f9ff",border:"1.5px solid #bae6fd",borderRadius:10,padding:"14px 16px",marginBottom:14}}>
-                      <div style={{fontWeight:700,fontSize:13,color:"#0369a1",marginBottom:10}}>📋 Input Nomor SKPP</div>
-                      <div className="form-group" style={{marginBottom:8}}>
-                        <label className="form-label">Nomor Urut (sesuai buku regis) *</label>
-                        <input
-                          className="form-control"
-                          type="text"
-                          value={nomorUrut}
-                          onChange={e=>setNomorUrut(e.target.value.replace(/[^0-9]/g,""))}
-                          placeholder="Contoh: 42"
-                          style={{fontFamily:"var(--mono)",fontWeight:700,fontSize:15}}
-                        />
-                      </div>
-                      {nomorUrut && (
-                        <div style={{marginTop:6,padding:"10px 12px",background:"white",border:"1px solid #bae6fd",borderRadius:8}}>
-                          <div style={{fontSize:10,color:"#64748b",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>Preview Nomor SKPP</div>
-                          <div style={{fontFamily:"var(--mono)",fontWeight:700,fontSize:13,color:"#0369a1"}}>
-                            {generateTemplateNomor(nomorUrut, p.kasubid, p.alasan)}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
                   <div className="form-group">
                     <label className="form-label">Catatan Proses</label>
                     <textarea className="form-control" value={catatan} onChange={e=>setCatatan(e.target.value)} placeholder={`Tuliskan catatan untuk tahap: ${stepAktif.label}`} />
@@ -697,7 +661,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
                     color: "white", 
                     opacity: !cekIzinProses(user?.role, stepAktif.pelaksana) ? 0.6 : 1 
                     }}
-                    disabled={saving || !cekIzinProses(user?.role, stepAktif.pelaksana) || (isPenomoran(stepAktif.id) && !nomorUrut)}
+                    disabled={saving || !cekIzinProses(user?.role, stepAktif.pelaksana)}
                     onClick={() => {
                     // 1. Cari tahu posisi nomor urut tahap aktif saat ini
                     const indexSaatIni = tahapan.findIndex(t => t.id === stepAktif.id);
@@ -712,8 +676,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
                     nextStepId: nextStepId, 
                     catatan: catatan, 
                     isKembali: isKembali, 
-                    isFinal: stepAktif.final === true,
-                    nomorSKPP: isPenomoran(stepAktif.id) ? generateTemplateNomor(nomorUrut, p.kasubid, p.alasan) : undefined,
+                    isFinal: stepAktif.final === true
                     });
                     }}
                     >
@@ -865,11 +828,11 @@ function SearchableSelect({ label, value, onChange, options, placeholder = "-- P
 
 // ─── INPUT BARU ───────────────────────────────────────────────────────────────
 function InputBaru({ onClose, onSave, saving }) {
-  const [form, setForm] = useState({ nama:"", nip:"", opd:"", jabatan:"", pangkat:"", alasan:"Pensiun", jalur:"A", kasubid:DAFTAR_KASUBID[0] });
+  const [form, setForm] = useState({ nama:"", nip:"", opd:"", jabatan:"", pangkat:"", alasan:"Pensiun", jalur:"A" });
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
   return (
     <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget&&!saving)onClose();}}>
-      <div className="modal" style={{ maxWidth:600 }}>
+      <div className="modal" style={{ maxWidth:580 }}>
         <div className="modal-header">
           <div style={{ fontWeight:800, fontSize:16, color:"var(--navy)" }}>Input Pengajuan SKPP Baru</div>
           <button className="modal-close" onClick={onClose} disabled={saving}>✕</button>
@@ -896,31 +859,12 @@ function InputBaru({ onClose, onSave, saving }) {
             options={DAFTAR_PANGKAT}
             placeholder="-- Pilih Pangkat / Golongan --"
           />
-          <div className="form-group">
-            <label className="form-label">Kasubid Pembayaran *</label>
-            <select className="form-control" value={form.kasubid} onChange={e=>set("kasubid",e.target.value)}>
-              {DAFTAR_KASUBID.map((k,i)=><option key={i} value={k}>{k}</option>)}
-            </select>
-            <div style={{marginTop:6,padding:"6px 10px",background:"var(--g50)",borderRadius:6,fontSize:11,color:"var(--g500)",fontFamily:"var(--mono)"}}>
-              Kode: {KODE_KASUBID[form.kasubid]}
-            </div>
-          </div>
           <div className="grid-2">
             <div className="form-group">
               <label className="form-label">Keperluan SKPP</label>
               <select className="form-control" value={form.alasan} onChange={e=>set("alasan",e.target.value)}>
-                <option>Pensiun</option>
-                <option>Pensiun Janda</option>
-                <option>Pensiun Duda</option>
-                <option>Pindah</option>
-                <option>Pemberhentian dengan Hormat</option>
-                <option>Pemberhentian dengan Hormat PPPK</option>
-                <option>Berhenti Atas Permintaan Sendiri</option>
-                <option>Meninggal Dunia</option>
+                <option>Pensiun</option><option>Berhenti Atas Permintaan Sendiri</option><option>Pindah</option><option>Meninggal Dunia</option>
               </select>
-              <div style={{marginTop:6,padding:"6px 10px",background:"var(--g50)",borderRadius:6,fontSize:11,color:"var(--g500)",fontFamily:"var(--mono)"}}>
-                Kode: {KODE_ALASAN[form.alasan] || "-"}
-              </div>
             </div>
             <div className="form-group">
               <label className="form-label">Jalur Proses</label>
@@ -934,7 +878,7 @@ function InputBaru({ onClose, onSave, saving }) {
         </div>
         <div className="modal-footer">
           <button className="btn btn-secondary" onClick={onClose} disabled={saving}>Batal</button>
-          <button className="btn btn-primary" disabled={saving||!form.nama||!form.nip||!form.opd||!form.kasubid} onClick={()=>onSave(form)}>
+          <button className="btn btn-primary" disabled={saving||!form.nama||!form.nip||!form.opd} onClick={()=>onSave(form)}>
             {saving?"⟳ Menyimpan...":"Simpan & Mulai Proses"}
           </button>
         </div>
