@@ -1085,64 +1085,74 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
 
           {/* Tabel entri pegawai */}
           <div style={{overflowX:"auto",border:"1.5px solid var(--g200)",borderRadius:10}}>
-            <table style={{minWidth:780}}>
+            <table style={{width:"100%",tableLayout:"fixed"}}>
+              <colgroup>
+                <col style={{width:"3%"}} />   {/* # */}
+                <col style={{width:"22%"}} />  {/* Nama */}
+                <col style={{width:"18%"}} />  {/* NIP */}
+                <col style={{width:"17%"}} />  {/* Jabatan */}
+                <col style={{width:"18%"}} />  {/* Pangkat */}
+                <col style={{width:"13%"}} />  {/* Keperluan */}
+                <col style={{width:"5%"}} />   {/* Jalur */}
+                <col style={{width:"4%"}} />   {/* Aksi */}
+              </colgroup>
               <thead>
                 <tr>
-                  <th style={{width:32,textAlign:"center"}}>#</th>
-                  <th style={{minWidth:160}}>Nama Lengkap *</th>
-                  <th style={{width:150}}>NIP *</th>
-                  <th style={{width:150}}>Jabatan</th>
-                  <th style={{width:160}}>Pangkat / Gol</th>
-                  <th style={{width:130}}>Keperluan</th>
-                  <th style={{width:80}}>Jalur</th>
-                  <th style={{width:64}}></th>
+                  <th style={{textAlign:"center",padding:"10px 6px"}}>#</th>
+                  <th style={{padding:"10px 8px"}}>Nama Lengkap *</th>
+                  <th style={{padding:"10px 8px"}}>NIP *</th>
+                  <th style={{padding:"10px 8px"}}>Jabatan</th>
+                  <th style={{padding:"10px 8px"}}>Pangkat / Gol</th>
+                  <th style={{padding:"10px 8px"}}>Keperluan</th>
+                  <th style={{padding:"10px 8px",textAlign:"center"}}>Jalur</th>
+                  <th style={{padding:"10px 6px"}}></th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((it, idx) => (
                   <tr key={it._id} style={{background: idx%2===0?"white":"var(--g50)"}}>
-                    <td style={{textAlign:"center",color:"var(--g400)",fontSize:12,fontWeight:700}}>{idx+1}</td>
-                    <td>
-                      <input className="form-control" style={{marginBottom:0,border:"1px solid var(--g200)"}}
+                    <td style={{textAlign:"center",color:"var(--g400)",fontSize:12,fontWeight:700,padding:"8px 6px"}}>{idx+1}</td>
+                    <td style={{padding:"6px 8px"}}>
+                      <input className="form-control" style={{marginBottom:0,border:"1px solid var(--g200)",width:"100%",minWidth:0,fontSize:12}}
                         value={it.nama} onChange={e=>setItem(idx,"nama",e.target.value)} placeholder="Nama sesuai SK" />
                     </td>
-                    <td>
-                      <input className="form-control" style={{marginBottom:0,fontFamily:"var(--mono)",fontSize:12,border:"1px solid var(--g200)"}}
+                    <td style={{padding:"6px 8px"}}>
+                      <input className="form-control" style={{marginBottom:0,fontFamily:"var(--mono)",fontSize:11,border:"1px solid var(--g200)",width:"100%",minWidth:0}}
                         value={it.nip} onChange={e=>setItem(idx,"nip",e.target.value)} placeholder="18 digit" />
                     </td>
-                    <td>
-                      <input className="form-control" style={{marginBottom:0,border:"1px solid var(--g200)"}}
-                        value={it.jabatan} onChange={e=>setItem(idx,"jabatan",e.target.value)} placeholder="Jabatan terakhir" />
+                    <td style={{padding:"6px 8px"}}>
+                      <input className="form-control" style={{marginBottom:0,border:"1px solid var(--g200)",width:"100%",minWidth:0,fontSize:12}}
+                        value={it.jabatan} onChange={e=>setItem(idx,"jabatan",e.target.value)} placeholder="Jabatan" />
                     </td>
-                    <td>
-                      <select className="form-control" style={{marginBottom:0,fontSize:12,border:"1px solid var(--g200)"}}
+                    <td style={{padding:"6px 8px"}}>
+                      <select className="form-control" style={{marginBottom:0,fontSize:11,border:"1px solid var(--g200)",width:"100%",minWidth:0,paddingRight:4}}
                         value={it.pangkat} onChange={e=>setItem(idx,"pangkat",e.target.value)}>
                         <option value="">-- Pangkat --</option>
                         {DAFTAR_PANGKAT.map(p=><option key={p} value={p}>{p}</option>)}
                       </select>
                     </td>
-                    <td>
-                      <select className="form-control" style={{marginBottom:0,fontSize:12,border:"1px solid var(--g200)"}}
+                    <td style={{padding:"6px 8px"}}>
+                      <select className="form-control" style={{marginBottom:0,fontSize:11,border:"1px solid var(--g200)",width:"100%",minWidth:0,paddingRight:4}}
                         value={it.alasan} onChange={e=>setItem(idx,"alasan",e.target.value)}>
                         {DAFTAR_KEPERLUAN.map(k=><option key={k} value={k}>{k}</option>)}
                       </select>
                     </td>
-                    <td>
-                      <select className="form-control" style={{marginBottom:0,fontSize:12,border:"1px solid var(--g200)"}}
+                    <td style={{padding:"6px 8px",textAlign:"center"}}>
+                      <select className="form-control" style={{marginBottom:0,fontSize:12,border:"1px solid var(--g200)",width:"100%",minWidth:0,textAlign:"center",paddingLeft:4,paddingRight:4}}
                         value={it.jalur} onChange={e=>setItem(idx,"jalur",e.target.value)}>
                         <option value="A">A</option>
                         <option value="B">B</option>
                       </select>
                     </td>
-                    <td>
-                      <div style={{display:"flex",gap:4}}>
+                    <td style={{padding:"6px 6px"}}>
+                      <div style={{display:"flex",gap:3,justifyContent:"center"}}>
                         <button title="Duplikat baris ini"
                           onClick={()=>duplicateItem(idx)}
-                          style={{padding:"4px 7px",border:"1px solid var(--g200)",borderRadius:6,background:"white",cursor:"pointer",fontSize:13}}>⧉</button>
+                          style={{padding:"4px 6px",border:"1px solid var(--g200)",borderRadius:6,background:"white",cursor:"pointer",fontSize:12,lineHeight:1}}>⧉</button>
                         {items.length > 1 && (
                           <button title="Hapus baris ini"
                             onClick={()=>removeItem(idx)}
-                            style={{padding:"4px 7px",border:"1px solid #fecaca",borderRadius:6,background:"#fef2f2",cursor:"pointer",color:"var(--red)",fontSize:13}}>✕</button>
+                            style={{padding:"4px 6px",border:"1px solid #fecaca",borderRadius:6,background:"#fef2f2",cursor:"pointer",color:"var(--red)",fontSize:12,lineHeight:1}}>✕</button>
                         )}
                       </div>
                     </td>
