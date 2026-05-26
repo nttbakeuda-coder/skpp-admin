@@ -635,7 +635,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
   const stepAktif = tahapan.find(t => t.id === p.tahapAktif && !p.tahapSelesai.includes(t.id));
   const prog = getProgress(p);
   return (
-    <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget&&!saving)onClose();}}>
+    <div className="modal-overlay">
       <div className="modal" style={{ maxWidth:740 }}>
         <div className="modal-header">
           <div>
