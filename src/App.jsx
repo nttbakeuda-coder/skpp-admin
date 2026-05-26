@@ -61,6 +61,17 @@ const DAFTAR_KASUBID = [
   "Ibu Ivoni S. Meok, SE., MM",
   "Ibu Vebby R. Saba, SE"
 ];
+
+const DAFTAR_KEPERLUAN = [
+  "Pensiun",
+  "Pensiun Janda",
+  "Pensiun Duda",
+  "Pindah",
+  "Pemberhentian dengan Hormat",
+  "Pemberhentian dengan Hormat PPPK",
+  "Pemberhentian Tidak dengan Hormat",
+  "Lainnya"
+];
 // ============================================================
 //  GANTI URL INI dengan URL deployment Apps Script Anda
 // ============================================================
