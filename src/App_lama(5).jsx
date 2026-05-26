@@ -706,36 +706,34 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
             <div>
               {(p.status==="selesai"||prog===100) ? (
                 <div className="alert alert-green"><span>🎉</span><span>SKPP sudah selesai dan diserahkan. Tidak ada tahap yang perlu diupdate.</span></div>
-
-              ) : p.status === "kembali" ? (
-                /* ─── CABANG KEMBALI: tampil untuk SEMUA pengajuan berstatus kembali ─── */
-                <div>
-                  <div style={{background:"#fffbeb",border:"2px solid #f59e0b",borderRadius:10,padding:"18px",marginBottom:16}}>
-                    <div style={{fontWeight:800,fontSize:15,color:"#92400e",marginBottom:8}}>⚠️ Berkas Sedang Dikembalikan</div>
-                    <div style={{fontSize:13,color:"#b45309",marginBottom:14,lineHeight:1.6}}>
-                      Berkas pengajuan ini telah dikembalikan kepada pemohon. Jika berkas perbaikan sudah diterima dan lengkap, klik tombol hijau di bawah untuk melanjutkan proses dari tahap yang sama — <strong>tanpa mengulang dari awal</strong>.
-                    </div>
-                    <button
-                      className="btn btn-success"
-                      style={{width:"100%",fontWeight:"bold",justifyContent:"center",fontSize:14,padding:"12px"}}
-                      disabled={saving}
-                      onClick={() => {
-                        if (!window.confirm("Apakah berkas perbaikan sudah lengkap dan siap diproses kembali?")) return;
-                        onUpdate({
-                          pengajuanId: p.id,
-                          stepId: p.tahapAktif,
-                          isResume: true,
-                          catatan: "Sistem: Berkas perbaikan telah diterima, proses dilanjutkan kembali."
-                        });
-                      }}
-                    >
-                      {saving ? "⏳ Memproses..." : "✅ Berkas Telah Dilengkapi — Lanjutkan Proses"}
-                    </button>
-                  </div>
-                </div>
-
               ) : stepAktif ? (
                 <div>
+                  {/* ─── BLOK RESUME: muncul hanya saat status "kembali" ─── */}
+                  {p.status === "kembali" && (
+                    <div style={{background:"#fffbeb",border:"2px solid #f59e0b",borderRadius:10,padding:"16px",marginBottom:16}}>
+                      <div style={{fontWeight:800,fontSize:14,color:"#92400e",marginBottom:6}}>⚠️ Berkas Sedang Dikembalikan</div>
+                      <div style={{fontSize:12,color:"#b45309",marginBottom:12}}>
+                        Berkas pengajuan ini telah dikembalikan kepada pemohon. Jika berkas perbaikan sudah diterima dan lengkap, klik tombol di bawah untuk melanjutkan proses dari tahap ini — tanpa mengulang dari awal.
+                      </div>
+                      <button
+                        className="btn btn-success"
+                        style={{width:"100%",fontWeight:"bold",justifyContent:"center",fontSize:14}}
+                        disabled={saving}
+                        onClick={() => {
+                          if (!window.confirm("Apakah berkas perbaikan sudah lengkap dan siap diproses kembali?")) return;
+                          onUpdate({
+                            pengajuanId: p.id,
+                            stepId: p.tahapAktif,
+                            isResume: true,
+                            catatan: "Sistem: Berkas perbaikan telah diterima, proses dilanjutkan kembali."
+                          });
+                        }}
+                      >
+                        {saving ? "⏳ Memproses..." : "✅ Berkas Telah Dilengkapi — Lanjutkan Proses"}
+                      </button>
+                    </div>
+                  )}
+                  {/* ─── END BLOK RESUME ─── */}
                   <div className="alert alert-blue" style={{ marginBottom:14 }}><span>ℹ️</span><div><strong>Tahap aktif: {stepAktif.icon} {stepAktif.label}</strong><br/><span style={{fontSize:12}}>Pelaksana: {stepAktif.pelaksana}</span></div></div>
                   {isPenomoran(stepAktif.id) && (
                     <div style={{background:"#f0f9ff",border:"1.5px solid #bae6fd",borderRadius:10,padding:"14px 16px",marginBottom:14}}>
