@@ -944,84 +944,47 @@ function SearchableSelect({ label, value, onChange, options, placeholder = "-- P
   );
 }
 
-// ─── INPUT BARU (Tunggal) ─────────────────────────────────────────────────────
-function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
-  const [mode, setMode] = useState("tunggal"); // "tunggal" | "bulk"
-
-  // ── State TUNGGAL ──
+// ─── INPUT BARU ───────────────────────────────────────────────────────────────
+function InputBaru({ onClose, onSave, saving }) {
   const [form, setForm] = useState({ nama:"", nip:"", opd:"", jabatan:"", pangkat:"", alasan:"Pensiun", jalur:"A", kasubid:DAFTAR_KASUBID[0] });
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
-
-  // ── State BULK ──
-  // Informasi bersama seluruh item
-  const [bulkOPD,     setBulkOPD]     = useState("");
-  const [bulkKasubid, setBulkKasubid] = useState(DAFTAR_KASUBID[0]);
-  // Template baris kosong
-  const emptyItem = () => ({ nama:"", nip:"", jabatan:"", pangkat:"", alasan:"Pensiun", jalur:"A", _id: Date.now()+Math.random() });
-  const [items, setItems] = useState([emptyItem()]);
-
-  const setItem = (idx, k, v) => setItems(prev => prev.map((it,i) => i===idx ? {...it,[k]:v} : it));
-  const addItem = () => setItems(prev => [...prev, emptyItem()]);
-  const removeItem = (idx) => setItems(prev => prev.filter((_,i)=>i!==idx));
-  const duplicateItem = (idx) => setItems(prev => {
-    const clone = { ...prev[idx], _id: Date.now()+Math.random() };
-    const next  = [...prev];
-    next.splice(idx+1, 0, clone);
-    return next;
-  });
-
-  const bulkValid = bulkOPD && bulkKasubid && items.length > 0 && items.every(it => it.nama && it.nip);
-
-  const handleSaveBulk = () => {
-    if (!bulkValid) return;
-    onSaveBulk({
-      namaOPD: bulkOPD,
-      kasubid: bulkKasubid,
-      items:   items.map(({_id, ...rest}) => rest),  // hapus field internal _id
-    });
-  };
-
   return (
     <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget&&!saving)onClose();}}>
-      <div className="modal" style={{ maxWidth: mode==="bulk" ? 860 : 600 }}>
+      <div className="modal" style={{ maxWidth:600 }}>
         <div className="modal-header">
-          {/* Judul + toggle mode */}
-          <div>
-            <div style={{ fontWeight:800, fontSize:16, color:"var(--navy)" }}>Input Pengajuan SKPP</div>
-            <div style={{ display:"flex", gap:6, marginTop:8 }}>
-              {["tunggal","bulk"].map(m => (
-                <button key={m}
-                  onClick={() => setMode(m)}
-                  style={{
-                    padding:"4px 14px", borderRadius:999, fontSize:12, fontWeight:700, cursor:"pointer", border:"none",
-                    background: mode===m ? "var(--blue)" : "var(--g100)",
-                    color:      mode===m ? "white"       : "var(--g600)",
-                  }}>
-                  {m==="tunggal" ? "👤 Tunggal" : "📦 Bulk (Bendahara OPD)"}
-                </button>
-              ))}
-            </div>
-          </div>
+          <div style={{ fontWeight:800, fontSize:16, color:"var(--navy)" }}>Input Pengajuan SKPP Baru</div>
           <button className="modal-close" onClick={onClose} disabled={saving}>✕</button>
         </div>
-        {/* ══════════════ MODE TUNGGAL ══════════════ */}
-        {mode === "tunggal" && (<>
         <div className="modal-body">
           <div className="grid-2">
             <div className="form-group"><label className="form-label">Nama Lengkap *</label><input className="form-control" value={form.nama} onChange={e=>set("nama",e.target.value)} placeholder="Sesuai SK" /></div>
             <div className="form-group"><label className="form-label">NIP *</label><input className="form-control" value={form.nip} onChange={e=>set("nip",e.target.value)} placeholder="18 digit" style={{fontFamily:"var(--mono)"}} /></div>
           </div>
           <div className="grid-2">
-            <SearchableSelect label="OPD / Instansi *" value={form.opd} onChange={v=>set("opd",v)} options={DAFTAR_OPD} placeholder="-- Pilih OPD / Instansi --" />
+            <SearchableSelect
+              label="OPD / Instansi *"
+              value={form.opd}
+              onChange={v => set("opd", v)}
+              options={DAFTAR_OPD}
+              placeholder="-- Pilih OPD / Instansi --"
+            />
             <div className="form-group"><label className="form-label">Jabatan Terakhir</label><input className="form-control" value={form.jabatan} onChange={e=>set("jabatan",e.target.value)} /></div>
           </div>
-          <SearchableSelect label="Pangkat / Golongan" value={form.pangkat} onChange={v=>set("pangkat",v)} options={DAFTAR_PANGKAT} placeholder="-- Pilih Pangkat / Golongan --" />
+          <SearchableSelect
+            label="Pangkat / Golongan"
+            value={form.pangkat}
+            onChange={v => set("pangkat", v)}
+            options={DAFTAR_PANGKAT}
+            placeholder="-- Pilih Pangkat / Golongan --"
+          />
           <div className="form-group">
             <label className="form-label">Kasubid Pembayaran *</label>
             <select className="form-control" value={form.kasubid} onChange={e=>set("kasubid",e.target.value)}>
               {DAFTAR_KASUBID.map((k,i)=><option key={i} value={k}>{k}</option>)}
             </select>
-            <div style={{marginTop:6,padding:"6px 10px",background:"var(--g50)",borderRadius:6,fontSize:11,color:"var(--g500)",fontFamily:"var(--mono)"}}>Kode: {KODE_KASUBID[form.kasubid]}</div>
+            <div style={{marginTop:6,padding:"6px 10px",background:"var(--g50)",borderRadius:6,fontSize:11,color:"var(--g500)",fontFamily:"var(--mono)"}}>
+              Kode: {KODE_KASUBID[form.kasubid]}
+            </div>
           </div>
           <div className="grid-2">
             <div className="form-group">
@@ -1029,7 +992,9 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
               <select className="form-control" value={form.alasan} onChange={e=>set("alasan",e.target.value)}>
                 {DAFTAR_KEPERLUAN.map(k=><option key={k}>{k}</option>)}
               </select>
-              <div style={{marginTop:6,padding:"6px 10px",background:"var(--g50)",borderRadius:6,fontSize:11,color:"var(--g500)",fontFamily:"var(--mono)"}}>Kode: {KODE_ALASAN[form.alasan]||"-"}</div>
+              <div style={{marginTop:6,padding:"6px 10px",background:"var(--g50)",borderRadius:6,fontSize:11,color:"var(--g500)",fontFamily:"var(--mono)"}}>
+                Kode: {KODE_ALASAN[form.alasan] || "-"}
+              </div>
             </div>
             <div className="form-group">
               <label className="form-label">Jalur Proses</label>
@@ -1047,130 +1012,6 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
             {saving?"⟳ Menyimpan...":"Simpan & Mulai Proses"}
           </button>
         </div>
-        </>)}
-
-        {/* ══════════════ MODE BULK ══════════════ */}
-        {mode === "bulk" && (<>
-        <div className="modal-body">
-          {/* Info banner bulk */}
-          <div className="alert alert-blue" style={{marginBottom:16}}>
-            <span>📦</span>
-            <div style={{fontSize:12}}>
-              <strong>Mode Bulk — Pengajuan dari Bendahara OPD.</strong> Isi data umum OPD di atas, lalu tambahkan daftar pegawai di bawah. Semua pengajuan akan mendapatkan <strong>satu kode akses bersama</strong> yang dapat digunakan untuk memantau seluruh SKPP dalam kiriman ini.
-            </div>
-          </div>
-
-          {/* Data bersama (OPD & Kasubid) */}
-          <div style={{background:"var(--g50)",borderRadius:10,padding:"14px 16px",marginBottom:18,border:"1.5px solid var(--g200)"}}>
-            <div style={{fontWeight:700,fontSize:12,color:"var(--g600)",marginBottom:12,textTransform:"uppercase",letterSpacing:".4px"}}>Data Bersama Seluruh Pengajuan</div>
-            <div className="grid-2">
-              <SearchableSelect label="OPD / Instansi Pengirim *" value={bulkOPD} onChange={v=>setBulkOPD(v)} options={DAFTAR_OPD} placeholder="-- Pilih OPD --" />
-              <div className="form-group">
-                <label className="form-label">Kasubid Pembayaran *</label>
-                <select className="form-control" value={bulkKasubid} onChange={e=>setBulkKasubid(e.target.value)}>
-                  {DAFTAR_KASUBID.map((k,i)=><option key={i} value={k}>{k}</option>)}
-                </select>
-                <div style={{marginTop:5,padding:"5px 10px",background:"white",borderRadius:6,fontSize:11,color:"var(--g500)",fontFamily:"var(--mono)"}}>Kode: {KODE_KASUBID[bulkKasubid]}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Daftar pegawai */}
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-            <div style={{fontWeight:700,fontSize:12,color:"var(--g600)",textTransform:"uppercase",letterSpacing:".4px"}}>
-              Daftar Pegawai <span style={{background:"var(--blue)",color:"white",borderRadius:999,padding:"2px 8px",fontSize:11,fontWeight:800,marginLeft:6}}>{items.length}</span>
-            </div>
-            <button className="btn btn-primary btn-sm" onClick={addItem}>+ Tambah Baris</button>
-          </div>
-
-          {/* Tabel entri pegawai */}
-          <div style={{overflowX:"auto",border:"1.5px solid var(--g200)",borderRadius:10}}>
-            <table style={{minWidth:780}}>
-              <thead>
-                <tr>
-                  <th style={{width:32,textAlign:"center"}}>#</th>
-                  <th style={{minWidth:160}}>Nama Lengkap *</th>
-                  <th style={{width:150}}>NIP *</th>
-                  <th style={{width:150}}>Jabatan</th>
-                  <th style={{width:160}}>Pangkat / Gol</th>
-                  <th style={{width:130}}>Keperluan</th>
-                  <th style={{width:80}}>Jalur</th>
-                  <th style={{width:64}}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((it, idx) => (
-                  <tr key={it._id} style={{background: idx%2===0?"white":"var(--g50)"}}>
-                    <td style={{textAlign:"center",color:"var(--g400)",fontSize:12,fontWeight:700}}>{idx+1}</td>
-                    <td>
-                      <input className="form-control" style={{marginBottom:0,border:"1px solid var(--g200)"}}
-                        value={it.nama} onChange={e=>setItem(idx,"nama",e.target.value)} placeholder="Nama sesuai SK" />
-                    </td>
-                    <td>
-                      <input className="form-control" style={{marginBottom:0,fontFamily:"var(--mono)",fontSize:12,border:"1px solid var(--g200)"}}
-                        value={it.nip} onChange={e=>setItem(idx,"nip",e.target.value)} placeholder="18 digit" />
-                    </td>
-                    <td>
-                      <input className="form-control" style={{marginBottom:0,border:"1px solid var(--g200)"}}
-                        value={it.jabatan} onChange={e=>setItem(idx,"jabatan",e.target.value)} placeholder="Jabatan terakhir" />
-                    </td>
-                    <td>
-                      <select className="form-control" style={{marginBottom:0,fontSize:12,border:"1px solid var(--g200)"}}
-                        value={it.pangkat} onChange={e=>setItem(idx,"pangkat",e.target.value)}>
-                        <option value="">-- Pangkat --</option>
-                        {DAFTAR_PANGKAT.map(p=><option key={p} value={p}>{p}</option>)}
-                      </select>
-                    </td>
-                    <td>
-                      <select className="form-control" style={{marginBottom:0,fontSize:12,border:"1px solid var(--g200)"}}
-                        value={it.alasan} onChange={e=>setItem(idx,"alasan",e.target.value)}>
-                        {DAFTAR_KEPERLUAN.map(k=><option key={k} value={k}>{k}</option>)}
-                      </select>
-                    </td>
-                    <td>
-                      <select className="form-control" style={{marginBottom:0,fontSize:12,border:"1px solid var(--g200)"}}
-                        value={it.jalur} onChange={e=>setItem(idx,"jalur",e.target.value)}>
-                        <option value="A">A</option>
-                        <option value="B">B</option>
-                      </select>
-                    </td>
-                    <td>
-                      <div style={{display:"flex",gap:4}}>
-                        <button title="Duplikat baris ini"
-                          onClick={()=>duplicateItem(idx)}
-                          style={{padding:"4px 7px",border:"1px solid var(--g200)",borderRadius:6,background:"white",cursor:"pointer",fontSize:13}}>⧉</button>
-                        {items.length > 1 && (
-                          <button title="Hapus baris ini"
-                            onClick={()=>removeItem(idx)}
-                            style={{padding:"4px 7px",border:"1px solid #fecaca",borderRadius:6,background:"#fef2f2",cursor:"pointer",color:"var(--red)",fontSize:13}}>✕</button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Ringkasan */}
-          <div style={{marginTop:14,padding:"10px 14px",background:"var(--navy)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
-            <div>
-              <div style={{color:"rgba(255,255,255,.5)",fontSize:10,fontWeight:700,letterSpacing:"1px",textTransform:"uppercase"}}>Total Pengajuan Bulk</div>
-              <div style={{color:"#C9A84C",fontFamily:"var(--mono)",fontSize:24,fontWeight:800}}>{items.length} <span style={{fontSize:13,fontWeight:400,color:"rgba(255,255,255,.6)"}}>SKPP</span></div>
-            </div>
-            <div style={{textAlign:"right"}}>
-              <div style={{color:"rgba(255,255,255,.5)",fontSize:10,fontWeight:700,letterSpacing:"1px",textTransform:"uppercase",marginBottom:4}}>Satu Kode Akses untuk Semua</div>
-              <div style={{color:"rgba(255,255,255,.5)",fontSize:12}}>Kode akan digenerate otomatis setelah disimpan</div>
-            </div>
-          </div>
-        </div>
-        <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onClose} disabled={saving}>Batal</button>
-          <button className="btn btn-primary" disabled={saving||!bulkValid} onClick={handleSaveBulk}>
-            {saving ? "⟳ Menyimpan..." : `📦 Simpan ${items.length} Pengajuan Bulk`}
-          </button>
-        </div>
-        </>)}
       </div>
     </div>
   );
@@ -1497,35 +1338,7 @@ export default function App() {
         // Tampilkan modal kode akses setelah berhasil
         if (res.kodeAkses) {
           setTimeout(() => {
-            setKodeAksesModal({ id: res.id, kode: res.kodeAkses, isBulk: false, data: { ...formData, id: res.id, tanggalMasuk: new Date().toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}) } });
-          }, 400);
-        }
-      } else alert("Gagal: " + res.pesan);
-    } catch { alert("Gagal terhubung ke server."); }
-    setSaving(false);
-  };
-
-  // ── Handler Input BULK ──────────────────────────────────────────────────────
-  const handleInputBulk = async (bulkData) => {
-    setSaving(true);
-    try {
-      const res = await apiPost({ action:"inputBulk", data:bulkData });
-      if (res.ok) {
-        showToast(`✓ ${res.jumlah} pengajuan bulk berhasil disimpan`);
-        setShowInput(false);
-        await load();
-        setPage("pengajuan");
-        // Tampilkan modal kode akses bulk
-        if (res.kodeAkses) {
-          setTimeout(() => {
-            setKodeAksesModal({
-              isBulk:   true,
-              grupId:   res.grupId,
-              kode:     res.kodeAkses,
-              jumlah:   res.jumlah,
-              daftarId: res.daftarId,
-              namaOPD:  bulkData.namaOPD,
-            });
+            setKodeAksesModal({ id: res.id, kode: res.kodeAkses, data: { ...formData, id: res.id, tanggalMasuk: new Date().toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}) } });
           }, 400);
         }
       } else alert("Gagal: " + res.pesan);
@@ -1613,78 +1426,48 @@ export default function App() {
           onCetak={() => cetakTandaTerima(selected)} user={user} />
       )}
       {(showInput || page==="input") && (
-        <InputBaru onClose={()=>{ setShowInput(false); if(page==="input") setPage("pengajuan"); }} onSave={handleInputBaru} onSaveBulk={handleInputBulk} saving={saving} />
+        <InputBaru onClose={()=>{ setShowInput(false); if(page==="input") setPage("pengajuan"); }} onSave={handleInputBaru} saving={saving} />
       )}
 
       {/* MODAL KODE AKSES — muncul setelah input baru berhasil */}
       {kodeAksesModal && (
         <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setKodeAksesModal(null);}}>
-          <div className="modal" style={{maxWidth:520}}>
+          <div className="modal" style={{maxWidth:480}}>
             <div className="modal-header">
-              <div style={{fontWeight:800,fontSize:16,color:"var(--navy)"}}>
-                {kodeAksesModal.isBulk ? "📦 Pengajuan Bulk Berhasil Didaftarkan" : "🎉 Pengajuan Berhasil Didaftarkan"}
-              </div>
+              <div style={{fontWeight:800,fontSize:16,color:"var(--navy)"}}>🎉 Pengajuan Berhasil Didaftarkan</div>
               <button className="modal-close" onClick={()=>setKodeAksesModal(null)}>✕</button>
             </div>
             <div className="modal-body">
-              {/* Success alert */}
               <div className="alert alert-green" style={{marginBottom:20}}>
                 <span>✓</span>
-                <div>
-                  {kodeAksesModal.isBulk
-                    ? <><strong>{kodeAksesModal.jumlah} pengajuan</strong> dari <strong>{kodeAksesModal.namaOPD}</strong> berhasil disimpan ke sistem.</>
-                    : <><strong>{kodeAksesModal.id}</strong> berhasil disimpan ke sistem.</>
-                  }
-                </div>
+                <div><strong>{kodeAksesModal.id}</strong> berhasil disimpan ke sistem.</div>
               </div>
 
               {/* Kode Akses Display */}
-              <div style={{background:"var(--navy)",borderRadius:14,padding:24,textAlign:"center",marginBottom:16}}>
+              <div style={{background:"var(--navy)",borderRadius:14,padding:24,textAlign:"center",marginBottom:20}}>
                 <div style={{color:"rgba(255,255,255,.5)",fontSize:11,fontWeight:700,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:8}}>
-                  {kodeAksesModal.isBulk ? "Kode Akses Bersama (1 Kode untuk Semua)" : "Kode Akses Portal Pelacakan"}
+                  Kode Akses Portal Pelacakan
                 </div>
-                <div style={{color:"#C9A84C",fontFamily:"var(--mono)",fontSize:48,fontWeight:800,letterSpacing:12,lineHeight:1}}>
+                <div style={{color:"var(--ntt-gold,#C9A84C)",fontFamily:"var(--mono)",fontSize:48,fontWeight:800,letterSpacing:12,lineHeight:1}}>
                   {kodeAksesModal.kode}
                 </div>
                 <div style={{color:"rgba(255,255,255,.4)",fontSize:11,marginTop:10}}>
-                  {kodeAksesModal.isBulk
-                    ? <>Grup: <span style={{color:"#C9A84C",fontFamily:"var(--mono)"}}>{kodeAksesModal.grupId}</span></>
-                    : <>Untuk pengajuan: <span style={{color:"#C9A84C",fontFamily:"var(--mono)"}}>{kodeAksesModal.id}</span></>
-                  }
+                  Untuk pengajuan: <span style={{color:"#C9A84C",fontFamily:"var(--mono)"}}>{kodeAksesModal.id}</span>
                 </div>
               </div>
-
-              {/* Daftar ID bulk */}
-              {kodeAksesModal.isBulk && kodeAksesModal.daftarId && (
-                <div style={{background:"var(--g50)",border:"1px solid var(--g200)",borderRadius:10,padding:"12px 14px",marginBottom:14}}>
-                  <div style={{fontSize:11,fontWeight:700,color:"var(--g500)",textTransform:"uppercase",letterSpacing:".4px",marginBottom:8}}>
-                    Nomor Pengajuan yang Terdaftar
-                  </div>
-                  <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                    {kodeAksesModal.daftarId.map(id=>(
-                      <span key={id} style={{fontFamily:"var(--mono)",fontSize:11,background:"white",border:"1px solid var(--g200)",borderRadius:6,padding:"3px 8px",color:"var(--blue)",fontWeight:700}}>{id}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               <div className="alert alert-amber">
                 <span>⚠️</span>
                 <div style={{fontSize:12}}>
-                  <strong>Serahkan kode ini kepada {kodeAksesModal.isBulk ? "Bendahara OPD" : "pemohon"}</strong> bersama tanda terima.
-                  {kodeAksesModal.isBulk
-                    ? " Dengan satu kode ini, mereka dapat memantau status semua SKPP yang diajukan sekaligus."
-                    : " Kode akses hanya ditampilkan sekali di sini."}
+                  <strong>Serahkan kode ini kepada pemohon</strong> bersama tanda terima. Kode akses hanya ditampilkan sekali di sini. Untuk melihat kembali, buka detail pengajuan di tabel.
                 </div>
               </div>
             </div>
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={()=>setKodeAksesModal(null)}>Tutup</button>
-              {!kodeAksesModal.isBulk && (
-                <button className="btn btn-primary" onClick={()=>{cetakTandaTerima({...kodeAksesModal.data, kodeAkses:kodeAksesModal.kode}); setKodeAksesModal(null);}}>
-                  🖨️ Cetak Tanda Terima
-                </button>
-              )}
+              <button className="btn btn-primary" onClick={()=>{cetakTandaTerima({...kodeAksesModal.data, kodeAkses:kodeAksesModal.kode}); setKodeAksesModal(null);}}>
+                🖨️ Cetak Tanda Terima
+              </button>
             </div>
           </div>
         </div>
