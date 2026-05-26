@@ -70,7 +70,6 @@ const DAFTAR_KEPERLUAN = [
   "Pemberhentian dengan Hormat",
   "Pemberhentian dengan Hormat PPPK",
   "Pemberhentian Tidak dengan Hormat",
-  "Berhenti Atas Permintaan Sendiri",
   "Meninggal Dunia",
   "Lainnya"
 ];
