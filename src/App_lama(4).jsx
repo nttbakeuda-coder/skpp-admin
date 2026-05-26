@@ -140,7 +140,7 @@ const TAHAPAN_A = [
   { id:"A2", label:"Verifikasi Kelengkapan Berkas", icon:"🔍", pelaksana:"Staf Pengampuh OPD" },
   { id:"A3", label:"Verifikasi Data PNS",           icon:"👤", pelaksana:"Staf Pengampuh OPD" },
   { id:"A4", label:"Pembuatan Draft SKPP",          icon:"📝", pelaksana:"Penyusun SKPP" },
-  { id:"A5", label:"Verifikasi & Proses Tanda Tangan Pimpinan",   icon:"✅", pelaksana:"Staf Pengampuh OPD → Kasubid → Kuasa BUD" },
+  { id:"A5", label:"Verifikasi &  Tanda Tangan Pimpinan",   icon:"✅", pelaksana:"Staf Pengampuh OPD → Kasubid → Kuasa BUD" },
   { id:"A6", label:"Penempelan Foto & Penomoran",   icon:"📸", pelaksana:"Staf Loket" },
   { id:"A7", label:"SKPP Siap Diserahkan",          icon:"🎉", pelaksana:"Staf Loket", final:true },
 ];
@@ -708,32 +708,6 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
                 <div className="alert alert-green"><span>🎉</span><span>SKPP sudah selesai dan diserahkan. Tidak ada tahap yang perlu diupdate.</span></div>
               ) : stepAktif ? (
                 <div>
-                  {/* ─── BLOK RESUME: muncul hanya saat status "kembali" ─── */}
-                  {p.status === "kembali" && (
-                    <div style={{background:"#fffbeb",border:"2px solid #f59e0b",borderRadius:10,padding:"16px",marginBottom:16}}>
-                      <div style={{fontWeight:800,fontSize:14,color:"#92400e",marginBottom:6}}>⚠️ Berkas Sedang Dikembalikan</div>
-                      <div style={{fontSize:12,color:"#b45309",marginBottom:12}}>
-                        Berkas pengajuan ini telah dikembalikan kepada pemohon. Jika berkas perbaikan sudah diterima dan lengkap, klik tombol di bawah untuk melanjutkan proses dari tahap ini — tanpa mengulang dari awal.
-                      </div>
-                      <button
-                        className="btn btn-success"
-                        style={{width:"100%",fontWeight:"bold",justifyContent:"center",fontSize:14}}
-                        disabled={saving}
-                        onClick={() => {
-                          if (!window.confirm("Apakah berkas perbaikan sudah lengkap dan siap diproses kembali?")) return;
-                          onUpdate({
-                            pengajuanId: p.id,
-                            stepId: p.tahapAktif,
-                            isResume: true,
-                            catatan: "Sistem: Berkas perbaikan telah diterima, proses dilanjutkan kembali."
-                          });
-                        }}
-                      >
-                        {saving ? "⏳ Memproses..." : "✅ Berkas Telah Dilengkapi — Lanjutkan Proses"}
-                      </button>
-                    </div>
-                  )}
-                  {/* ─── END BLOK RESUME ─── */}
                   <div className="alert alert-blue" style={{ marginBottom:14 }}><span>ℹ️</span><div><strong>Tahap aktif: {stepAktif.icon} {stepAktif.label}</strong><br/><span style={{fontSize:12}}>Pelaksana: {stepAktif.pelaksana}</span></div></div>
                   {isPenomoran(stepAktif.id) && (
                     <div style={{background:"#f0f9ff",border:"1.5px solid #bae6fd",borderRadius:10,padding:"14px 16px",marginBottom:14}}>
@@ -1349,7 +1323,7 @@ export default function App() {
     try {
       const res = await apiPost({ action:"updateTahap", data:updateData });
       if (res.ok) {
-        showToast(updateData.isKembali?"↩ Berkas dikembalikan":updateData.isResume?"✅ Proses berhasil dilanjutkan kembali":"✓ Tahap berhasil diperbarui");
+        showToast(updateData.isKembali?"↩ Berkas dikembalikan":"✓ Tahap berhasil diperbarui");
         // refresh list first
         await load();
 
