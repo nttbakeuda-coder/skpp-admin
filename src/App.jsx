@@ -982,7 +982,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget&&!saving)onClose();}}>
+    <div className="modal-overlay">
       <div className="modal" style={{ maxWidth: mode==="bulk" ? 860 : 600 }}>
         <div className="modal-header">
           {/* Judul + toggle mode */}
