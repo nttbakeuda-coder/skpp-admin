@@ -86,11 +86,10 @@ const KODE_ALASAN = {
   "Pensiun":                          "PS",
   "Pensiun Janda":                    "PJ",
   "Pensiun Duda":                     "PD",
-  "Pindah":                           "PND",
+  "Pindah":                           "Pdh",
   "Pemberhentian dengan Hormat":      "PDH",
-  "Pemberhentian dengan Hormat PPPK": "PPPK",
+  "Pemberhentian dengan Hormat PPPK": "PDHPPPK",
   "Pemberhentian Tidak dengan Hormat":"PTDH",
-  "Berhenti Atas Permintaan Sendiri": "BAPS",
   "Meninggal Dunia":                  "MD",
   "Lainnya":                          "LN",
 };
