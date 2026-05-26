@@ -70,7 +70,46 @@ const DAFTAR_KEPERLUAN = [
   "Pemberhentian dengan Hormat",
   "Pemberhentian dengan Hormat PPPK",
   "Pemberhentian Tidak dengan Hormat",
+  "Berhenti Atas Permintaan Sendiri",
+  "Meninggal Dunia",
   "Lainnya"
+];
+
+// Kode singkat untuk setiap Kasubid (dipakai di nomor SKPP)
+const KODE_KASUBID = {
+  "Ibu Ivoni S. Meok, SE., MM": "BKUD3.1",
+  "Ibu Vebby R. Saba, SE":      "BKUD3.2",
+};
+
+// Kode singkat untuk setiap keperluan SKPP (dipakai di nomor SKPP)
+const KODE_ALASAN = {
+  "Pensiun":                          "PS",
+  "Pensiun Janda":                    "PJ",
+  "Pensiun Duda":                     "PD",
+  "Pindah":                           "PND",
+  "Pemberhentian dengan Hormat":      "PDH",
+  "Pemberhentian dengan Hormat PPPK": "PPPK",
+  "Pemberhentian Tidak dengan Hormat":"PTDH",
+  "Berhenti Atas Permintaan Sendiri": "BAPS",
+  "Meninggal Dunia":                  "MD",
+  "Lainnya":                          "LN",
+};
+
+// Generate preview nomor SKPP lengkap
+// Format: 900.1.3/{nomorUrut}/{kodeKasubid}/{kodeAlasan}/{tahun}
+function generateTemplateNomor(nomorUrut, kasubid, alasan) {
+  const tahun       = new Date().getFullYear();
+  const kodeKasubid = KODE_KASUBID[kasubid] || "BKUD3.X";
+  const kodeAlasan  = KODE_ALASAN[alasan]   || "XX";
+  return `900.1.3/${nomorUrut}/${kodeKasubid}/${kodeAlasan}/${tahun}`;
+}
+
+// Data staf default untuk halaman Manajemen Staf (UI lokal)
+// Login sesungguhnya divalidasi via Google Sheets sheet "Akun"
+const AKUN_STAF = [
+  { id:"1", username:"admin",    password:"(tersimpan di database)", nama:"Administrator",        role:"admin",    opd:"BKD Provinsi NTT" },
+  { id:"2", username:"operator", password:"(tersimpan di database)", nama:"Staf Loket",           role:"operator", opd:"Loket SKPP" },
+  { id:"3", username:"staf",     password:"(tersimpan di database)", nama:"Staf Pengampuh OPD",  role:"staf",     opd:"Pengampuh OPD" },
 ];
 // ============================================================
 //  GANTI URL INI dengan URL deployment Apps Script Anda
@@ -925,14 +964,7 @@ function InputBaru({ onClose, onSave, saving }) {
             <div className="form-group">
               <label className="form-label">Keperluan SKPP</label>
               <select className="form-control" value={form.alasan} onChange={e=>set("alasan",e.target.value)}>
-                <option>Pensiun</option>
-                <option>Pensiun Janda</option>
-                <option>Pensiun Duda</option>
-                <option>Pindah</option>
-                <option>Pemberhentian dengan Hormat</option>
-                <option>Pemberhentian dengan Hormat PPPK</option>
-                <option>Berhenti Atas Permintaan Sendiri</option>
-                <option>Meninggal Dunia</option>
+                {DAFTAR_KEPERLUAN.map(k=><option key={k}>{k}</option>)}
               </select>
               <div style={{marginTop:6,padding:"6px 10px",background:"var(--g50)",borderRadius:6,fontSize:11,color:"var(--g500)",fontFamily:"var(--mono)"}}>
                 Kode: {KODE_ALASAN[form.alasan] || "-"}
