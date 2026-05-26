@@ -56,6 +56,11 @@ const DAFTAR_PANGKAT = [
   "Pembina Utama Madya / IV-d",
   "Pembina Utama / IV-e"
 ];
+
+const DAFTAR_KASUBID = [
+  "Ibu Ivoni S. Meok, SE., MM",
+  "Ibu Vebby R. Saba, SE"
+];
 // ============================================================
 //  GANTI URL INI dengan URL deployment Apps Script Anda
 // ============================================================
