@@ -307,7 +307,7 @@ const S = `
   .layout { display: flex; height: 100vh; overflow: hidden; }
 
   /* ════════════════════════════════════════════
-     SIDEBAR  — collapsible (expanded / collapsed)
+     SIDEBAR — expanded mode (280px)
   ════════════════════════════════════════════ */
   .sidebar {
     width: var(--sidebar);
@@ -315,33 +315,18 @@ const S = `
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
-    overflow: hidden;
     border-right: 1px solid var(--outline-variant);
-    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 50;
-  }
-  .sidebar.collapsed {
-    width: var(--sidebar-collapsed);
+    padding: 16px 14px;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
-  /* Inner wrapper — fixed wide so content doesn't reflow during animation */
-  .sidebar-inner {
-    width: var(--sidebar);
-    min-width: var(--sidebar);
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    padding: 16px 14px 16px;
-  }
-
-  /* Header row: logo + name + toggle button */
+  /* Header: logo + brand name + toggle button */
   .sidebar-header {
     display: flex;
     align-items: center;
     gap: 10px;
     margin-bottom: 16px;
-    min-height: 44px;
-    overflow: hidden;
   }
   .sidebar-logo {
     width: 40px; height: 40px;
@@ -349,27 +334,21 @@ const S = `
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
     border-radius: 12px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 16px; font-weight: 900; color: white;
+    font-size: 15px; font-weight: 900; color: white;
     box-shadow: 0 4px 12px rgba(0,50,125,0.3);
-    letter-spacing: -0.5px;
-    font-family: var(--font);
     flex-shrink: 0;
-  }
-  .sidebar-brand-text {
-    flex: 1;
-    overflow: hidden;
+    font-family: var(--font);
   }
   .sidebar-brand-name {
     font-weight: 800; font-size: 14px; color: var(--primary);
-    white-space: nowrap; letter-spacing: -0.4px;
+    white-space: nowrap; letter-spacing: -0.4px; line-height: 1.2;
   }
   .sidebar-brand-sub {
     font-size: 10px; color: var(--on-surface-variant);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    margin-top: 1px;
+    white-space: nowrap; margin-top: 1px; line-height: 1.3;
   }
   .btn-toggle {
-    width: 32px; height: 32px; min-width: 32px;
+    width: 30px; height: 30px; min-width: 30px;
     background: none; border: none; cursor: pointer;
     color: var(--on-surface-variant);
     border-radius: 8px;
@@ -387,56 +366,41 @@ const S = `
     padding: 10px 12px;
     border: 1px solid var(--outline-variant);
     margin-bottom: 16px;
-    overflow: hidden;
-    white-space: nowrap;
   }
   .sidebar-user-name {
     font-weight: 700; font-size: 12.5px; color: var(--on-surface);
-    overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .sidebar-user-role-label {
     font-size: 11px; color: var(--on-surface-variant); margin-top: 2px;
-    overflow: hidden; text-overflow: ellipsis;
   }
 
   /* Nav section label */
   .nav-section {
     font-size: 10px; font-weight: 700; color: var(--outline);
     text-transform: uppercase; letter-spacing: 0.08em;
-    padding: 10px 10px 4px;
-    white-space: nowrap;
+    padding: 10px 8px 4px;
   }
 
   /* Nav */
-  .sidebar-nav { display: flex; flex-direction: column; gap: 2px; width: 100%; flex: 1; }
+  .sidebar-nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
 
   .nav-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    height: 44px;
-    padding: 0 10px;
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; height: 44px; padding: 0 10px;
     border-radius: var(--r-md);
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: background 0.15s, color 0.15s;
     color: var(--on-surface-variant);
     position: relative;
-    white-space: nowrap;
     border-left: 3px solid transparent;
-    font-size: 13.5px;
-    font-weight: 500;
-    overflow: hidden;
+    font-size: 13.5px; font-weight: 500;
+    white-space: nowrap;
   }
-  .nav-item:hover {
-    background: var(--surface-container-low);
-    color: var(--on-surface);
-  }
+  .nav-item:hover { background: var(--surface-container-low); color: var(--on-surface); }
   .nav-item.active {
-    background: var(--primary-fixed);
-    color: var(--primary);
-    border-left-color: var(--primary);
-    font-weight: 600;
+    background: var(--primary-fixed); color: var(--primary);
+    border-left-color: var(--primary); font-weight: 600;
   }
   .nav-item .ni {
     display: flex; align-items: center; justify-content: center;
@@ -445,105 +409,130 @@ const S = `
   .nav-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
   .nav-badge {
     margin-left: auto;
-    background: var(--error);
-    color: white;
-    font-size: 10px;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: var(--r-full);
-    min-width: 20px;
-    text-align: center;
-    flex-shrink: 0;
+    background: var(--error); color: white;
+    font-size: 10px; font-weight: 700;
+    padding: 2px 7px; border-radius: var(--r-full);
+    min-width: 20px; text-align: center; flex-shrink: 0;
   }
 
-  /* Collapsed-mode: tooltip via CSS */
-  .sidebar.collapsed .nav-item {
-    justify-content: center;
-    padding: 0;
-    width: 52px;
-    border-left-color: transparent;
-    border-radius: 14px;
+  /* Sidebar footer */
+  .sidebar-footer {
+    display: flex; flex-direction: column; gap: 4px;
+    border-top: 1px solid var(--outline-variant);
+    padding-top: 12px; margin-top: 8px;
   }
-  .sidebar.collapsed .nav-item.active {
-    border-left: 3px solid var(--primary);
-    border-radius: 14px;
+  .logout-btn {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 10px 10px;
+    background: none; border: none; border-radius: var(--r-md);
+    color: var(--on-surface-variant);
+    font-family: var(--font); font-size: 13.5px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
+    white-space: nowrap;
   }
-  .sidebar.collapsed .nav-item::after {
+  .logout-btn:hover { background: var(--error-container); color: var(--error); }
+
+  /* ════════════════════════════════════════════
+     SIDEBAR — collapsed mode (80px, icon-only rail)
+  ════════════════════════════════════════════ */
+  .sidebar-collapsed-rail {
+    width: var(--sidebar-collapsed);
+    min-width: var(--sidebar-collapsed);
+    background: var(--surface-container-lowest);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    border-right: 1px solid var(--outline-variant);
+    padding: 16px 0;
+    overflow: visible;
+  }
+
+  /* Logo di rail — bisa diklik untuk expand */
+  .rail-logo {
+    width: 42px; height: 42px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 900; color: white;
+    box-shadow: 0 4px 12px rgba(0,50,125,0.3);
+    font-family: var(--font);
+    cursor: pointer;
+    transition: box-shadow 0.15s;
+    margin-bottom: 6px;
+  }
+  .rail-logo:hover { box-shadow: 0 6px 18px rgba(0,50,125,0.4); }
+
+  /* Tombol expand di rail */
+  .rail-toggle {
+    width: 34px; height: 34px;
+    background: none; border: none; cursor: pointer;
+    color: var(--on-surface-variant);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, color 0.15s;
+    margin-bottom: 16px;
+  }
+  .rail-toggle:hover { background: var(--surface-container-high); color: var(--primary); }
+
+  /* Nav items di rail */
+  .rail-nav { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; width: 100%; }
+  .rail-item {
+    position: relative;
+    width: 50px; height: 50px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 14px;
+    cursor: pointer;
+    color: var(--on-surface-variant);
+    transition: background 0.15s, color 0.15s;
+    border-left: 3px solid transparent;
+  }
+  .rail-item:hover { background: var(--surface-container-high); color: var(--primary); }
+  .rail-item.active {
+    background: var(--primary-fixed); color: var(--primary);
+    border-left-color: var(--primary);
+  }
+  /* Badge di rail */
+  .rail-badge {
+    position: absolute; top: 7px; right: 7px;
+    background: var(--error); color: white;
+    font-size: 9px; font-weight: 700;
+    padding: 1px 5px; border-radius: var(--r-full);
+    min-width: 16px; text-align: center; line-height: 14px;
+  }
+  /* Tooltip di rail */
+  .rail-item::after {
     content: attr(data-tip);
     position: absolute;
     left: calc(100% + 10px);
     top: 50%; transform: translateY(-50%);
     background: var(--inverse-surface);
     color: var(--inverse-on-surface);
-    padding: 5px 10px;
-    border-radius: 8px;
+    padding: 5px 12px; border-radius: 8px;
     font-size: 12px; font-weight: 600;
     white-space: nowrap;
     pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.15s;
+    opacity: 0; transition: opacity 0.15s;
     z-index: 9999;
   }
-  .sidebar.collapsed .nav-item:hover::after { opacity: 1; }
-  .sidebar.collapsed .nav-badge {
-    position: absolute; top: 7px; right: 7px;
-    margin-left: 0; padding: 1px 5px;
-    font-size: 9px; min-width: 16px; line-height: 14px;
-  }
+  .rail-item:hover::after { opacity: 1; }
 
-  /* Hide text labels & brand when collapsed */
-  .sidebar.collapsed .sidebar-brand-text,
-  .sidebar.collapsed .sidebar-user,
-  .sidebar.collapsed .nav-section,
-  .sidebar.collapsed .nav-label {
-    display: none;
-  }
-  .sidebar.collapsed .sidebar-inner {
-    padding: 16px 6px 16px;
-    align-items: center;
-  }
-  .sidebar.collapsed .sidebar-header {
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 12px;
-  }
-  /* Tombol toggle tetap terlihat saat collapsed */
-  .sidebar.collapsed .btn-toggle {
-    width: 32px; height: 32px;
-    display: flex;
-    margin-left: 0;
-  }
-  .sidebar.collapsed .sidebar-nav {
-    align-items: center;
-  }
-
-  .sidebar-footer {
-    display: flex; flex-direction: column; gap: 4px;
+  /* Footer di rail */
+  .rail-footer {
     border-top: 1px solid var(--outline-variant);
     padding-top: 12px; margin-top: 8px;
+    display: flex; flex-direction: column; align-items: center;
+    width: 100%;
   }
-  .sidebar.collapsed .sidebar-footer { align-items: center; }
-
-  .logout-btn {
-    display: flex; align-items: center; gap: 10px;
-    width: 100%; padding: 10px 10px;
-    background: none; border: none;
-    border-radius: var(--r-md);
+  .rail-logout {
+    width: 44px; height: 44px;
+    background: none; border: none; cursor: pointer;
     color: var(--on-surface-variant);
-    font-family: var(--font); font-size: 13.5px; font-weight: 600;
-    cursor: pointer; transition: all 0.15s;
-    white-space: nowrap; overflow: hidden;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, color 0.15s;
   }
-  .logout-btn:hover {
-    background: var(--error-container);
-    color: var(--error);
-  }
-  .sidebar.collapsed .logout-btn {
-    width: 44px; height: 44px; padding: 0;
-    justify-content: center; border-radius: 14px;
-  }
-  .sidebar.collapsed .logout-label { display: none; }
+  .rail-logout:hover { background: var(--error-container); color: var(--error); }
 
   /* ════════════════════════════════════════════
      MAIN CONTENT
@@ -1391,82 +1380,119 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
   const roleLabel = user.role==="admin" ? "Admin" : user.role==="operator" ? "Staf Loket" : "Staf Pengampuh OPD";
   const roleClass = user.role==="admin" ? "badge-purple" : user.role==="operator" ? "badge-gold" : "badge-blue";
 
-  return (
-    <div className={`sidebar${collapsed?" collapsed":""}`}>
-      <div className="sidebar-inner">
+  const ToggleIcon = ({ flipped }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      style={{transition:"transform 0.2s", transform: flipped ? "rotate(180deg)" : "rotate(0deg)"}}>
+      <rect width="18" height="18" x="3" y="3" rx="2"/>
+      <path d="M9 3v18"/>
+    </svg>
+  );
 
-        {/* Header: logo + brand + toggle */}
-        <div className="sidebar-header">
-          <div className="sidebar-logo" title="SKPP Tracker">{initials}</div>
-          <div className="sidebar-brand-text">
-            <div className="sidebar-brand-name">SKPP Tracker</div>
-            <div className="sidebar-brand-sub">Bidang Perbendaharaan – BKD NTT</div>
-          </div>
-          <button
-            className="btn-toggle"
-            onClick={() => setCollapsed(c => !c)}
-            title={collapsed ? "Perluas menu" : "Ciutkan menu"}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-              style={{transition:"transform 0.25s", transform: collapsed ? "rotate(180deg)" : "rotate(0deg)"}}>
-              <rect width="18" height="18" x="3" y="3" rx="2"/>
-              <path d="M9 3v18"/>
-            </svg>
+  /* ── COLLAPSED: icon-only rail ── */
+  if (collapsed) {
+    const allItems = [
+      ...items.filter(it => !(user.role === "staf" && it.id === "input")),
+      ...(user.role === "admin" ? adminItems : []),
+    ];
+    return (
+      <div className="sidebar-collapsed-rail">
+        {/* Logo */}
+        <div className="rail-logo" title="Perluas menu" onClick={() => setCollapsed(false)}>
+          {initials}
+        </div>
+        {/* Tombol expand */}
+        <button className="rail-toggle" onClick={() => setCollapsed(false)} title="Perluas menu">
+          <ToggleIcon flipped={true}/>
+        </button>
+
+        {/* Nav icons */}
+        <div className="rail-nav">
+          {allItems.map(it => (
+            <div
+              key={it.id}
+              className={`rail-item${active===it.id?" active":""}`}
+              onClick={() => onChange(it.id)}
+              data-tip={it.label}
+            >
+              {it.icon}
+              {it.badge > 0 && <span className="rail-badge">{it.badge}</span>}
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div className="rail-footer">
+          <button className="rail-logout" onClick={onLogout} title="Keluar">
+            <IcoLogout size={18}/>
           </button>
         </div>
+      </div>
+    );
+  }
 
-        {/* User card (visible when expanded) */}
-        <div className="sidebar-user">
-          <div className="sidebar-user-name">{user.nama}</div>
-          <div className="sidebar-user-role-label">{user.opd || "—"}</div>
-          <span className={`badge ${roleClass}`} style={{fontSize:10,marginTop:4,display:"inline-flex"}}>{roleLabel}</span>
+  /* ── EXPANDED: full sidebar ── */
+  return (
+    <div className="sidebar">
+      {/* Header */}
+      <div className="sidebar-header">
+        <div className="sidebar-logo">{initials}</div>
+        <div style={{flex:1, overflow:"hidden"}}>
+          <div className="sidebar-brand-name">SKPP Tracker</div>
+          <div className="sidebar-brand-sub">Bidang Perbendaharaan – BKD NTT</div>
         </div>
+        <button className="btn-toggle" onClick={() => setCollapsed(true)} title="Ciutkan menu">
+          <ToggleIcon flipped={false}/>
+        </button>
+      </div>
 
-        {/* Navigation */}
-        <div className="sidebar-nav">
-          <div className="nav-section">Menu Utama</div>
-          {items.map(it => {
-            if (user.role === "staf" && it.id === "input") return null;
-            return (
+      {/* User card */}
+      <div className="sidebar-user">
+        <div className="sidebar-user-name">{user.nama}</div>
+        <div className="sidebar-user-role-label">{user.opd || "—"}</div>
+        <span className={`badge ${roleClass}`} style={{fontSize:10,marginTop:4,display:"inline-flex"}}>{roleLabel}</span>
+      </div>
+
+      {/* Navigation */}
+      <div className="sidebar-nav">
+        <div className="nav-section">Menu Utama</div>
+        {items.map(it => {
+          if (user.role === "staf" && it.id === "input") return null;
+          return (
+            <div
+              key={it.id}
+              className={`nav-item${active===it.id?" active":""}`}
+              onClick={() => onChange(it.id)}
+            >
+              <span className="ni">{it.icon}</span>
+              <span className="nav-label">{it.label}</span>
+              {it.badge > 0 && <span className="nav-badge">{it.badge}</span>}
+            </div>
+          );
+        })}
+        {user.role === "admin" && (
+          <>
+            <div className="nav-section">Administrasi</div>
+            {adminItems.map(it => (
               <div
                 key={it.id}
                 className={`nav-item${active===it.id?" active":""}`}
                 onClick={() => onChange(it.id)}
-                data-tip={it.label}
               >
                 <span className="ni">{it.icon}</span>
                 <span className="nav-label">{it.label}</span>
-                {it.badge > 0 && <span className="nav-badge">{it.badge}</span>}
               </div>
-            );
-          })}
+            ))}
+          </>
+        )}
+      </div>
 
-          {user.role === "admin" && (
-            <>
-              <div className="nav-section">Administrasi</div>
-              {adminItems.map(it => (
-                <div
-                  key={it.id}
-                  className={`nav-item${active===it.id?" active":""}`}
-                  onClick={() => onChange(it.id)}
-                  data-tip={it.label}
-                >
-                  <span className="ni">{it.icon}</span>
-                  <span className="nav-label">{it.label}</span>
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="sidebar-footer">
-          <button className="logout-btn" onClick={onLogout} title="Keluar">
-            <IcoLogout size={16}/>
-            <span className="logout-label">Keluar dari Sistem</span>
-          </button>
-        </div>
-
+      {/* Footer */}
+      <div className="sidebar-footer">
+        <button className="logout-btn" onClick={onLogout}>
+          <IcoLogout size={16}/>
+          <span>Keluar dari Sistem</span>
+        </button>
       </div>
     </div>
   );
