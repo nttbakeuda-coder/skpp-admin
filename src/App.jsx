@@ -683,7 +683,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
                       }}>{v||"-"}</span>
                     </div>
                   ))}
-                  {p.nomorSKPP && <div className="info-row"><span className="info-lbl">No. SKPP</span><span className="info-val" style={{color:"var(--success)",fontWeight:700,fontFamily:"var(--mono)"}}>{p.nomorSKPP}</span></div>
+                  {p.nomorSKPP && <div className="info-row"><span className="info-lbl">No. SKPP</span><span className="info-val" style={{color:"var(--success)",fontWeight:700,fontFamily:"var(--mono)"}}>{p.nomorSKPP}</span></div>}
                   {p.kodeAkses && (
                     <div style={{background:"var(--primary)",borderRadius:10,padding:"12px 16px",marginTop:12,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
                       <div>
