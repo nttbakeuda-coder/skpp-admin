@@ -495,8 +495,7 @@ const S = `
   .sidebar.collapsed .sidebar-brand-text,
   .sidebar.collapsed .sidebar-user,
   .sidebar.collapsed .nav-section,
-  .sidebar.collapsed .nav-label,
-  .sidebar.collapsed .sidebar-header .btn-toggle {
+  .sidebar.collapsed .nav-label {
     display: none;
   }
   .sidebar.collapsed .sidebar-inner {
@@ -504,11 +503,16 @@ const S = `
     align-items: center;
   }
   .sidebar.collapsed .sidebar-header {
-    justify-content: center;
-    margin-bottom: 16px;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
   }
-  .sidebar.collapsed .sidebar-logo {
-    cursor: pointer;
+  /* Tombol toggle tetap terlihat saat collapsed */
+  .sidebar.collapsed .btn-toggle {
+    width: 32px; height: 32px;
+    display: flex;
+    margin-left: 0;
   }
   .sidebar.collapsed .sidebar-nav {
     align-items: center;
@@ -1393,13 +1397,7 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
 
         {/* Header: logo + brand + toggle */}
         <div className="sidebar-header">
-          <div
-            className="sidebar-logo"
-            title="SKPP Tracker"
-            onClick={() => collapsed && setCollapsed(false)}
-          >
-            {initials}
-          </div>
+          <div className="sidebar-logo" title="SKPP Tracker">{initials}</div>
           <div className="sidebar-brand-text">
             <div className="sidebar-brand-name">SKPP Tracker</div>
             <div className="sidebar-brand-sub">Bidang Perbendaharaan – BKD NTT</div>
@@ -1407,9 +1405,10 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
           <button
             className="btn-toggle"
             onClick={() => setCollapsed(c => !c)}
-            title={collapsed ? "Perluas menu" : "Tutup menu"}
+            title={collapsed ? "Perluas menu" : "Ciutkan menu"}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              style={{transition:"transform 0.25s", transform: collapsed ? "rotate(180deg)" : "rotate(0deg)"}}>
               <rect width="18" height="18" x="3" y="3" rx="2"/>
               <path d="M9 3v18"/>
             </svg>
