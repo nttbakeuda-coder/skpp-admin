@@ -74,13 +74,11 @@ const DAFTAR_KEPERLUAN = [
   "Lainnya"
 ];
 
-// Kode singkat untuk setiap Kasubid (dipakai di nomor SKPP)
 const KODE_KASUBID = {
   "Ibu Ivoni S. Meok, SE., MM": "BKUD3.1",
   "Ibu Vebby R. Saba, SE":      "BKUD3.2",
 };
 
-// Kode singkat untuk setiap keperluan SKPP (dipakai di nomor SKPP)
 const KODE_ALASAN = {
   "Pensiun":                          "PS",
   "Pensiun Janda":                    "PJ",
@@ -93,8 +91,6 @@ const KODE_ALASAN = {
   "Lainnya":                          "LN",
 };
 
-// Generate preview nomor SKPP lengkap
-// Format: 900.1.3/{nomorUrut}/{kodeKasubid}/{kodeAlasan}/{tahun}
 function generateTemplateNomor(nomorUrut, kasubid, alasan) {
   const tahun       = new Date().getFullYear();
   const kodeKasubid = KODE_KASUBID[kasubid] || "BKUD3.X";
@@ -102,22 +98,15 @@ function generateTemplateNomor(nomorUrut, kasubid, alasan) {
   return `900.1.3/${nomorUrut}/${kodeKasubid}/${kodeAlasan}/${tahun}`;
 }
 
-// Data staf default untuk halaman Manajemen Staf (UI lokal)
-// Login sesungguhnya divalidasi via Google Sheets sheet "Akun"
 const AKUN_STAF = [
   { id:"1", username:"admin",    password:"(tersimpan di database)", nama:"Administrator",        role:"admin",    opd:"BKD Provinsi NTT" },
   { id:"2", username:"operator", password:"(tersimpan di database)", nama:"Staf Loket",           role:"operator", opd:"Loket SKPP" },
   { id:"3", username:"staf",     password:"(tersimpan di database)", nama:"Staf Pengampuh OPD",  role:"staf",     opd:"Pengampuh OPD" },
 ];
-// ============================================================
-//  GANTI URL INI dengan URL deployment Apps Script Anda
-// ============================================================
-const API_URL = "https://script.google.com/macros/s/AKfycbxdSGg9F6P4FpNJsr3jhVklVKTqxFjepQbs4mHblDDv2ySMXD8nkZfrhMcEgz8IcPOoeA/exec";
 
-// URL halaman tanda terima (sesuaikan dengan URL deploy Anda)
+const API_URL = "https://script.google.com/macros/s/AKfycbxdSGg9F6P4FpNJsr3jhVklVKTqxFjepQbs4mHblDDv2ySMXD8nkZfrhMcEgz8IcPOoeA/exec";
 const TANDA_TERIMA_URL = "/tanda_terima_SKPP.html";
 
-// Fungsi cetak tanda terima — buka di tab baru dengan data via URL params
 function cetakTandaTerima(p) {
   const params = new URLSearchParams({
     id:      p.id      || "",
@@ -134,7 +123,6 @@ function cetakTandaTerima(p) {
   window.open(`${TANDA_TERIMA_URL}?${params.toString()}`, "_blank");
 }
 
-// ─── DATA TAHAPAN ─────────────────────────────────────────────────────────────
 const TAHAPAN_A = [
   { id:"A1", label:"Berkas Diterima di Loket",      icon:"📥", pelaksana:"Staf Loket" },
   { id:"A2", label:"Verifikasi Kelengkapan Berkas", icon:"🔍", pelaksana:"Staf Pengampuh OPD" },
@@ -144,6 +132,7 @@ const TAHAPAN_A = [
   { id:"A6", label:"Penempelan Foto & Penomoran",   icon:"📸", pelaksana:"Staf Loket" },
   { id:"A7", label:"SKPP Siap Diserahkan",          icon:"🎉", pelaksana:"Staf Loket", final:true },
 ];
+
 const TAHAPAN_B = [
   { id:"B1",  label:"Berkas Diterima di Loket",            icon:"📥", pelaksana:"Staf Loket" },
   { id:"B2",  label:"Verifikasi Kelengkapan Berkas",       icon:"🔍", pelaksana:"Staf Pengampuh OPD" },
@@ -157,69 +146,51 @@ const TAHAPAN_B = [
   { id:"B10", label:"Penempelan Foto & Penomoran",        icon:"📸", pelaksana:"Staf Loket" },
   { id:"B11", label:"SKPP Siap Diserahkan",               icon:"🎉", pelaksana:"Staf Loket", final:true },
 ];
-const cekIzinProses = (userRole, pelaksanaTahapan) => {
-  // 1. Admin selalu punya akses penuh
-  if (userRole === "admin") return true;
 
-  // 2. Mengakomodir Staf Perbendaharaan & Kerja Sama Bersama (Simultan)
-  if (
-    pelaksanaTahapan === "Staf Perbendaharaan" || 
-    pelaksanaTahapan === "Operator / Staf Perbendaharaan"
-  ) {
+const cekIzinProses = (userRole, pelaksanaTahapan) => {
+  if (userRole === "admin") return true;
+  if (pelaksanaTahapan === "Staf Perbendaharaan" || pelaksanaTahapan === "Operator / Staf Perbendaharaan") {
     return userRole === "operator" || userRole === "staf";
   }
-
-  // 3. Khusus Operator / Staf Loket
-  if (
-    pelaksanaTahapan === "Staf Loket" || 
-    pelaksanaTahapan === "Operator SIMgaji"
-  ) {
+  if (pelaksanaTahapan === "Staf Loket" || pelaksanaTahapan === "Operator SIMgaji") {
     return userRole === "operator";
   }
-
-  // 4. Khusus Staf Pengampuh OPD / Penyusun SKPP
-  if (
-    pelaksanaTahapan === "Staf Pengampuh OPD" || 
-    pelaksanaTahapan === "Penyusun SKPP"
-  ) {
+  if (pelaksanaTahapan === "Staf Pengampuh OPD" || pelaksanaTahapan === "Penyusun SKPP") {
     return userRole === "staf";
   }
-
-  // 5. Mengakomodir tahapan multi-level (Kasubid & Kuasa BUD)
   if (pelaksanaTahapan?.includes("Kasubid") || pelaksanaTahapan?.includes("Kuasa BUD")) {
     return userRole === "staf" || userRole === "admin";
   }
-
   return false;
 };
 
-// ─── API ──────────────────────────────────────────────────────────────────────
 async function apiGet(params) {
   const url = new URL(API_URL);
   Object.entries(params).forEach(([k,v]) => url.searchParams.set(k,v));
   const res = await fetch(url.toString());
   return res.json();
 }
+
 async function apiPost(body) {
   const res = await fetch(API_URL, { method:"POST", body: JSON.stringify(body) });
   return res.json();
 }
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
 const norm = p => ({
   ...p,
   tahapSelesai: Array.isArray(p.tahapSelesai) ? p.tahapSelesai : (p.tahapSelesai||"").split(",").filter(Boolean),
   riwayat: p.riwayat || [],
 });
+
 const getProgress = p => {
   const t = p.jalur==="A" ? TAHAPAN_A : TAHAPAN_B;
   const s = Array.isArray(p.tahapSelesai) ? p.tahapSelesai : (p.tahapSelesai||"").split(",").filter(Boolean);
   return Math.round((s.length / t.length) * 100);
 };
+
 const fmtDate = d => { if(!d) return "-"; const dt=d instanceof Date?d:new Date(d); return isNaN(dt)?d:dt.toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}); };
 const fmtFull = d => { if(!d) return "-"; const dt=d instanceof Date?d:new Date(d); return isNaN(dt)?d:dt.toLocaleString("id-ID",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}); };
 
-// ─── EXPORT CSV ───────────────────────────────────────────────────────────────
 function exportCSV(data) {
   const headers = ["No. Pengajuan","Nama","NIP","OPD","Jabatan","Pangkat","Keperluan","Jalur","Status","Progress","Tgl Masuk","Tgl Selesai","No. SKPP"];
   const rows = data.map(p => [
@@ -235,7 +206,7 @@ function exportCSV(data) {
   URL.revokeObjectURL(url);
 }
 
-// ─── STYLES ──────────────────────────────────────────────────────────────────
+// ─── STYLES (Diperbaiki: Variabel --navy dan --blue ditambahkan) ──────────────
 const S = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -248,6 +219,7 @@ const S = `
     --g50:#f9f9fc;--g100:#f3f3f6;--g200:#eeeef0;--g300:#cbd5e1;
     --g400:#737784;--g500:#64748b;--g600:#434653;--g700:#1a1c1e;--g800:#1a1c1e;
     --on-surface:#1a1c1e;--on-surface-var:#434653;--outline:#737784;--outline-var:#c3c6d5;
+    --navy:#00327d;--blue:#0047ab;
     --font:'Inter',sans-serif;--mono:'JetBrains Mono',monospace;
     --r:16px;--rs:12px;--shadow:0px 1px 3px rgba(0,0,0,.08),0px 4px 16px rgba(0,0,0,.06);
     --shadow-lg:0px 12px 32px rgba(0,0,0,.12);
@@ -256,7 +228,6 @@ const S = `
   body{font-family:var(--font);background:#f9f9fc;color:var(--on-surface);height:100vh;overflow:hidden;}
   .layout{display:flex;height:100vh;overflow:hidden;}
 
-  /* SIDEBAR */
   .sidebar{width:var(--sidebar);background:#ffffff;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;border-right:1px solid var(--outline-var);}
   .sidebar-brand{padding:24px 20px 20px;border-bottom:1px solid var(--outline-var);}
   .sidebar-logo{width:40px;height:40px;background:var(--primary);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:12px;}
@@ -276,27 +247,22 @@ const S = `
   .logout-btn{width:100%;padding:10px;background:#f9f9fc;border:1.5px solid var(--outline-var);border-radius:10px;color:var(--on-surface-var);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
   .logout-btn:hover{background:#fef2f2;border-color:#fecaca;color:var(--error);}
 
-
-  /* MAIN */
   .main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
   .topbar{background:#ffffff;border-bottom:1px solid var(--outline-var);padding:0 32px;height:64px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
   .topbar-title{font-weight:800;font-size:20px;color:var(--g700);letter-spacing:-.5px;}
   .topbar-sub{font-size:12px;color:var(--on-surface-var);margin-top:2px;}
   .content{flex:1;overflow-y:auto;padding:32px;}
 
-  /* CARDS */
   .card{background:#ffffff;border-radius:var(--r);box-shadow:0px 1px 3px rgba(0,0,0,.08);border:1px solid var(--outline-var);}
   .card-header{padding:20px 24px;border-bottom:1px solid var(--outline-var);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
   .card-body{padding:24px;}
 
-  /* STAT GRID */
   .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-bottom:24px;}
   .stat-card{background:#ffffff;border-radius:var(--r);padding:24px;border:1px solid var(--outline-var);box-shadow:0px 1px 3px rgba(0,0,0,.08);display:flex;align-items:center;gap:16px;}
   .stat-icon{width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;}
   .stat-num{font-size:32px;font-weight:800;letter-spacing:-1px;line-height:1;}
   .stat-label{font-size:12px;color:var(--on-surface-var);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-top:4px;}
 
-  /* BADGES */
   .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;}
   .badge-blue{background:var(--primary-pale);color:var(--primary);}
   .badge-green{background:var(--success-pale);color:var(--success);}
@@ -304,7 +270,6 @@ const S = `
   .badge-red{background:var(--error-pale);color:var(--error);}
   .badge-purple{background:#f5f3ff;color:#5b21b6;}
 
-  /* BUTTONS */
   .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:var(--rs);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
   .btn-primary{background:var(--primary);color:white;}
   .btn-primary:hover{background:var(--primary-dark);}
@@ -319,7 +284,6 @@ const S = `
   .btn-ghost{background:none;color:var(--on-surface-var);border:1.5px solid var(--outline-var);}
   .btn-ghost:hover{background:#f9f9fc;}
 
-  /* TABLE */
   .table-wrap{overflow-x:auto;}
   table{width:100%;border-collapse:collapse;font-size:14px;}
   th{background:#f9f9fc;padding:12px 16px;text-align:left;font-weight:700;color:var(--on-surface-var);font-size:12px;text-transform:uppercase;letter-spacing:.6px;border-bottom:1.5px solid var(--outline-var);white-space:nowrap;}
@@ -327,7 +291,6 @@ const S = `
   .tr-clickable:hover td{background:#f9f9fc;cursor:pointer;}
   .tr-selected td{background:var(--primary-pale)!important;}
 
-  /* FORM */
   .form-group{margin-bottom:16px;}
   .form-label{display:block;font-size:12px;font-weight:700;color:var(--on-surface-var);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;}
   .form-control{width:100%;padding:10px 14px;border:1.5px solid var(--outline-var);border-radius:var(--rs);font-family:var(--font);font-size:14px;color:var(--on-surface);outline:none;transition:border-color .15s;background:#ffffff;}
@@ -335,14 +298,12 @@ const S = `
   textarea.form-control{resize:vertical;min-height:80px;}
   select.form-control{cursor:pointer;}
 
-  /* SEARCH */
   .search-wrap{position:relative;flex:1;min-width:240px;}
   .search-input{width:100%;padding:10px 14px 10px 40px;border:1.5px solid var(--outline-var);border-radius:999px;font-family:var(--font);font-size:14px;background:#ffffff;color:var(--on-surface);outline:none;transition:border-color .15s;}
   .search-input:focus{border-color:var(--primary);}
   .search-input::placeholder{color:var(--on-surface-var);}
   .search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--on-surface-var);font-size:16px;}
 
-  /* MODAL */
   .modal-overlay{position:fixed;inset:0;background:rgba(26,28,30,.4);backdrop-filter:blur(6px);display:flex;align-items:flex-start;justify-content:center;z-index:1000;padding:28px;overflow-y:auto;}
   .modal{background:#ffffff;border-radius:24px;width:100%;max-width:740px;box-shadow:0px 12px 32px rgba(0,0,0,.15);margin:auto;animation:slideUp .2s ease;border:1px solid var(--outline-var);}
   .modal-header{padding:24px 28px;border-bottom:1px solid var(--outline-var);display:flex;align-items:flex-start;justify-content:space-between;gap:16px;}
@@ -352,13 +313,11 @@ const S = `
   .modal-close:hover{background:#f3f3f6;color:var(--g700);}
   @keyframes slideUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
 
-  /* TABS */
   .tabs{display:flex;gap:4px;border-bottom:1.5px solid var(--outline-var);margin-bottom:24px;}
   .tab{padding:12px 20px;font-size:14px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1.5px;color:var(--on-surface-var);transition:all .15s;}
   .tab.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:700;}
   .tab:hover:not(.active){color:var(--g700);}
 
-  /* TIMELINE */
   .timeline-item{display:flex;gap:16px;position:relative;}
   .timeline-item:not(:last-child){padding-bottom:22px;}
   .timeline-left{display:flex;flex-direction:column;align-items:center;width:40px;flex-shrink:0;}
@@ -371,51 +330,41 @@ const S = `
   .t-line.done{background:var(--success);}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(0,50,125,.3);}70%{box-shadow:0 0 0 8px rgba(0,50,125,0);}100%{box-shadow:0 0 0 0 rgba(0,50,125,0);}}
 
-  /* PROGRESS */
   .progress-wrap{background:#f3f3f6;border-radius:999px;height:6px;overflow:hidden;}
   .progress-bar{height:100%;border-radius:999px;transition:width .4s ease;}
 
-  /* GRID */
   .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
   .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
 
-  /* ALERT */
   .alert{padding:14px 16px;border-radius:var(--rs);font-size:14px;display:flex;gap:12px;align-items:flex-start;margin-bottom:16px;border:1.5px solid;}
   .alert-blue{background:#dae2ff;border-color:#b1c5ff;color:var(--primary);}
   .alert-amber{background:var(--warning-pale);border-color:#fcd34d;color:var(--warning);}
   .alert-green{background:var(--success-pale);border-color:#a7f3d0;color:var(--success);}
   .alert-red{background:var(--error-pale);border-color:#fecaca;color:var(--error);}
 
-  /* INFO ROW */
   .info-row{display:flex;gap:10px;margin-bottom:10px;align-items:baseline;}
   .info-lbl{font-size:12px;color:var(--on-surface-var);font-weight:700;text-transform:uppercase;letter-spacing:.5px;min-width:120px;flex-shrink:0;}
   .info-val{font-size:14px;color:var(--on-surface);font-weight:500;}
 
-  /* STEP BTN */
   .step-btn{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:var(--rs);border:1.5px solid var(--outline-var);background:#ffffff;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;width:100%;text-align:left;margin-bottom:8px;transition:all .15s;}
   .step-btn.done{border-color:var(--success);background:var(--success-pale);color:var(--success);cursor:default;}
   .step-btn.aktif{border-color:var(--primary);background:var(--primary-pale);color:var(--primary);}
   .step-btn.wait{opacity:.4;cursor:not-allowed;color:var(--on-surface-var);}
 
-  /* LOGIN */
   .login-bg{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--primary) 0%,var(--primary-light) 60%,#0047ab 100%);}
   .login-card{background:#ffffff;border-radius:24px;width:420px;padding:44px;box-shadow:0px 20px 60px rgba(0,0,0,.3);}
   .login-logo{width:52px;height:52px;background:var(--secondary);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:18px;}
 
-  /* CHIP */
   .chip{display:inline-flex;align-items:center;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:600;background:#f3f3f6;color:var(--on-surface-var);}
   .chip-blue{background:var(--primary-pale);color:var(--primary);}
   .chip-green{background:var(--success-pale);color:var(--success);}
 
-  /* TOAST */
   .toast{position:fixed;bottom:32px;right:32px;background:var(--primary);color:white;padding:14px 22px;border-radius:12px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0px 12px 32px rgba(0,0,0,.25);animation:slideUp .2s ease;}
 
-  /* USER TABLE BADGE */
   .role-admin{background:#f5f3ff;color:#5b21b6;}
   .role-staf{background:var(--primary-pale);color:var(--primary);}
   .role-operator{background:var(--warning-pale);color:var(--warning);}
 
-  /* SCROLLBAR */
   ::-webkit-scrollbar{width:6px;height:6px;}
   ::-webkit-scrollbar-track{background:transparent;}
   ::-webkit-scrollbar-thumb{background:var(--outline-var);border-radius:999px;}
@@ -431,13 +380,11 @@ const S = `
   .empty-sub{font-size:13px;margin-top:6px;color:var(--on-surface-var);}
 `;
 
-// ─── TOAST ───────────────────────────────────────────────────────────────────
 function Toast({ msg, onDone }) {
   useEffect(() => { const t = setTimeout(onDone, 3000); return () => clearTimeout(t); }, []);
   return <div className="toast">{msg}</div>;
 }
 
-// ─── LOGIN ───────────────────────────────────────────────────────────────────
 function Login({ onLogin }) {
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
@@ -449,25 +396,18 @@ function Login({ onLogin }) {
       setErr("Username dan password wajib diisi.");
       return;
     }
-
     setIsLoggingIn(true);
     setErr("");
-
     try {
-      // Mengirim request login ke backend Apps Script yang terhubung ke Google Sheets
-      // Pastikan fungsi 'apiPost' sudah tersedia di dalam kod anda untuk menghantar data
       const res = await apiPost({ 
         action: "login", 
         username: user.trim(), 
         password: pass 
       });
-
       if (res && res.ok) {
         localStorage.setItem("isLoggedIn", "true");
         localStorage.setItem("namaStaf", res.nama);
         localStorage.setItem("roleStaf", res.role);
-        
-        // Memanggil fungsi onLogin bawaan aplikasi untuk masuk ke dashboard
         onLogin({ username: user.trim(), nama: res.nama, role: res.role });
       } else {
         setErr(res.pesan || "Username atau password salah.");
@@ -485,38 +425,16 @@ function Login({ onLogin }) {
         <div className="login-logo">📁</div>
         <div style={{ fontWeight: 800, fontSize: 22, color: "var(--primary)", marginBottom: 4 }}>SKPP Admin</div>
         <div style={{ fontSize: 13, color: "var(--on-surface-var)", marginBottom: 28 }}>Bidang Perbendaharaan BKD NTT</div>
-        
         {err && <div className="alert alert-red" style={{ marginBottom: 14 }}><span>⚠️</span> <span>{err}</span></div>}
-        
         <div className="form-group">
           <label className="form-label">Username</label>
-          <input 
-            className="form-control" 
-            value={user} 
-            onChange={e => setUser(e.target.value)} 
-            onKeyDown={e => e.key === "Enter" && submit()}
-            disabled={isLoggingIn}
-          />
+          <input className="form-control" value={user} onChange={e => setUser(e.target.value)} onKeyDown={e => e.key === "Enter" && submit()} disabled={isLoggingIn} />
         </div>
-        
         <div className="form-group" style={{ marginBottom: 20 }}>
           <label className="form-label">Password</label>
-          <input 
-            type="password" 
-            className="form-control" 
-            value={pass} 
-            onChange={e => setPass(e.target.value)} 
-            onKeyDown={e => e.key === "Enter" && submit()}
-            disabled={isLoggingIn}
-          />
+          <input type="password" className="form-control" value={pass} onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === "Enter" && submit()} disabled={isLoggingIn} />
         </div>
-        
-        <button 
-          className="btn btn-primary" 
-          style={{ width: "100%", justifyContent: "center", padding: 12, cursor: isLoggingIn ? "wait" : "pointer", opacity: isLoggingIn ? 0.7 : 1 }}
-          onClick={submit}
-          disabled={isLoggingIn}
-        >
+        <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center", padding: 12, cursor: isLoggingIn ? "wait" : "pointer", opacity: isLoggingIn ? 0.7 : 1 }} onClick={submit} disabled={isLoggingIn}>
           {isLoggingIn ? "Memeriksa Akun..." : "Masuk ke Dashboard →"}
         </button>
       </div>
@@ -524,7 +442,6 @@ function Login({ onLogin }) {
   );
 }
 
-// ─── SIDEBAR ─────────────────────────────────────────────────────────────────
 function Sidebar({ user, active, onChange, counts, onLogout }) {
   const items = [
     { id:"dashboard", icon:"📊", label:"Dashboard" },
@@ -554,15 +471,13 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
       <div className="sidebar-nav">
         <div className="nav-section">Menu Utama</div>
         {items.map(it => {
-        // JIKA yang login adalah "staf" (Staf Pengampuh OPD), SEMBUNYIKAN menu Input Baru
-        if (user.role === "staf" && it.id === "input") return null;
-  
-        return (
-         <div key={it.id} className={`nav-item ${active===it.id?"active":""}`} onClick={()=>onChange(it.id)}>
-          <span className="ni">{it.icon}</span>
-          <span style={{ flex: 1 }}>{it.label}</span>
-          {it.badge > 0 && <span className="nav-badge">{it.badge}</span>}
-         </div>
+          if (user.role === "staf" && it.id === "input") return null;
+          return (
+            <div key={it.id} className={`nav-item ${active===it.id?"active":""}`} onClick={()=>onChange(it.id)}>
+              <span className="ni">{it.icon}</span>
+              <span style={{ flex: 1 }}>{it.label}</span>
+              {it.badge > 0 && <span className="nav-badge">{it.badge}</span>}
+            </div>
           );
         })}
         {user.role === "admin" && (
@@ -584,18 +499,14 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
   );
 }
 
-// ─── STATUS BADGE ─────────────────────────────────────────────────────────────
 function SBadge({ s, p }) {
-  // Backwards-compatible: accept either status string via `s` or full pengajuan object via `p`
   const status = s || (p && p.status) || "proses";
-  // If full object provided, prefer computed progress to determine finished state
   const prog = p ? getProgress(p) : null;
   if (prog === 100 || status === "selesai") return <span className="badge badge-green">✓ Selesai</span>;
   if (status === "kembali") return <span className="badge badge-amber">↩ Dikembalikan</span>;
   return <span className="badge badge-blue">⟳ Diproses</span>;
 }
 
-// ─── TIMELINE ────────────────────────────────────────────────────────────────
 function Timeline({ p }) {
   const tahapan = p.jalur==="A" ? TAHAPAN_A : TAHAPAN_B;
   const selesai = p.tahapSelesai || [];
@@ -629,7 +540,6 @@ function Timeline({ p }) {
   );
 }
 
-// ─── DETAIL MODAL ─────────────────────────────────────────────────────────────
 function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
   const [tab, setTab] = useState("info");
   const [catatan, setCatatan] = useState("");
@@ -648,7 +558,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
             <div style={{ fontWeight:800, fontSize:17, color:"var(--primary)" }}>{p.nama}</div>
             <div style={{ fontSize:12, color:"var(--on-surface-var)", marginTop:2 }}>{p.opd} · {p.alasan} · {p.jalur==="A"?"Jalur A":"Jalur B"}</div>
           </div>
-            <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
             <SBadge p={p} />
             <button className="modal-close" onClick={onClose} disabled={saving}>✕</button>
           </div>
@@ -711,9 +621,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
             <div>
               {(p.status==="selesai"||prog===100) ? (
                 <div className="alert alert-green"><span>🎉</span><span>SKPP sudah selesai dan diserahkan. Tidak ada tahap yang perlu diupdate.</span></div>
-
               ) : p.status === "kembali" ? (
-                /* ─── CABANG KEMBALI: tampil untuk SEMUA pengajuan berstatus kembali ─── */
                 <div>
                   <div style={{background:"#fffbeb",border:"2px solid #f59e0b",borderRadius:10,padding:"18px",marginBottom:16}}>
                     <div style={{fontWeight:800,fontSize:15,color:"#92400e",marginBottom:8}}>⚠️ Berkas Sedang Dikembalikan</div>
@@ -738,10 +646,9 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
                     </button>
                   </div>
                 </div>
-
               ) : stepAktif ? (
                 <div>
-                  <div className="alert alert-blue" style={{ marginBottom:14 }}><span>ℹ️</span><div><strong>Tahap aktif: {stepAktif.icon} {stepAktif.label}</strong><br/><span style={{fontSize:12}}>Pelaksana: {stepAktif.pelaksana}</span></div></div>
+                  <div className="alert alert-blue" style={{ MalcolmBottom:14 }}><span>ℹ️</span><div><strong>Tahap aktif: {stepAktif.icon} {stepAktif.label}</strong><br/><span style={{fontSize:12}}>Pelaksana: {stepAktif.pelaksana}</span></div></div>
                   {isPenomoran(stepAktif.id) && (
                     <div style={{background:"#f0f9ff",border:"1.5px solid #bae6fd",borderRadius:10,padding:"14px 16px",marginBottom:14}}>
                       <div style={{fontWeight:700,fontSize:13,color:"#0369a1",marginBottom:10}}>📋 Input Nomor SKPP</div>
@@ -777,35 +684,30 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
                   <button
                     className="btn"
                     style={{ 
-                    width: "100%", 
-                    justifyContent: "center", 
-                    background: isKembali ? "var(--error)" : "var(--primary)", 
-                    color: "white", 
-                    opacity: !cekIzinProses(user?.role, stepAktif.pelaksana) ? 0.6 : 1 
+                      width: "100%", 
+                      justifyContent: "center", 
+                      background: isKembali ? "var(--error)" : "var(--primary)", 
+                      color: "white", 
+                      opacity: !cekIzenProses(user?.role, stepAktif.pelaksana) ? 0.6 : 1 
                     }}
                     disabled={saving || !cekIzinProses(user?.role, stepAktif.pelaksana) || (isPenomoran(stepAktif.id) && !nomorUrut)}
                     onClick={() => {
-                    // 1. Cari tahu posisi nomor urut tahap aktif saat ini
-                    const indexSaatIni = tahapan.findIndex(t => t.id === stepAktif.id);
-    
-                    // 2. Tentukan ID tahap selanjutnya (misal: dari B1 ke B2)
-                    const nextStepId = indexSaatIni < tahapan.length - 1 ? tahapan[indexSaatIni + 1].id : "";
-    
-                    // 3. Jalankan fungsi update dengan membawa data lengkap
-                    onUpdate({ 
-                    pengajuanId: p.id, 
-                    stepId: stepAktif.id, 
-                    nextStepId: nextStepId, 
-                    catatan: catatan, 
-                    isKembali: isKembali, 
-                    isFinal: stepAktif.final === true,
-                    nomorSKPP: isPenomoran(stepAktif.id) ? generateTemplateNomor(nomorUrut, p.kasubid, p.alasan) : undefined,
-                    });
+                      const indexSaatIni = tahapan.findIndex(t => t.id === stepAktif.id);
+                      const nextStepId = indexSaatIni < tahapan.length - 1 ? tahapan[indexSaatIni + 1].id : "";
+                      onUpdate({ 
+                        pengajuanId: p.id, 
+                        stepId: stepAktif.id, 
+                        nextStepId: nextStepId, 
+                        catatan: catatan, 
+                        isKembali: isKembali, 
+                        isFinal: stepAktif.final === true,
+                        nomorSKPP: isPenomoran(stepAktif.id) ? generateTemplateNomor(nomorUrut, p.kasubid, p.alasan) : undefined,
+                      });
                     }}
-                    >
+                  >
                     {saving ? "⏳ Menyimpan..." : 
-                    !cekIzinProses(user?.role, stepAktif.pelaksana) ? `🔒 Khusus: ${stepAktif.pelaksana}` : 
-                    isKembali ? "↩ Kembalikan Berkas" : "✔ Tandai Tahap Ini Selesai"}
+                     !cekIzinProses(user?.role, stepAktif.pelaksana) ? `🔒 Khusus: ${stepAktif.pelaksana}` : 
+                     isKembali ? "↩ Kembalikan Berkas" : "✔ Tandai Tahap Ini Selesai"}
                   </button>
                 </div>
               ) : (
@@ -828,7 +730,6 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
   );
 }
 
-// ─── SEARCHABLE SELECT ────────────────────────────────────────────────────────
 function SearchableSelect({ label, value, onChange, options, placeholder = "-- Pilih --" }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -864,11 +765,10 @@ function SearchableSelect({ label, value, onChange, options, placeholder = "-- P
   return (
     <div className="form-group" ref={ref} style={{ position: "relative" }}>
       {label && <label className="form-label">{label}</label>}
-      {/* Trigger */}
       <div
         onClick={() => setOpen(o => !o)}
         style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
+          display: "flex", alignItems: "center", justifyContext: "space-between",
           padding: "10px 14px", border: `1.5px solid ${open ? "var(--primary)" : "var(--outline-var)"}`,
           borderRadius: "var(--rs)", background: "white", cursor: "pointer",
           fontSize: 13, color: value ? "var(--g800)" : "var(--g400)",
@@ -880,24 +780,18 @@ function SearchableSelect({ label, value, onChange, options, placeholder = "-- P
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, marginLeft: 6 }}>
           {value && (
-            <span
-              onClick={clear}
-              style={{ color: "var(--g400)", fontSize: 14, lineHeight: 1, padding: "0 2px", borderRadius: 4 }}
-              title="Hapus pilihan"
-            >✕</span>
+            <span onClick={clear} style={{ color: "var(--g400)", fontSize: 14, lineContext: 1, padding: "0 2px", borderRadius: 4 }} title="Hapus pilihan">✕</span>
           )}
           <span style={{ color: "var(--g400)", fontSize: 10, transition: "transform .15s", display: "inline-block", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>▼</span>
         </span>
       </div>
 
-      {/* Dropdown panel */}
       {open && (
         <div style={{
           position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 2000,
           background: "white", border: "1.5px solid var(--g200)", borderRadius: "var(--rs)",
           boxShadow: "0 8px 24px rgba(0,0,0,.12)", overflow: "hidden",
         }}>
-          {/* Search input */}
           <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--g100)", display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ color: "var(--g400)", fontSize: 13 }}>🔍</span>
             <input
@@ -910,11 +804,8 @@ function SearchableSelect({ label, value, onChange, options, placeholder = "-- P
                 fontFamily: "var(--font)", color: "var(--g800)", background: "transparent",
               }}
             />
-            {query && (
-              <span onClick={() => setQuery("")} style={{ color: "var(--on-surface-var)", cursor: "pointer", fontSize: 13 }}>✕</span>
-            )}
+            {query && <span onClick={() => setQuery("")} style={{ color: "var(--on-surface-var)", cursor: "pointer", fontSize: 13 }}>✕</span>}
           </div>
-          {/* Options list */}
           <div style={{ maxHeight: 220, overflowY: "auto" }}>
             {filtered.length === 0 ? (
               <div style={{ padding: "12px 14px", fontSize: 12, color: "var(--on-surface-var)", textAlign: "center" }}>
@@ -939,7 +830,6 @@ function SearchableSelect({ label, value, onChange, options, placeholder = "-- P
               </div>
             ))}
           </div>
-          {/* Count info */}
           <div style={{ padding: "5px 14px", borderTop: "1px solid var(--outline-var)", fontSize: 11, color: "var(--on-surface-var)" }}>
             {filtered.length} dari {options.length} pilihan
           </div>
@@ -949,19 +839,13 @@ function SearchableSelect({ label, value, onChange, options, placeholder = "-- P
   );
 }
 
-// ─── INPUT BARU (Tunggal) ─────────────────────────────────────────────────────
 function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
-  const [mode, setMode] = useState("tunggal"); // "tunggal" | "bulk"
-
-  // ── State TUNGGAL ──
+  const [mode, setMode] = useState("tunggal");
   const [form, setForm] = useState({ nama:"", nip:"", opd:"", jabatan:"", pangkat:"", alasan:"Pensiun", jalur:"A", kasubid:DAFTAR_KASUBID[0] });
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
-  // ── State BULK ──
-  // Informasi bersama seluruh item
   const [bulkOPD,     setBulkOPD]     = useState("");
   const [bulkKasubid, setBulkKasubid] = useState(DAFTAR_KASUBID[0]);
-  // Template baris kosong
   const emptyItem = () => ({ nama:"", nip:"", jabatan:"", pangkat:"", alasan:"Pensiun", jalur:"A", _id: Date.now()+Math.random() });
   const [items, setItems] = useState([emptyItem()]);
 
@@ -982,7 +866,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
     onSaveBulk({
       namaOPD: bulkOPD,
       kasubid: bulkKasubid,
-      items:   items.map(({_id, ...rest}) => rest),  // hapus field internal _id
+      items:   items.map(({_id, ...rest}) => rest),
     });
   };
 
@@ -990,7 +874,6 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
     <div className="modal-overlay">
       <div className="modal" style={{ maxWidth: mode==="bulk" ? 860 : 600 }}>
         <div className="modal-header">
-          {/* Judul + toggle mode */}
           <div>
             <div style={{ fontWeight:800, fontSize:16, color:"var(--primary)" }}>Input Pengajuan SKPP</div>
             <div style={{ display:"flex", gap:6, marginTop:8 }}>
@@ -1009,189 +892,173 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
           </div>
           <button className="modal-close" onClick={onClose} disabled={saving}>✕</button>
         </div>
-        {/* ══════════════ MODE TUNGGAL ══════════════ */}
+        
         {mode === "tunggal" && (<>
-        <div className="modal-body">
-          <div className="grid-2">
-            <div className="form-group"><label className="form-label">Nama Lengkap *</label><input className="form-control" value={form.nama} onChange={e=>set("nama",e.target.value)} placeholder="Sesuai SK" /></div>
-            <div className="form-group"><label className="form-label">NIP *</label><input className="form-control" value={form.nip} onChange={e=>set("nip",e.target.value)} placeholder="18 digit" style={{fontFamily:"var(--mono)"}} /></div>
-          </div>
-          <div className="grid-2">
-            <SearchableSelect label="OPD / Instansi *" value={form.opd} onChange={v=>set("opd",v)} options={DAFTAR_OPD} placeholder="-- Pilih OPD / Instansi --" />
-            <div className="form-group"><label className="form-label">Jabatan Terakhir</label><input className="form-control" value={form.jabatan} onChange={e=>set("jabatan",e.target.value)} /></div>
-          </div>
-          <SearchableSelect label="Pangkat / Golongan" value={form.pangkat} onChange={v=>set("pangkat",v)} options={DAFTAR_PANGKAT} placeholder="-- Pilih Pangkat / Golongan --" />
-          <div className="form-group">
-            <label className="form-label">Kasubid Pembayaran *</label>
-            <select className="form-control" value={form.kasubid} onChange={e=>set("kasubid",e.target.value)}>
-              {DAFTAR_KASUBID.map((k,i)=><option key={i} value={k}>{k}</option>)}
-            </select>
-            <div style={{marginTop:6,padding:"6px 10px",background:"var(--g50)",borderRadius:6,fontSize:11,color:"var(--g500)",fontFamily:"var(--mono)"}}>Kode: {KODE_KASUBID[form.kasubid]}</div>
-          </div>
-          <div className="grid-2">
-            <div className="form-group">
-              <label className="form-label">Keperluan SKPP</label>
-              <select className="form-control" value={form.alasan} onChange={e=>set("alasan",e.target.value)}>
-                {DAFTAR_KEPERLUAN.map(k=><option key={k}>{k}</option>)}
-              </select>
-              <div style={{marginTop:6,padding:"6px 10px",background:"var(--g50)",borderRadius:6,fontSize:11,color:"var(--g500)",fontFamily:"var(--mono)"}}>Kode: {KODE_ALASAN[form.alasan]||"-"}</div>
+          <div className="modal-body">
+            <div className="grid-2">
+              <div className="form-group"><label className="form-label">Nama Lengkap *</label><input className="form-control" value={form.nama} onChange={e=>set("nama",e.target.value)} placeholder="Sesuai SK" /></div>
+              <div className="form-group"><label className="form-label">NIP *</label><input className="form-control" value={form.nip} onChange={e=>set("nip",e.target.value)} placeholder="18 digit" style={{fontFamily:"var(--mono)"}} /></div>
             </div>
-            <div className="form-group">
-              <label className="form-label">Jalur Proses</label>
-              <select className="form-control" value={form.jalur} onChange={e=>set("jalur",e.target.value)}>
-                <option value="A">Jalur A – Tanpa Pangkat Pengabdian</option>
-                <option value="B">Jalur B – Ada Pangkat Pengabdian</option>
-              </select>
+            <div className="grid-2">
+              <SearchableSelect label="OPD / Instansi *" value={form.opd} onChange={v=>set("opd",v)} options={DAFTAR_OPD} placeholder="-- Pilih OPD / Instansi --" />
+              <div className="form-group"><label className="form-label">Jabatan Terakhir</label><input className="form-control" value={form.jabatan} onChange={e=>set("jabatan",e.target.value)} /></div>
             </div>
+            <SearchableSelect label="Pangkat / Golongan" value={form.pangkat} onChange={v=>set("pangkat",v)} options={DAFTAR_PANGKAT} placeholder="-- Pilih Pangkat / Golongan --" />
+            <div className="form-group">
+              <label className="form-label">Kasubid Pembayaran *</label>
+              <select className="form-control" value={form.kasubid} onChange={e=>set("kasubid",e.target.value)}>
+                {DAFTAR_KASUBID.map((k,i)=><option key={i} value={k}>{k}</option>)}
+              </select>
+              <div style={{marginTop:6,padding:"6px 10px",background:"var(--g50)",borderRadius:6,fontSize:11,color:"var(--g500)",fontFamily:"var(--mono)"}}>Kode: {KODE_KASUBID[form.kasubid]}</div>
+            </div>
+            <div className="grid-2">
+              <div className="form-group">
+                <label className="form-label">Keperluan SKPP</label>
+                <select className="form-control" value={form.alasan} onChange={e=>set("alasan",e.target.value)}>
+                  {DAFTAR_KEPERLUAN.map(k=><option key={k}>{k}</option>)}
+                </select>
+                <div style={{marginTop:6,padding:"6px 10px",background:"var(--g50)",borderRadius:6,fontSize:11,color:"var(--g500)",fontFamily:"var(--mono)"}}>Kode: {KODE_ALASAN[form.alasan]||"-"}</div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Jalur Proses</label>
+                <select className="form-control" value={form.jalur} onChange={e=>set("jalur",e.target.value)}>
+                  <option value="A">Jalur A – Tanpa Pangkat Pengabdian</option>
+                  <option value="B">Jalur B – Ada Pangkat Pengabdian</option>
+                </select>
+              </div>
+            </div>
+            {form.jalur==="B" && <div className="alert alert-amber"><span>ℹ️</span><span style={{fontSize:12}}>Jalur B memerlukan proses kekurangan pangkat via SIMgaji dan SP2D sebelum SKPP dibuat.</span></div>}
           </div>
-          {form.jalur==="B" && <div className="alert alert-amber"><span>ℹ️</span><span style={{fontSize:12}}>Jalur B memerlukan proses kekurangan pangkat via SIMgaji dan SP2D sebelum SKPP dibuat.</span></div>}
-        </div>
-        <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onClose} disabled={saving}>Batal</button>
-          <button className="btn btn-primary" disabled={saving||!form.nama||!form.nip||!form.opd||!form.kasubid} onClick={()=>onSave(form)}>
-            {saving?"⟳ Menyimpan...":"Simpan & Mulai Proses"}
-          </button>
-        </div>
+          <div className="modal-footer">
+            <button className="btn btn-secondary" onClick={onClose} disabled={saving}>Batal</button>
+            <button className="btn btn-primary" disabled={saving||!form.nama||!form.nip||!form.opd||!form.kasubid} onClick={()=>onSave(form)}>
+              {saving?"⟳ Menyimpan...":"Simpan & Mulai Proses"}
+            </button>
+          </div>
         </>)}
 
-        {/* ══════════════ MODE BULK ══════════════ */}
         {mode === "bulk" && (<>
-        <div className="modal-body">
-          {/* Info banner bulk */}
-          <div className="alert alert-blue" style={{marginBottom:16}}>
-            <span>📦</span>
-            <div style={{fontSize:12}}>
-              <strong>Mode Bulk — Pengajuan dari Bendahara OPD.</strong> Isi data umum OPD di atas, lalu tambahkan daftar pegawai di bawah. Semua pengajuan akan mendapatkan <strong>satu kode akses bersama</strong> yang dapat digunakan untuk memantau seluruh SKPP dalam kiriman ini.
+          <div className="modal-body">
+            <div className="alert alert-blue" style={{marginBottom:16}}>
+              <span>📦</span>
+              <div style={{fontSize:12}}>
+                <strong>Mode Bulk — Pengajuan dari Bendahara OPD.</strong> Isi data umum OPD di atas, lalu tambahkan daftar pegawai di bawah. Semua pengajuan akan mendapatkan <strong>satu kode akses bersama</strong> yang dapat digunakan untuk memantau seluruh SKPP dalam kiriman ini.
+              </div>
             </div>
-          </div>
 
-          {/* Data bersama (OPD & Kasubid) */}
-          <div style={{background:"var(--g50)",borderRadius:10,padding:"14px 16px",marginBottom:18,border:"1.5px solid var(--g200)"}}>
-            <div style={{fontWeight:700,fontSize:12,color:"var(--g600)",marginBottom:12,textTransform:"uppercase",letterSpacing:".4px"}}>Data Bersama Seluruh Pengajuan</div>
-            <div className="grid-2">
-              <SearchableSelect label="OPD / Instansi Pengirim *" value={bulkOPD} onChange={v=>setBulkOPD(v)} options={DAFTAR_OPD} placeholder="-- Pilih OPD --" />
-              <div className="form-group">
-                <label className="form-label">Kasubid Pembayaran *</label>
-                <select className="form-control" value={bulkKasubid} onChange={e=>setBulkKasubid(e.target.value)}>
-                  {DAFTAR_KASUBID.map((k,i)=><option key={i} value={k}>{k}</option>)}
-                </select>
-                <div style={{marginTop:5,padding:"5px 10px",background:"white",borderRadius:6,fontSize:11,color:"var(--g500)",fontFamily:"var(--mono)"}}>Kode: {KODE_KASUBID[bulkKasubid]}</div>
+            <div style={{background:"var(--g50)",borderRadius:10,padding:"14px 16px",marginBottom:18,border:"1.5px solid var(--g200)"}}>
+              <div style={{fontWeight:700,fontSize:12,color:"var(--g600)",marginBottom:12,textTransform:"uppercase",letterSpacing:".4px"}}>Data Bersama Seluruh Pengajuan</div>
+              <div className="grid-2">
+                <SearchableSelect label="OPD / Instansi Pengirim *" value={bulkOPD} onChange={v=>setBulkOPD(v)} options={DAFTAR_OPD} placeholder="-- Pilih OPD --" />
+                <div className="form-group">
+                  <label className="form-label">Kasubid Pembayaran *</label>
+                  <select className="form-control" value={bulkKasubid} onChange={e=>setBulkKasubid(e.target.value)}>
+                    {DAFTAR_KASUBID.map((k,i)=><option key={i} value={k}>{k}</option>)}
+                  </select>
+                  <div style={{marginTop:5,padding:"5px 10px",background:"white",borderRadius:6,fontSize:11,color:"var(--g500)",fontFamily:"var(--mono)"}}>Kode: {KODE_KASUBID[bulkKasubid]}</div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+              <div style={{fontWeight:700,fontSize:12,color:"var(--g600)",textTransform:"uppercase",letterSpacing:".4px"}}>
+                Daftar Pegawai <span style={{background:"var(--blue)",color:"white",borderRadius:999,padding:"2px 8px",fontSize:11,fontWeight:800,marginLeft:6}}>{items.length}</span>
+              </div>
+              <button className="btn btn-primary btn-sm" onClick={addItem}>+ Tambah Baris</button>
+            </div>
+
+            <div style={{overflowX:"auto",border:"1.5px solid var(--g200)",borderRadius:10}}>
+              <table style={{width:"100%",tableLayout:"fixed"}}>
+                <colgroup>
+                  <col style={{width:"3%"}} />
+                  <col style={{width:"22%"}} />
+                  <col style={{width:"18%"}} />
+                  <col style={{width:"17%"}} />
+                  <col style={{width:"18%"}} />
+                  <col style={{width:"13%"}} />
+                  <col style={{width:"5%"}} />
+                  <col style={{width:"4%"}} />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th style={{textAlign:"center",padding:"10px 6px"}}>#</th>
+                    <th style={{padding:"10px 8px"}}>Nama Lengkap *</th>
+                    <th style={{padding:"10px 8px"}}>NIP *</th>
+                    <th style={{padding:"10px 8px"}}>Jabatan</th>
+                    <th style={{padding:"10px 8px"}}>Pangkat / Gol</th>
+                    <th style={{padding:"10px 8px"}}>Keperluan</th>
+                    <th style={{padding:"10px 8px",textAlign:"center"}}>Jalur</th>
+                    <th style={{padding:"10px 6px"}}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((it, idx) => (
+                    <tr key={it._id} style={{background: idx%2===0?"white":"var(--g50)"}}>
+                      <td style={{textAlign:"center",color:"var(--g400)",fontSize:12,fontWeight:700,padding:"8px 6px"}}>{idx+1}</td>
+                      <td style={{padding:"6px 8px"}}>
+                        <input className="form-control" style={{marginBottom:0,border:"1px solid var(--g200)",width:"100%",minWidth:0,fontSize:12}} value={it.nama} onChange={e=>setItem(idx,"nama",e.target.value)} placeholder="Nama sesuai SK" />
+                      </td>
+                      <td style={{padding:"6px 8px"}}>
+                        <input className="form-control" style={{marginBottom:0,fontFamily:"var(--mono)",fontSize:11,border:"1px solid var(--g200)",width:"100%",minWidth:0}} value={it.nip} onChange={e=>setItem(idx,"nip",e.target.value)} placeholder="18 digit" />
+                      </td>
+                      <td style={{padding:"6px 8px"}}>
+                        <input className="form-control" style={{marginBottom:0,border:"1px solid var(--g200)",width:"100%",minWidth:0,fontSize:12}} value={it.jabatan} onChange={e=>setItem(idx,"jabatan",e.target.value)} placeholder="Jabatan" />
+                      </td>
+                      <td style={{padding:"6px 8px"}}>
+                        <select className="form-control" style={{marginBottom:0,fontSize:11,border:"1px solid var(--g200)",width:"100%",minWidth:0,paddingRight:4}} value={it.pangkat} onChange={e=>setItem(idx,"pangkat",e.target.value)}>
+                          <option value="">-- Pangkat --</option>
+                          {DAFTAR_PANGKAT.map(p=><option key={p} value={p}>{p}</option>)}
+                        </select>
+                      </td>
+                      <td style={{padding:"6px 8px"}}>
+                        <select className="form-control" style={{marginBottom:0,fontSize:11,border:"1px solid var(--g200)",width:"100%",minWidth:0,paddingRight:4}} value={it.alasan} onChange={e=>setItem(idx,"alasan",e.target.value)}>
+                          {DAFTAR_KEPERLUAN.map(k=><option key={k} value={k}>{k}</option>)}
+                        </select>
+                      </td>
+                      <td style={{padding:"6px 8px",textAlign:"center"}}>
+                        <select className="form-control" style={{marginBottom:0,fontSize:12,border:"1px solid var(--g200)",width:"100%",minWidth:0,textAlign:"center",paddingLeft:4,paddingRight:4}} value={it.jalur} onChange={e=>setItem(idx,"jalur",e.target.value)}>
+                          <option value="A">A</option>
+                          <option value="B">B</option>
+                        </select>
+                      </td>
+                      <td style={{padding:"6px 6px"}}>
+                        <div style={{display:"flex",gap:3,justifyContent:"center"}}>
+                          <button title="Duplikat baris ini" onClick={()=>duplicateItem(idx)} style={{padding:"4px 6px",border:"1px solid var(--g200)",borderRadius:6,background:"white",cursor:"pointer",fontSize:12,lineHeight:1}}>⧉</button>
+                          {items.length > 1 && (
+                            <button title="Hapus baris ini" onClick={()=>removeItem(idx)} style={{padding:"4px 6px",border:"1px solid #fecaca",borderRadius:6,background:"#fef2f2",cursor:"pointer",color:"var(--red)",fontSize:12,lineHeight:1}}>✕</button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{marginTop:14,padding:"10px 14px",background:"var(--navy)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+              <div>
+                <div style={{color:"rgba(255,255,255,.5)",fontSize:10,fontWeight:700,letterSpacing:"1px",textTransform:"uppercase"}}>Total Pengajuan Bulk</div>
+                <div style={{color:"#C9A84C",fontFamily:"var(--mono)",fontSize:24,fontWeight:800}}>{items.length} <span style={{fontSize:13,fontWeight:400,color:"rgba(255,255,255,.6)"}}>SKPP</span></div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{color:"rgba(255,255,255,.5)",fontSize:10,fontWeight:700,letterSpacing:"1px",textTransform:"uppercase",marginBottom:4}}>Satu Kode Akses untuk Semua</div>
+                <div style={{color:"rgba(255,255,255,.5)",fontSize:12}}>Kode akan digenerate otomatis setelah disimpan</div>
               </div>
             </div>
           </div>
-
-          {/* Daftar pegawai */}
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-            <div style={{fontWeight:700,fontSize:12,color:"var(--g600)",textTransform:"uppercase",letterSpacing:".4px"}}>
-              Daftar Pegawai <span style={{background:"var(--blue)",color:"white",borderRadius:999,padding:"2px 8px",fontSize:11,fontWeight:800,marginLeft:6}}>{items.length}</span>
-            </div>
-            <button className="btn btn-primary btn-sm" onClick={addItem}>+ Tambah Baris</button>
+          <div className="modal-footer">
+            <button className="btn btn-secondary" onClick={onClose} disabled={saving}>Batal</button>
+            <button className="btn btn-primary" disabled={saving||!bulkValid} onClick={handleSaveBulk}>
+              {saving ? "⟳ Menyimpan..." : `📦 Simpan ${items.length} Pengajuan Bulk`}
+            </button>
           </div>
-
-          {/* Tabel entri pegawai */}
-          <div style={{overflowX:"auto",border:"1.5px solid var(--g200)",borderRadius:10}}>
-            <table style={{width:"100%",tableLayout:"fixed"}}>
-              <colgroup>
-                <col style={{width:"3%"}} />   {/* # */}
-                <col style={{width:"22%"}} />  {/* Nama */}
-                <col style={{width:"18%"}} />  {/* NIP */}
-                <col style={{width:"17%"}} />  {/* Jabatan */}
-                <col style={{width:"18%"}} />  {/* Pangkat */}
-                <col style={{width:"13%"}} />  {/* Keperluan */}
-                <col style={{width:"5%"}} />   {/* Jalur */}
-                <col style={{width:"4%"}} />   {/* Aksi */}
-              </colgroup>
-              <thead>
-                <tr>
-                  <th style={{textAlign:"center",padding:"10px 6px"}}>#</th>
-                  <th style={{padding:"10px 8px"}}>Nama Lengkap *</th>
-                  <th style={{padding:"10px 8px"}}>NIP *</th>
-                  <th style={{padding:"10px 8px"}}>Jabatan</th>
-                  <th style={{padding:"10px 8px"}}>Pangkat / Gol</th>
-                  <th style={{padding:"10px 8px"}}>Keperluan</th>
-                  <th style={{padding:"10px 8px",textAlign:"center"}}>Jalur</th>
-                  <th style={{padding:"10px 6px"}}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((it, idx) => (
-                  <tr key={it._id} style={{background: idx%2===0?"white":"var(--g50)"}}>
-                    <td style={{textAlign:"center",color:"var(--g400)",fontSize:12,fontWeight:700,padding:"8px 6px"}}>{idx+1}</td>
-                    <td style={{padding:"6px 8px"}}>
-                      <input className="form-control" style={{marginBottom:0,border:"1px solid var(--g200)",width:"100%",minWidth:0,fontSize:12}}
-                        value={it.nama} onChange={e=>setItem(idx,"nama",e.target.value)} placeholder="Nama sesuai SK" />
-                    </td>
-                    <td style={{padding:"6px 8px"}}>
-                      <input className="form-control" style={{marginBottom:0,fontFamily:"var(--mono)",fontSize:11,border:"1px solid var(--g200)",width:"100%",minWidth:0}}
-                        value={it.nip} onChange={e=>setItem(idx,"nip",e.target.value)} placeholder="18 digit" />
-                    </td>
-                    <td style={{padding:"6px 8px"}}>
-                      <input className="form-control" style={{marginBottom:0,border:"1px solid var(--g200)",width:"100%",minWidth:0,fontSize:12}}
-                        value={it.jabatan} onChange={e=>setItem(idx,"jabatan",e.target.value)} placeholder="Jabatan" />
-                    </td>
-                    <td style={{padding:"6px 8px"}}>
-                      <select className="form-control" style={{marginBottom:0,fontSize:11,border:"1px solid var(--g200)",width:"100%",minWidth:0,paddingRight:4}}
-                        value={it.pangkat} onChange={e=>setItem(idx,"pangkat",e.target.value)}>
-                        <option value="">-- Pangkat --</option>
-                        {DAFTAR_PANGKAT.map(p=><option key={p} value={p}>{p}</option>)}
-                      </select>
-                    </td>
-                    <td style={{padding:"6px 8px"}}>
-                      <select className="form-control" style={{marginBottom:0,fontSize:11,border:"1px solid var(--g200)",width:"100%",minWidth:0,paddingRight:4}}
-                        value={it.alasan} onChange={e=>setItem(idx,"alasan",e.target.value)}>
-                        {DAFTAR_KEPERLUAN.map(k=><option key={k} value={k}>{k}</option>)}
-                      </select>
-                    </td>
-                    <td style={{padding:"6px 8px",textAlign:"center"}}>
-                      <select className="form-control" style={{marginBottom:0,fontSize:12,border:"1px solid var(--g200)",width:"100%",minWidth:0,textAlign:"center",paddingLeft:4,paddingRight:4}}
-                        value={it.jalur} onChange={e=>setItem(idx,"jalur",e.target.value)}>
-                        <option value="A">A</option>
-                        <option value="B">B</option>
-                      </select>
-                    </td>
-                    <td style={{padding:"6px 6px"}}>
-                      <div style={{display:"flex",gap:3,justifyContent:"center"}}>
-                        <button title="Duplikat baris ini"
-                          onClick={()=>duplicateItem(idx)}
-                          style={{padding:"4px 6px",border:"1px solid var(--g200)",borderRadius:6,background:"white",cursor:"pointer",fontSize:12,lineHeight:1}}>⧉</button>
-                        {items.length > 1 && (
-                          <button title="Hapus baris ini"
-                            onClick={()=>removeItem(idx)}
-                            style={{padding:"4px 6px",border:"1px solid #fecaca",borderRadius:6,background:"#fef2f2",cursor:"pointer",color:"var(--red)",fontSize:12,lineHeight:1}}>✕</button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Ringkasan */}
-          <div style={{marginTop:14,padding:"10px 14px",background:"var(--navy)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
-            <div>
-              <div style={{color:"rgba(255,255,255,.5)",fontSize:10,fontWeight:700,letterSpacing:"1px",textTransform:"uppercase"}}>Total Pengajuan Bulk</div>
-              <div style={{color:"#C9A84C",fontFamily:"var(--mono)",fontSize:24,fontWeight:800}}>{items.length} <span style={{fontSize:13,fontWeight:400,color:"rgba(255,255,255,.6)"}}>SKPP</span></div>
-            </div>
-            <div style={{textAlign:"right"}}>
-              <div style={{color:"rgba(255,255,255,.5)",fontSize:10,fontWeight:700,letterSpacing:"1px",textTransform:"uppercase",marginBottom:4}}>Satu Kode Akses untuk Semua</div>
-              <div style={{color:"rgba(255,255,255,.5)",fontSize:12}}>Kode akan digenerate otomatis setelah disimpan</div>
-            </div>
-          </div>
-        </div>
-        <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onClose} disabled={saving}>Batal</button>
-          <button className="btn btn-primary" disabled={saving||!bulkValid} onClick={handleSaveBulk}>
-            {saving ? "⟳ Menyimpan..." : `📦 Simpan ${items.length} Pengajuan Bulk`}
-          </button>
-        </div>
         </>)}
       </div>
     </div>
   );
 }
 
-// ─── HALAMAN DASHBOARD ────────────────────────────────────────────────────────
+// ─── HALAMAN DASHBOARD (Diperbaiki: Algoritma Pencarian Bulan Berjalan Indonesia + Sinkronisasi Rincian) ───
 function PageDashboard({ data, loading }) {
   const s = {
     total: data.length,
@@ -1199,9 +1066,41 @@ function PageDashboard({ data, loading }) {
     selesai: data.filter(d => d.status==="selesai" || getProgress(d)===100).length,
     kembali: data.filter(d=>d.status==="kembali").length
   };
-  const bulanIni = data.filter(d => { const dt=new Date(d.tanggalMasuk); const n=new Date(); return dt.getMonth()===n.getMonth()&&dt.getFullYear()===n.getFullYear(); }).length;
+
+  // Validasi & filter khusus bulan berjalan (Mendukung format string ID "28 Mei 2026")
+  const dataBulanIni = data.filter(d => {
+    if (!d.tanggalMasuk) return false;
+    const now = new Date();
+    const dt = new Date(d.tanggalMasuk);
+    
+    // Jika format default ISO/Standar berhasil di-parse
+    if (!isNaN(dt)) {
+      return dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear();
+    }
+    
+    // Jika format string Indonesia (Contoh: "28 Mei 2026")
+    const parts = d.tanggalMasuk.split(" ");
+    if (parts.length >= 3) {
+      const namaBulan = parts[1].toLowerCase();
+      const tahun = parts[2];
+      const bulanMap = {
+        jan: 0, januari: 0, feb: 1, februari: 1, mar: 2, maret: 2,
+        apr: 3, april: 3, mei: 4, jun: 5, juni: 5, jul: 6, juli: 6,
+        agu: 7, agustus: 7, sep: 8, september: 8, okt: 9, oktober: 9,
+        nov: 10, november: 10, des: 11, desember: 11
+      };
+      return bulanMap[namaBulan] === now.getMonth() && parseInt(tahun) === now.getFullYear();
+    }
+    return false;
+  });
+
+  const bulanIni = dataBulanIni.length;
+  const jalurABulanIni = dataBulanIni.filter(d => d.jalur === "A").length;
+  const jalurBBulanIni = dataBulanIni.filter(d => d.jalur === "B").length;
+
   const byOPD = data.reduce((acc,p) => { acc[p.opd]=(acc[p.opd]||0)+1; return acc; }, {});
   const topOPD = Object.entries(byOPD).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
   return (
     <div>
       <div className="stat-grid">
@@ -1225,8 +1124,8 @@ function PageDashboard({ data, loading }) {
             <div style={{fontSize:12,color:"var(--g500)",marginTop:4}}>Pengajuan diterima bulan {new Date().toLocaleString("id-ID",{month:"long",year:"numeric"})}</div>
             <hr style={{margin:"14px 0",border:"none",borderTop:"1px solid var(--g100)"}}/>
             <div style={{fontSize:12,color:"var(--g600)"}}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span>Jalur A (tanpa pangkat pengabdian)</span><strong>{data.filter(d=>d.jalur==="A").length}</strong></div>
-              <div style={{display:"flex",justifyContent:"space-between"}}><span>Jalur B (ada pangkat pengabdian)</span><strong>{data.filter(d=>d.jalur==="B").length}</strong></div>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span>Jalur A (tanpa pangkat pengabdian)</span><strong>{loading?"—":jalurABulanIni}</strong></div>
+              <div style={{display:"flex",justifyContent:"space-between"}}><span>Jalur B (ada pangkat pengabdian)</span><strong>{loading?"—":jalurBBulanIni}</strong></div>
             </div>
           </div>
         </div>
@@ -1256,7 +1155,6 @@ function PageDashboard({ data, loading }) {
   );
 }
 
-// ─── HALAMAN PENGAJUAN ────────────────────────────────────────────────────────
 function PagePengajuan({ data, loading, onRefresh, onDetail, onInputBaru, onExport, user }) {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("semua");
@@ -1279,7 +1177,7 @@ function PagePengajuan({ data, loading, onRefresh, onDetail, onInputBaru, onExpo
             <button className="btn btn-ghost btn-sm" onClick={()=>onExport(filtered)} disabled={filtered.length===0}>⬇ Export CSV</button>
             <button className="btn btn-secondary btn-sm" onClick={onRefresh} disabled={loading}>⟳ Refresh</button>
             {user?.role !== "staf" && (
-            <button className="btn btn-primary btn-sm" onClick={onInputBaru}>+ Input Baru</button>
+              <button className="btn btn-primary btn-sm" onClick={onInputBaru}>+ Input Baru</button>
             )}
           </div>
         </div>
@@ -1344,7 +1242,6 @@ function PagePengajuan({ data, loading, onRefresh, onDetail, onInputBaru, onExpo
   );
 }
 
-// ─── HALAMAN RIWAYAT / ARSIP ──────────────────────────────────────────────────
 function PageRiwayat({ data, loading, onDetail }) {
   const selesai = data.filter(d=>d.status==="selesai"||getProgress(d)===100);
   const [search, setSearch] = useState("");
@@ -1389,7 +1286,6 @@ function PageRiwayat({ data, loading, onDetail }) {
   );
 }
 
-// ─── MANAJEMEN STAF ───────────────────────────────────────────────────────────
 function PageUsers() {
   const [users, setUsers] = useState(AKUN_STAF);
   const [showForm, setShowForm] = useState(false);
@@ -1473,7 +1369,6 @@ function PageUsers() {
   );
 }
 
-// ─── APP ROOT ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [user, setUser] = useState(null);
   const [page, setPage] = useState("dashboard");
@@ -1509,7 +1404,6 @@ export default function App() {
         setShowInput(false);
         await load();
         setPage("pengajuan");
-        // Tampilkan modal kode akses setelah berhasil
         if (res.kodeAkses) {
           setTimeout(() => {
             setKodeAksesModal({ id: res.id, kode: res.kodeAkses, isBulk: false, data: { ...formData, id: res.id, tanggalMasuk: new Date().toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}) } });
@@ -1520,7 +1414,6 @@ export default function App() {
     setSaving(false);
   };
 
-  // ── Handler Input BULK ──────────────────────────────────────────────────────
   const handleInputBulk = async (bulkData) => {
     setSaving(true);
     try {
@@ -1530,7 +1423,6 @@ export default function App() {
         setShowInput(false);
         await load();
         setPage("pengajuan");
-        // Tampilkan modal kode akses bulk
         if (res.kodeAkses) {
           setTimeout(() => {
             setKodeAksesModal({
@@ -1554,10 +1446,8 @@ export default function App() {
       const res = await apiPost({ action:"updateTahap", data:updateData });
       if (res.ok) {
         showToast(updateData.isKembali?"↩ Berkas dikembalikan":updateData.isResume?"✅ Proses berhasil dilanjutkan kembali":"✓ Tahap berhasil diperbarui");
-        // refresh list first
         await load();
 
-        // Jika nextStepId kosong, berarti tahap terakhir telah diselesaikan — beri tahu server untuk menandai selesai
         if (updateData.nextStepId === "") {
           try {
             const tanggalSelesai = new Date().toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"});
@@ -1624,14 +1514,12 @@ export default function App() {
       </div>
 
       {selected && (
-        <DetailModal p={selected} onClose={()=>setSelected(null)} onUpdate={handleUpdate} saving={saving}
-          onCetak={() => cetakTandaTerima(selected)} user={user} />
+        <DetailModal p={selected} onClose={()=>setSelected(null)} onUpdate={handleUpdate} saving={saving} onCetak={() => cetakTandaTerima(selected)} user={user} />
       )}
       {(showInput || page==="input") && (
         <InputBaru onClose={()=>{ setShowInput(false); if(page==="input") setPage("pengajuan"); }} onSave={handleInputBaru} onSaveBulk={handleInputBulk} saving={saving} />
       )}
 
-      {/* MODAL KODE AKSES — muncul setelah input baru berhasil */}
       {kodeAksesModal && (
         <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setKodeAksesModal(null);}}>
           <div className="modal" style={{maxWidth:520}}>
@@ -1642,7 +1530,6 @@ export default function App() {
               <button className="modal-close" onClick={()=>setKodeAksesModal(null)}>✕</button>
             </div>
             <div className="modal-body">
-              {/* Success alert */}
               <div className="alert alert-green" style={{marginBottom:20}}>
                 <span>✓</span>
                 <div>
@@ -1653,7 +1540,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Kode Akses Display */}
               <div style={{background:"var(--navy)",borderRadius:14,padding:24,textAlign:"center",marginBottom:16}}>
                 <div style={{color:"rgba(255,255,255,.5)",fontSize:11,fontWeight:700,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:8}}>
                   {kodeAksesModal.isBulk ? "Kode Akses Bersama (1 Kode untuk Semua)" : "Kode Akses Portal Pelacakan"}
@@ -1669,7 +1555,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Daftar ID bulk */}
               {kodeAksesModal.isBulk && kodeAksesModal.daftarId && (
                 <div style={{background:"var(--g50)",border:"1px solid var(--g200)",borderRadius:10,padding:"12px 14px",marginBottom:14}}>
                   <div style={{fontSize:11,fontWeight:700,color:"var(--g500)",textTransform:"uppercase",letterSpacing:".4px",marginBottom:8}}>
