@@ -1264,9 +1264,23 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
   const initials = user?.nama ? user.nama.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase() : "S";
 
   return (
-    <div className="sidebar">
-      {/* Logo */}
-      <div className="sidebar-logo" title="SKPP Tracker">{initials}</div>
+    <div className={`sidebar ${isOpen ? "" : "closed"}`}>
+      {/* Wrapper bagian dalam agar isi teks tidak berantakan saat sidebar mengecil */}
+      <div style={{ minWidth: "var(--sidebar)", display: "flex", flexDirection: "column", height: "100%" }}>
+        
+        {/* Header Logo + Tombol Tutup Sidebar */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingRight: "8px" }}>
+          {/* Logo */}
+          <div className="sidebar-logo" title="SKPP Tracker">{initials}</div>
+          
+          {/* Tombol Close ala Gemini */}
+          <button className="btn-toggle" onClick={onToggle} title="Tutup Menu">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="2"/>
+              <path d="M9 3v18"/>
+            </svg>
+          </button>
+        </div>
 
       {/* Navigation */}
       <div className="sidebar-nav">
@@ -1280,10 +1294,12 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
               data-tip={it.label}
             >
               <span className="ni">{it.icon}</span>
-              {it.badge > 0 && <span className="nav-badge">{it.badge}</span>}
-            </div>
-          );
-        })}
+                <span>{it.label}</span>
+                {it.badge > 0 && <span className="nav-badge">{it.badge}</span>}
+              </div>
+            );
+          })}
+        </div>
         {user.role === "admin" && adminItems.map(it => (
           <div
             key={it.id}
