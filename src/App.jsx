@@ -307,120 +307,239 @@ const S = `
   .layout { display: flex; height: 100vh; overflow: hidden; }
 
   /* ════════════════════════════════════════════
-     SIDEBAR  — collapsed icon-only rail
+     SIDEBAR  — collapsible (expanded / collapsed)
   ════════════════════════════════════════════ */
   .sidebar {
-    width: var(--sidebar-collapsed);
+    width: var(--sidebar);
     background: var(--surface-container-lowest);
     display: flex;
     flex-direction: column;
-    align-items: center;
     flex-shrink: 0;
-    overflow-y: auto;
+    overflow: hidden;
     border-right: 1px solid var(--outline-variant);
-    padding: 20px 8px 16px;
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 50;
   }
+  .sidebar.collapsed {
+    width: var(--sidebar-collapsed);
+  }
 
+  /* Inner wrapper — fixed wide so content doesn't reflow during animation */
+  .sidebar-inner {
+    width: var(--sidebar);
+    min-width: var(--sidebar);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 16px 14px 16px;
+  }
+
+  /* Header row: logo + name + toggle button */
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    min-height: 44px;
+    overflow: hidden;
+  }
   .sidebar-logo {
-    width: 44px; height: 44px;
+    width: 40px; height: 40px;
+    min-width: 40px;
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
-    border-radius: 14px;
+    border-radius: 12px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 18px; font-weight: 900; color: white;
+    font-size: 16px; font-weight: 900; color: white;
     box-shadow: 0 4px 12px rgba(0,50,125,0.3);
-    margin-bottom: 28px;
-    flex-shrink: 0;
-    letter-spacing: -1px;
+    letter-spacing: -0.5px;
     font-family: var(--font);
+    flex-shrink: 0;
+  }
+  .sidebar-brand-text {
+    flex: 1;
+    overflow: hidden;
+  }
+  .sidebar-brand-name {
+    font-weight: 800; font-size: 14px; color: var(--primary);
+    white-space: nowrap; letter-spacing: -0.4px;
+  }
+  .sidebar-brand-sub {
+    font-size: 10px; color: var(--on-surface-variant);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-top: 1px;
+  }
+  .btn-toggle {
+    width: 32px; height: 32px; min-width: 32px;
+    background: none; border: none; cursor: pointer;
+    color: var(--on-surface-variant);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, color 0.15s;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .btn-toggle:hover { background: var(--surface-container-high); color: var(--primary); }
+
+  /* User card */
+  .sidebar-user {
+    background: var(--surface-container-low);
+    border-radius: var(--r-md);
+    padding: 10px 12px;
+    border: 1px solid var(--outline-variant);
+    margin-bottom: 16px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .sidebar-user-name {
+    font-weight: 700; font-size: 12.5px; color: var(--on-surface);
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .sidebar-user-role-label {
+    font-size: 11px; color: var(--on-surface-variant); margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* Nav section label */
+  .nav-section {
+    font-size: 10px; font-weight: 700; color: var(--outline);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 10px 10px 4px;
+    white-space: nowrap;
   }
 
   /* Nav */
-  .sidebar-nav { display: flex; flex-direction: column; gap: 6px; width: 100%; flex: 1; }
+  .sidebar-nav { display: flex; flex-direction: column; gap: 2px; width: 100%; flex: 1; }
 
   .nav-item {
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 52px;
-    height: 52px;
-    border-radius: 14px;
+    gap: 10px;
+    width: 100%;
+    height: 44px;
+    padding: 0 10px;
+    border-radius: var(--r-md);
     cursor: pointer;
     transition: all 0.15s ease;
     color: var(--on-surface-variant);
     position: relative;
+    white-space: nowrap;
+    border-left: 3px solid transparent;
+    font-size: 13.5px;
+    font-weight: 500;
+    overflow: hidden;
   }
   .nav-item:hover {
-    background: var(--surface-container-high);
-    color: var(--primary);
+    background: var(--surface-container-low);
+    color: var(--on-surface);
   }
   .nav-item.active {
-    background: rgba(0,50,125,0.1);
+    background: var(--primary-fixed);
     color: var(--primary);
-    border-left: 3px solid var(--primary);
+    border-left-color: var(--primary);
+    font-weight: 600;
   }
-  .nav-item .ni { display: flex; align-items: center; justify-content: center; }
+  .nav-item .ni {
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; width: 20px;
+  }
+  .nav-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
   .nav-badge {
-    position: absolute;
-    top: 8px; right: 8px;
+    margin-left: auto;
     background: var(--error);
     color: white;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
-    padding: 1px 5px;
+    padding: 2px 7px;
     border-radius: var(--r-full);
-    min-width: 16px;
+    min-width: 20px;
     text-align: center;
-    line-height: 14px;
+    flex-shrink: 0;
   }
 
-  /* Tooltip on hover */
-  .nav-item::after {
+  /* Collapsed-mode: tooltip via CSS */
+  .sidebar.collapsed .nav-item {
+    justify-content: center;
+    padding: 0;
+    width: 52px;
+    border-left-color: transparent;
+    border-radius: 14px;
+  }
+  .sidebar.collapsed .nav-item.active {
+    border-left: 3px solid var(--primary);
+    border-radius: 14px;
+  }
+  .sidebar.collapsed .nav-item::after {
     content: attr(data-tip);
     position: absolute;
-    left: calc(100% + 12px);
+    left: calc(100% + 10px);
     top: 50%; transform: translateY(-50%);
     background: var(--inverse-surface);
     color: var(--inverse-on-surface);
     padding: 5px 10px;
     border-radius: 8px;
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 12px; font-weight: 600;
     white-space: nowrap;
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.15s;
     z-index: 9999;
   }
-  .nav-item:hover::after { opacity: 1; }
+  .sidebar.collapsed .nav-item:hover::after { opacity: 1; }
+  .sidebar.collapsed .nav-badge {
+    position: absolute; top: 7px; right: 7px;
+    margin-left: 0; padding: 1px 5px;
+    font-size: 9px; min-width: 16px; line-height: 14px;
+  }
 
-  .sidebar-footer {
-    display: flex; flex-direction: column; gap: 6px; width: 100%;
-    border-top: 1px solid var(--outline-variant);
-    padding-top: 14px;
-    margin-top: 8px;
+  /* Hide text labels & brand when collapsed */
+  .sidebar.collapsed .sidebar-brand-text,
+  .sidebar.collapsed .sidebar-user,
+  .sidebar.collapsed .nav-section,
+  .sidebar.collapsed .nav-label,
+  .sidebar.collapsed .sidebar-header .btn-toggle {
+    display: none;
+  }
+  .sidebar.collapsed .sidebar-inner {
+    padding: 16px 6px 16px;
     align-items: center;
   }
-  .logout-btn {
-    width: 52px; height: 52px;
-    background: none;
-    border: none;
-    border-radius: 14px;
-    color: var(--on-surface-variant);
-    font-family: var(--font);
-    cursor: pointer;
-    transition: all 0.15s;
-    display: flex;
-    align-items: center;
+  .sidebar.collapsed .sidebar-header {
     justify-content: center;
+    margin-bottom: 16px;
+  }
+  .sidebar.collapsed .sidebar-logo {
+    cursor: pointer;
+  }
+  .sidebar.collapsed .sidebar-nav {
+    align-items: center;
+  }
+
+  .sidebar-footer {
+    display: flex; flex-direction: column; gap: 4px;
+    border-top: 1px solid var(--outline-variant);
+    padding-top: 12px; margin-top: 8px;
+  }
+  .sidebar.collapsed .sidebar-footer { align-items: center; }
+
+  .logout-btn {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 10px 10px;
+    background: none; border: none;
+    border-radius: var(--r-md);
+    color: var(--on-surface-variant);
+    font-family: var(--font); font-size: 13.5px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
+    white-space: nowrap; overflow: hidden;
   }
   .logout-btn:hover {
     background: var(--error-container);
     color: var(--error);
   }
-  /* suppress old classes that are no longer used */
-  .sidebar-brand, .sidebar-title, .sidebar-sub, .sidebar-user,
-  .sidebar-user-name, .sidebar-user-role-label, .nav-section { display: none; }
+  .sidebar.collapsed .logout-btn {
+    width: 44px; height: 44px; padding: 0;
+    justify-content: center; border-radius: 14px;
+  }
+  .sidebar.collapsed .logout-label { display: none; }
 
   /* ════════════════════════════════════════════
      MAIN CONTENT
@@ -1250,6 +1369,8 @@ function Login({ onLogin }) {
 
 // ─── SIDEBAR ─────────────────────────────────────────────────────────────────
 function Sidebar({ user, active, onChange, counts, onLogout }) {
+  const [collapsed, setCollapsed] = useState(false);
+
   const items = [
     { id:"dashboard", icon:<IcoDashboard/>, label:"Dashboard" },
     { id:"pengajuan", icon:<IcoList/>,      label:"Daftar Pengajuan", badge: counts.proses },
@@ -1260,63 +1381,93 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
     { id:"users", icon:<IcoUsers/>, label:"Manajemen Staf" },
   ];
 
-  // Get initials for logo
-  const initials = user?.nama ? user.nama.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase() : "S";
+  const initials = user?.nama
+    ? user.nama.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()
+    : "S";
+  const roleLabel = user.role==="admin" ? "Admin" : user.role==="operator" ? "Staf Loket" : "Staf Pengampuh OPD";
+  const roleClass = user.role==="admin" ? "badge-purple" : user.role==="operator" ? "badge-gold" : "badge-blue";
 
   return (
-    <div className={`sidebar ${isOpen ? "" : "closed"}`}>
-      {/* Wrapper bagian dalam agar isi teks tidak berantakan saat sidebar mengecil */}
-      <div style={{ minWidth: "var(--sidebar)", display: "flex", flexDirection: "column", height: "100%" }}>
-        
-        {/* Header Logo + Tombol Tutup Sidebar */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingRight: "8px" }}>
-          {/* Logo */}
-          <div className="sidebar-logo" title="SKPP Tracker">{initials}</div>
-          
-          {/* Tombol Close ala Gemini */}
-          <button className="btn-toggle" onClick={onToggle} title="Tutup Menu">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <div className={`sidebar${collapsed?" collapsed":""}`}>
+      <div className="sidebar-inner">
+
+        {/* Header: logo + brand + toggle */}
+        <div className="sidebar-header">
+          <div
+            className="sidebar-logo"
+            title="SKPP Tracker"
+            onClick={() => collapsed && setCollapsed(false)}
+          >
+            {initials}
+          </div>
+          <div className="sidebar-brand-text">
+            <div className="sidebar-brand-name">SKPP Tracker</div>
+            <div className="sidebar-brand-sub">Bidang Perbendaharaan – BKD NTT</div>
+          </div>
+          <button
+            className="btn-toggle"
+            onClick={() => setCollapsed(c => !c)}
+            title={collapsed ? "Perluas menu" : "Tutup menu"}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect width="18" height="18" x="3" y="3" rx="2"/>
               <path d="M9 3v18"/>
             </svg>
           </button>
         </div>
 
-      {/* Navigation */}
-      <div className="sidebar-nav">
-        {items.map(it => {
-          if (user.role === "staf" && it.id === "input") return null;
-          return (
-            <div
-              key={it.id}
-              className={`nav-item ${active===it.id?"active":""}`}
-              onClick={() => onChange(it.id)}
-              data-tip={it.label}
-            >
-              <span className="ni">{it.icon}</span>
-                <span>{it.label}</span>
+        {/* User card (visible when expanded) */}
+        <div className="sidebar-user">
+          <div className="sidebar-user-name">{user.nama}</div>
+          <div className="sidebar-user-role-label">{user.opd || "—"}</div>
+          <span className={`badge ${roleClass}`} style={{fontSize:10,marginTop:4,display:"inline-flex"}}>{roleLabel}</span>
+        </div>
+
+        {/* Navigation */}
+        <div className="sidebar-nav">
+          <div className="nav-section">Menu Utama</div>
+          {items.map(it => {
+            if (user.role === "staf" && it.id === "input") return null;
+            return (
+              <div
+                key={it.id}
+                className={`nav-item${active===it.id?" active":""}`}
+                onClick={() => onChange(it.id)}
+                data-tip={it.label}
+              >
+                <span className="ni">{it.icon}</span>
+                <span className="nav-label">{it.label}</span>
                 {it.badge > 0 && <span className="nav-badge">{it.badge}</span>}
               </div>
             );
           })}
-        </div>
-        {user.role === "admin" && adminItems.map(it => (
-          <div
-            key={it.id}
-            className={`nav-item ${active===it.id?"active":""}`}
-            onClick={() => onChange(it.id)}
-            data-tip={it.label}
-          >
-            <span className="ni">{it.icon}</span>
-          </div>
-        ))}
-      </div>
 
-      {/* Footer */}
-      <div className="sidebar-footer">
-        <button className="logout-btn" onClick={onLogout} title="Keluar">
-          <IcoLogout size={18}/>
-        </button>
+          {user.role === "admin" && (
+            <>
+              <div className="nav-section">Administrasi</div>
+              {adminItems.map(it => (
+                <div
+                  key={it.id}
+                  className={`nav-item${active===it.id?" active":""}`}
+                  onClick={() => onChange(it.id)}
+                  data-tip={it.label}
+                >
+                  <span className="ni">{it.icon}</span>
+                  <span className="nav-label">{it.label}</span>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="sidebar-footer">
+          <button className="logout-btn" onClick={onLogout} title="Keluar">
+            <IcoLogout size={16}/>
+            <span className="logout-label">Keluar dari Sistem</span>
+          </button>
+        </div>
+
       </div>
     </div>
   );
