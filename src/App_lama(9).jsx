@@ -307,120 +307,142 @@ const S = `
   .layout { display: flex; height: 100vh; overflow: hidden; }
 
   /* ════════════════════════════════════════════
-     SIDEBAR  — collapsed icon-only rail
+     SIDEBAR  — white, left-bar active indicator
   ════════════════════════════════════════════ */
   .sidebar {
-    width: var(--sidebar-collapsed);
+    width: var(--sidebar);
     background: var(--surface-container-lowest);
     display: flex;
     flex-direction: column;
-    align-items: center;
     flex-shrink: 0;
     overflow-y: auto;
     border-right: 1px solid var(--outline-variant);
-    padding: 20px 8px 16px;
-    z-index: 50;
   }
 
+  .sidebar-brand {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid var(--outline-variant);
+  }
   .sidebar-logo {
-    width: 44px; height: 44px;
+    width: 42px; height: 42px;
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
-    border-radius: 14px;
+    border-radius: 12px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 18px; font-weight: 900; color: white;
+    font-size: 20px;
+    margin-bottom: 12px;
     box-shadow: 0 4px 12px rgba(0,50,125,0.3);
-    margin-bottom: 28px;
-    flex-shrink: 0;
-    letter-spacing: -1px;
-    font-family: var(--font);
+  }
+  .sidebar-title {
+    color: var(--on-surface);
+    font-weight: 800;
+    font-size: 15px;
+    letter-spacing: -0.4px;
+    line-height: 1.3;
+  }
+  .sidebar-sub {
+    color: var(--on-surface-variant);
+    font-size: 11.5px;
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+
+  /* User Profile Card */
+  .sidebar-user {
+    margin: 16px 14px;
+    background: var(--surface-container-low);
+    border-radius: var(--r);
+    padding: 14px 16px;
+    border: 1px solid var(--outline-variant);
+  }
+  .sidebar-user-name {
+    color: var(--on-surface);
+    font-weight: 700;
+    font-size: 13.5px;
+    line-height: 1.3;
+    margin-bottom: 2px;
+  }
+  .sidebar-user-role-label {
+    color: var(--on-surface-variant);
+    font-size: 11.5px;
+    margin-bottom: 8px;
   }
 
   /* Nav */
-  .sidebar-nav { display: flex; flex-direction: column; gap: 6px; width: 100%; flex: 1; }
+  .sidebar-nav { padding: 8px 12px; flex: 1; }
+
+  .nav-section {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--outline);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 14px 12px 6px;
+  }
 
   .nav-item {
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 52px;
-    height: 52px;
-    border-radius: 14px;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: var(--r-md);
     cursor: pointer;
+    margin-bottom: 2px;
     transition: all 0.15s ease;
     color: var(--on-surface-variant);
+    font-size: 13.5px;
+    font-weight: 500;
     position: relative;
+    border-left: 3px solid transparent;
   }
   .nav-item:hover {
-    background: var(--surface-container-high);
-    color: var(--primary);
+    background: var(--surface-container-low);
+    color: var(--on-surface);
   }
   .nav-item.active {
-    background: rgba(0,50,125,0.1);
+    background: var(--primary-fixed);
     color: var(--primary);
-    border-left: 3px solid var(--primary);
+    border-left-color: var(--primary);
+    font-weight: 600;
   }
-  .nav-item .ni { display: flex; align-items: center; justify-content: center; }
+  .nav-item .ni { font-size: 16px; width: 18px; text-align: center; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .nav-badge {
-    position: absolute;
-    top: 8px; right: 8px;
+    margin-left: auto;
     background: var(--error);
     color: white;
-    font-size: 9px;
+    font-size: 10.5px;
     font-weight: 700;
-    padding: 1px 5px;
+    padding: 2px 7px;
     border-radius: var(--r-full);
-    min-width: 16px;
+    min-width: 20px;
     text-align: center;
-    line-height: 14px;
   }
-
-  /* Tooltip on hover */
-  .nav-item::after {
-    content: attr(data-tip);
-    position: absolute;
-    left: calc(100% + 12px);
-    top: 50%; transform: translateY(-50%);
-    background: var(--inverse-surface);
-    color: var(--inverse-on-surface);
-    padding: 5px 10px;
-    border-radius: 8px;
-    font-size: 12px;
-    font-weight: 600;
-    white-space: nowrap;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.15s;
-    z-index: 9999;
-  }
-  .nav-item:hover::after { opacity: 1; }
 
   .sidebar-footer {
-    display: flex; flex-direction: column; gap: 6px; width: 100%;
+    padding: 14px 14px 20px;
     border-top: 1px solid var(--outline-variant);
-    padding-top: 14px;
-    margin-top: 8px;
-    align-items: center;
   }
   .logout-btn {
-    width: 52px; height: 52px;
-    background: none;
-    border: none;
-    border-radius: 14px;
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--surface-container-low);
+    border: 1.5px solid var(--outline-variant);
+    border-radius: var(--r-md);
     color: var(--on-surface-variant);
     font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.15s;
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 8px;
   }
   .logout-btn:hover {
     background: var(--error-container);
+    border-color: #fca5a5;
     color: var(--error);
   }
-  /* suppress old classes that are no longer used */
-  .sidebar-brand, .sidebar-title, .sidebar-sub, .sidebar-user,
-  .sidebar-user-name, .sidebar-user-role-label, .nav-section { display: none; }
 
   /* ════════════════════════════════════════════
      MAIN CONTENT
@@ -428,11 +450,10 @@ const S = `
   .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
   .topbar {
-    background: rgba(249,249,252,0.9);
-    backdrop-filter: blur(12px);
+    background: var(--surface-container-lowest);
     border-bottom: 1px solid var(--outline-variant);
     padding: 0 32px;
-    height: 72px;
+    height: 64px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -459,58 +480,6 @@ const S = `
     padding: 5px 12px;
     border-radius: var(--r-full);
     border: 1px solid var(--outline-variant);
-  }
-  .topbar-actions {
-    display: flex; align-items: center; gap: 20px;
-  }
-  .topbar-search {
-    position: relative; display: flex; align-items: center;
-  }
-  .topbar-search-input {
-    height: 40px;
-    padding: 0 16px 0 42px;
-    width: 240px;
-    border-radius: var(--r-full);
-    border: 1.5px solid var(--outline-variant);
-    background: var(--surface-container-lowest);
-    font-family: var(--font);
-    font-size: 13px;
-    color: var(--on-surface);
-    outline: none;
-    transition: border-color .15s, box-shadow .15s;
-  }
-  .topbar-search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,50,125,.08); }
-  .topbar-search-icon {
-    position: absolute; left: 14px; color: var(--outline);
-    display: flex; align-items: center;
-  }
-  .notif-btn {
-    position: relative;
-    width: 40px; height: 40px;
-    background: none; border: none; cursor: pointer;
-    color: var(--on-surface-variant);
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 50%;
-    transition: all .15s;
-  }
-  .notif-btn:hover { background: var(--surface-container); color: var(--primary); }
-  .notif-dot {
-    position: absolute; top: 8px; right: 8px;
-    width: 8px; height: 8px;
-    background: var(--primary);
-    border-radius: 50%;
-    border: 2px solid var(--surface-container-lowest);
-  }
-  .avatar {
-    width: 38px; height: 38px;
-    border-radius: 50%;
-    background: var(--primary-fixed);
-    color: var(--primary);
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 13px;
-    cursor: pointer;
-    box-shadow: var(--shadow-1);
-    flex-shrink: 0;
   }
 
   .content { flex: 1; overflow-y: auto; padding: 28px 32px; }
@@ -594,116 +563,28 @@ const S = `
   /* Hero gradient card */
   .hero-card {
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 60%, #1a4db3 100%);
-    border-radius: 28px;
-    padding: 32px;
+    border-radius: var(--r-lg);
+    padding: 28px 32px;
     color: white;
+    margin-bottom: 20px;
     position: relative;
     overflow: hidden;
-    height: 380px;
-    display: flex;
-    flex-direction: column;
   }
   .hero-card::before {
     content: '';
     position: absolute;
     top: -40px; right: -40px;
-    width: 180px; height: 180px;
-    background: rgba(255,255,255,0.06);
+    width: 200px; height: 200px;
+    background: rgba(255,255,255,0.05);
     border-radius: 50%;
-    filter: blur(40px);
   }
   .hero-card::after {
     content: '';
     position: absolute;
     bottom: -60px; right: 80px;
-    width: 220px; height: 220px;
+    width: 240px; height: 240px;
     background: rgba(255,255,255,0.04);
     border-radius: 50%;
-    filter: blur(60px);
-  }
-
-  /* Radial progress ring */
-  .radial-wrap {
-    position: relative; width: 152px; height: 152px;
-    display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 16px;
-  }
-  .radial-inner {
-    position: absolute;
-    background: white;
-    border-radius: 50%;
-    width: 120px; height: 120px;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-  }
-  .radial-pct { font-size: 28px; font-weight: 800; color: var(--primary); letter-spacing: -1px; line-height: 1; }
-  .radial-lbl { font-size: 9px; font-weight: 700; color: var(--outline); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
-
-  /* Dashboard 3-column grid */
-  .dash-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 20px;
-    margin-bottom: 24px;
-    align-items: start;
-  }
-  .dash-stacked { display: flex; flex-direction: column; gap: 16px; }
-  .stat-card-v2 {
-    background: var(--surface-container-lowest);
-    border-radius: 24px;
-    padding: 24px;
-    border: 1px solid var(--outline-variant);
-    box-shadow: var(--shadow-card);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    min-height: 100px;
-    transition: box-shadow 0.2s ease, transform 0.2s ease;
-  }
-  .stat-card-v2:hover { box-shadow: var(--shadow-2); transform: translateY(-1px); }
-  .stat-v2-num {
-    font-size: 36px; font-weight: 800; color: var(--on-surface);
-    letter-spacing: -2px; line-height: 1;
-  }
-  .stat-v2-label {
-    font-size: 10px; font-weight: 700; color: var(--on-surface-variant);
-    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px;
-  }
-  .stat-mini-chart { width: 70px; height: 36px; opacity: 0.25; }
-
-  /* Top OPD card */
-  .opd-card {
-    background: var(--surface-container-lowest);
-    border-radius: 28px;
-    padding: 28px;
-    border: 1px solid var(--outline-variant);
-    box-shadow: var(--shadow-card);
-    height: 380px;
-    display: flex; flex-direction: column;
-    overflow: hidden;
-  }
-  .opd-rank {
-    width: 30px; height: 30px; border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 700;
-    flex-shrink: 0;
-  }
-  .opd-rank.first { background: rgba(0,50,125,0.1); color: var(--primary); }
-  .opd-rank.other { background: var(--surface-container-high); color: var(--on-surface-variant); }
-
-  /* Welcome area */
-  .welcome-area { margin-bottom: 28px; }
-  .welcome-greeting { font-size: 15px; color: var(--on-surface-variant); font-weight: 500; margin-bottom: 4px; }
-  .welcome-name { font-size: 32px; font-weight: 800; color: var(--on-surface); letter-spacing: -1.5px; line-height: 1.15; }
-
-  /* Terbaru table card */
-  .terbaru-card {
-    background: var(--surface-container-lowest);
-    border-radius: 24px;
-    overflow: hidden;
-    border: 1px solid var(--outline-variant);
-    box-shadow: var(--shadow-card);
-    margin-top: 24px;
   }
 
   /* ════════════════════════════════════════════
@@ -1260,46 +1141,58 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
     { id:"users", icon:<IcoUsers/>, label:"Manajemen Staf" },
   ];
 
-  // Get initials for logo
-  const initials = user?.nama ? user.nama.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase() : "S";
+  const roleLabel = user.role==="admin" ? "Admin" : user.role==="operator" ? "Staf Loket" : "Staf Pengampuh OPD";
+  const roleClass = user.role==="admin" ? "badge-purple" : user.role==="operator" ? "badge-gold" : "badge-blue";
 
   return (
     <div className="sidebar">
-      {/* Logo */}
-      <div className="sidebar-logo" title="SKPP Tracker">{initials}</div>
+      {/* Brand */}
+      <div className="sidebar-brand">
+        <div className="sidebar-logo">
+          <IcoFile size={20} />
+        </div>
+        <div className="sidebar-title">SKPP Tracker Admin</div>
+        <div className="sidebar-sub">Bidang Perbendaharaan – Badan Keuangan Daerah Provinsi NTT</div>
+      </div>
+
+      {/* User Profile */}
+      <div className="sidebar-user">
+        <div className="sidebar-user-name">{user.nama}</div>
+        <div className="sidebar-user-role-label">{user.opd || "—"}</div>
+        <span className={`badge ${roleClass}`} style={{fontSize:11}}>{roleLabel}</span>
+      </div>
 
       {/* Navigation */}
       <div className="sidebar-nav">
+        <div className="nav-section">Menu Utama</div>
         {items.map(it => {
           if (user.role === "staf" && it.id === "input") return null;
           return (
-            <div
-              key={it.id}
-              className={`nav-item ${active===it.id?"active":""}`}
-              onClick={() => onChange(it.id)}
-              data-tip={it.label}
-            >
+            <div key={it.id} className={`nav-item ${active===it.id?"active":""}`} onClick={() => onChange(it.id)}>
               <span className="ni">{it.icon}</span>
+              <span style={{flex:1}}>{it.label}</span>
               {it.badge > 0 && <span className="nav-badge">{it.badge}</span>}
             </div>
           );
         })}
-        {user.role === "admin" && adminItems.map(it => (
-          <div
-            key={it.id}
-            className={`nav-item ${active===it.id?"active":""}`}
-            onClick={() => onChange(it.id)}
-            data-tip={it.label}
-          >
-            <span className="ni">{it.icon}</span>
-          </div>
-        ))}
+        {user.role === "admin" && (
+          <>
+            <div className="nav-section">Administrasi</div>
+            {adminItems.map(it => (
+              <div key={it.id} className={`nav-item ${active===it.id?"active":""}`} onClick={() => onChange(it.id)}>
+                <span className="ni">{it.icon}</span>
+                <span style={{flex:1}}>{it.label}</span>
+              </div>
+            ))}
+          </>
+        )}
       </div>
 
       {/* Footer */}
       <div className="sidebar-footer">
-        <button className="logout-btn" onClick={onLogout} title="Keluar">
-          <IcoLogout size={18}/>
+        <button className="logout-btn" onClick={onLogout}>
+          <IcoLogout size={15}/>
+          Keluar dari Sistem
         </button>
       </div>
     </div>
@@ -1844,115 +1737,135 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
 }
 
 // ─── PAGE DASHBOARD ───────────────────────────────────────────────────────────
-function PageDashboard({ data, loading, user }) {
+function PageDashboard({ data, loading }) {
   const s = {
     total:   data.length,
     proses:  data.filter(d => !(d.status==="selesai"||getProgress(d)===100) && d.status!=="kembali").length,
     selesai: data.filter(d => d.status==="selesai"||getProgress(d)===100).length,
     kembali: data.filter(d => d.status==="kembali").length,
   };
+  const bulanIni = data.filter(d => {
+    const dt=new Date(d.tanggalMasuk); const n=new Date();
+    return dt.getMonth()===n.getMonth() && dt.getFullYear()===n.getFullYear();
+  }).length;
   const byOPD  = data.reduce((acc,p)=>{ acc[p.opd]=(acc[p.opd]||0)+1; return acc; }, {});
   const topOPD = Object.entries(byOPD).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const pctSelesai = s.total ? Math.round((s.selesai/s.total)*100) : 0;
-  const recent = [...data].sort((a,b)=>new Date(b.tanggalMasuk)-new Date(a.tanggalMasuk)).slice(0,5);
 
-  // SVG circle math
-  const R = 15.9155;
-  const circ = 2 * Math.PI * R; // ≈ 100
-  const dashArr = `${pctSelesai}, 100`;
+  const statCards = [
+    { label:"Total Pengajuan", val:s.total,   color:"var(--primary)",         bg:"var(--primary-fixed)",     icon:"📋" },
+    { label:"Sedang Diproses", val:s.proses,  color:"var(--primary-container)",bg:"#dbeafe",                  icon:"⟳" },
+    { label:"Selesai",         val:s.selesai, color:"var(--success)",          bg:"var(--success-pale)",       icon:"✓" },
+    { label:"Dikembalikan",    val:s.kembali, color:"#92400e",                 bg:"var(--secondary-fixed)",    icon:"↩" },
+  ];
 
   return (
     <div>
-      {/* Welcome */}
-      <div className="welcome-area">
-        <div className="welcome-greeting">Selamat Datang,</div>
-        <div className="welcome-name">{user?.nama || "—"}</div>
-      </div>
-
-      {/* 3-column main grid */}
-      <div className="dash-grid">
-        {/* Col 1 — Radial hero card */}
-        <div className="hero-card">
-          <div style={{position:"relative",zIndex:1,display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"auto"}}>
-            <span style={{fontSize:10,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",opacity:0.6}}>Persentase Selesai</span>
-            <span style={{fontStyle:"italic",fontWeight:800,fontSize:16,opacity:0.8}}>SKPP</span>
+      {/* Hero gradient card */}
+      <div className="hero-card" style={{marginBottom:20}}>
+        <div style={{position:"relative",zIndex:1}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:16}}>
+            <div>
+              <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",opacity:0.6,marginBottom:8}}>Ringkasan Sistem — SKPP Tracker</div>
+              <div style={{fontSize:40,fontWeight:800,letterSpacing:"-2px",lineHeight:1}}>{loading?"—":s.total}</div>
+              <div style={{fontSize:13,opacity:0.7,marginTop:6}}>Total pengajuan terdaftar dalam sistem</div>
+            </div>
+            <div style={{display:"flex",gap:24,flexWrap:"wrap"}}>
+              {[
+                { label:"Selesai", val:s.selesai, color:"#86efac" },
+                { label:"Diproses", val:s.proses, color:"#93c5fd" },
+                { label:"Dikembalikan", val:s.kembali, color:"var(--secondary-container)" },
+              ].map(st=>(
+                <div key={st.label} style={{textAlign:"center"}}>
+                  <div style={{fontSize:26,fontWeight:800,letterSpacing:"-1px",color:st.color}}>{loading?"—":st.val}</div>
+                  <div style={{fontSize:11,opacity:0.6,marginTop:2,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em"}}>{st.label}</div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div style={{position:"relative",zIndex:1,flex:1,display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <div className="radial-wrap">
-              <svg style={{position:"absolute",inset:0,width:"100%",height:"100%",transform:"rotate(-90deg)"}} viewBox="0 0 36 36">
-                <path style={{color:"rgba(255,255,255,0.2)"}} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3.5"/>
-                <path style={{color:"white",transition:"stroke-dasharray .6s ease"}} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeDasharray={dashArr} strokeLinecap="round" strokeWidth="3.5"/>
-              </svg>
-              <div className="radial-inner">
-                <span className="radial-pct">{loading?"—":`${pctSelesai}%`}</span>
-                <span className="radial-lbl">Selesai</span>
+          {s.total>0 && (
+            <div style={{marginTop:20}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                <span style={{fontSize:12,opacity:0.6,fontWeight:600}}>Tingkat Penyelesaian</span>
+                <span style={{fontSize:12,fontWeight:700,color:"#86efac",fontFamily:"var(--mono)"}}>{pctSelesai}%</span>
+              </div>
+              <div style={{background:"rgba(255,255,255,0.15)",borderRadius:999,height:8,overflow:"hidden"}}>
+                <div style={{width:`${pctSelesai}%`,height:"100%",background:"#86efac",borderRadius:999,transition:"width .6s ease"}}/>
               </div>
             </div>
+          )}
+        </div>
+      </div>
+
+      {/* Stat cards */}
+      <div className="stat-grid">
+        {statCards.map(st=>(
+          <div key={st.label} className="stat-card">
+            <div className="stat-icon" style={{background:st.bg}}>{st.icon}</div>
+            <div>
+              <div className="stat-num" style={{color:st.color}}>{loading?"—":st.val}</div>
+              <div className="stat-label">{st.label}</div>
+            </div>
           </div>
-          <div style={{position:"relative",zIndex:1,textAlign:"center"}}>
-            <div style={{fontSize:38,fontWeight:800,letterSpacing:"-2px",lineHeight:1}}>{loading?"—":s.selesai}</div>
-            <div style={{fontSize:12,opacity:0.7,marginTop:4}}>Total Selesai</div>
+        ))}
+      </div>
+
+      {/* Bottom row */}
+      <div className="grid-2" style={{gap:16}}>
+        {/* Pengajuan bulan ini */}
+        <div className="card">
+          <div className="card-header">
+            <div className="card-header-title">Pengajuan Bulan Ini</div>
+            <span className="chip chip-blue" style={{fontSize:11}}>
+              {new Date().toLocaleString("id-ID",{month:"long",year:"numeric"})}
+            </span>
+          </div>
+          <div className="card-body">
+            <div style={{fontSize:48,fontWeight:900,color:"var(--primary)",letterSpacing:"-3px",lineHeight:1}}>{loading?"—":bulanIni}</div>
+            <div style={{fontSize:12,color:"var(--on-surface-variant)",marginTop:6,marginBottom:20}}>Pengajuan baru diterima bulan ini</div>
+            <div style={{borderTop:"1px solid var(--outline-variant)",paddingTop:16,display:"flex",flexDirection:"column",gap:10}}>
+              {[
+                ["Jalur A (tanpa pangkat pengabdian)", data.filter(d=>d.jalur==="A").length],
+                ["Jalur B (ada pangkat pengabdian)",   data.filter(d=>d.jalur==="B").length],
+              ].map(([label,val])=>(
+                <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:12.5,color:"var(--on-surface-variant)"}}>{label}</span>
+                  <span style={{fontWeight:700,fontSize:13,color:"var(--on-surface)",fontFamily:"var(--mono)"}}>{val}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Col 2 — Stacked stat cards */}
-        <div className="dash-stacked">
-          {/* Sedang Diproses */}
-          <div className="stat-card-v2">
-            <div>
-              <div className="stat-v2-label">Sedang Diproses</div>
-              <div className="stat-v2-num">{loading?"—":s.proses}</div>
-            </div>
-            <svg className="stat-mini-chart" viewBox="0 0 100 30" preserveAspectRatio="none">
-              <path d="M0 15 Q 25 5, 50 15 T 100 15" fill="none" stroke="var(--primary)" strokeWidth="3"/>
-            </svg>
+        {/* Top OPD */}
+        <div className="card">
+          <div className="card-header">
+            <div className="card-header-title">Top OPD Pengajuan</div>
+            <span className="chip" style={{fontSize:11}}>{topOPD.length} OPD aktif</span>
           </div>
-          {/* Total Pengajuan */}
-          <div className="stat-card-v2">
-            <div>
-              <div className="stat-v2-label">Total Pengajuan</div>
-              <div className="stat-v2-num">{loading?"—":s.total}</div>
-            </div>
-            <svg className="stat-mini-chart" viewBox="0 0 100 30" preserveAspectRatio="none">
-              <path d="M0 25 Q 25 5, 50 15 T 100 5" fill="none" stroke="var(--secondary)" strokeWidth="3"/>
-            </svg>
-          </div>
-          {/* Dikembalikan */}
-          <div className="stat-card-v2">
-            <div>
-              <div className="stat-v2-label">Dikembalikan</div>
-              <div className="stat-v2-num" style={{color:s.kembali>0?"var(--error)":undefined}}>{loading?"—":s.kembali}</div>
-            </div>
-            <div style={{display:"flex",alignItems:"flex-end",gap:3,height:36,opacity:0.25}}>
-              {[40,80,60,100].map((h,i)=><div key={i} style={{width:10,height:`${h}%`,background:"var(--error)",borderRadius:"3px 3px 0 0"}}/>)}
-            </div>
-          </div>
-        </div>
-
-        {/* Col 3 — Top OPD */}
-        <div className="opd-card">
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-            <div style={{fontWeight:700,fontSize:16,color:"var(--on-surface)",letterSpacing:"-0.3px"}}>Top OPD Pengajuan</div>
-            <span className="chip" style={{fontSize:11}}>{topOPD.length} OPD</span>
-          </div>
-          <div style={{flex:1,display:"flex",flexDirection:"column",gap:10,overflowY:"auto"}}>
+          <div className="card-body" style={{padding:"16px 20px"}}>
             {loading ? (
-              <div className="loading-box" style={{padding:24}}><div className="spinner"/></div>
+              <div className="loading-box" style={{padding:32}}><div className="spinner"/></div>
             ) : topOPD.length===0 ? (
               <div style={{color:"var(--outline)",fontSize:13,textAlign:"center",padding:"24px 0"}}>Belum ada data</div>
-            ) : topOPD.map(([opd,jml],i) => {
+            ) : topOPD.map(([opd,jml],i)=>{
               const pct = s.total ? Math.round((jml/s.total)*100) : 0;
               return (
-                <div key={opd} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",borderRadius:14,transition:"background .15s"}}
-                  onMouseEnter={e=>e.currentTarget.style.background="var(--surface-container-low)"}
-                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  <div style={{display:"flex",alignItems:"center",gap:12}}>
-                    <div className={`opd-rank ${i===0?"first":"other"}`}>{i+1}</div>
-                    <div style={{fontSize:13,fontWeight:500,color:"var(--on-surface)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={opd}>{opd}</div>
+                <div key={opd} style={{marginBottom:14}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:5}}>
+                    <div style={{
+                      width:22,height:22,borderRadius:"50%",
+                      background:i===0?"var(--primary-fixed)":"var(--surface-container-low)",
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      fontSize:11,fontWeight:700,color:i===0?"var(--primary)":"var(--outline)",flexShrink:0
+                    }}>{i+1}</div>
+                    <div style={{flex:1,fontSize:12.5,color:"var(--on-surface)",fontWeight:500,lineHeight:1.3}}>{opd}</div>
+                    <span className="badge badge-blue" style={{fontSize:11}}>{jml}</span>
                   </div>
-                  <div style={{textAlign:"right",flexShrink:0,marginLeft:8}}>
-                    <div style={{fontWeight:700,fontSize:14,color:"var(--on-surface)"}}>{jml}</div>
-                    <div style={{fontSize:10,color:"var(--on-surface-variant)",fontWeight:600,textTransform:"uppercase"}}>{pct}%</div>
+                  <div style={{marginLeft:32}}>
+                    <div className="progress-wrap" style={{height:4}}>
+                      <div className="progress-bar" style={{width:`${pct}%`,background:i===0?"var(--primary)":"var(--outline-variant)"}}/>
+                    </div>
                   </div>
                 </div>
               );
@@ -1961,57 +1874,12 @@ function PageDashboard({ data, loading, user }) {
         </div>
       </div>
 
-      {/* Daftar Pengajuan Terbaru */}
-      <div>
-        <div style={{fontWeight:700,fontSize:18,color:"var(--on-surface)",letterSpacing:"-0.4px",marginBottom:14}}>Daftar Pengajuan Terbaru</div>
-        <div className="terbaru-card">
-          {loading ? (
-            <div className="loading-box"><div className="spinner"/><span>Memuat data...</span></div>
-          ) : recent.length===0 ? (
-            <div className="empty-box"><div className="empty-icon">📂</div><div className="empty-text">Belum ada pengajuan</div></div>
-          ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>OPD</th>
-                  <th>Jalur</th>
-                  <th>Status</th>
-                  <th>Tanggal Masuk</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {recent.map(p=>(
-                  <tr key={p.id} style={{cursor:"default"}}>
-                    <td>
-                      <div style={{display:"flex",alignItems:"center",gap:12}}>
-                        <div style={{width:36,height:36,borderRadius:"50%",background:"var(--primary-fixed)",color:"var(--primary)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:13,flexShrink:0}}>
-                          {(p.opd||"?")[0].toUpperCase()}
-                        </div>
-                        <div>
-                          <div style={{fontWeight:600,fontSize:13,color:"var(--on-surface)",maxWidth:220,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.opd||"—"}</div>
-                          <div style={{fontSize:11,color:"var(--on-surface-variant)",fontFamily:"var(--mono)"}}>{p.nama||"—"}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td><span className="chip chip-blue" style={{fontSize:11}}>Jalur {p.jalur||"A"}</span></td>
-                    <td><SBadge p={p}/></td>
-                    <td style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--on-surface-variant)"}}>{fmtDate(p.tanggalMasuk)}</td>
-                    <td></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-
       {/* Warning banner */}
-      {s.kembali > 0 && (
+      {data.filter(d=>d.status==="kembali").length>0 && (
         <div className="alert alert-amber" style={{marginTop:16}}>
           <IcoAlert size={16}/>
           <div>
-            <strong>Perlu Perhatian —</strong> Ada <strong>{s.kembali} pengajuan</strong> dengan berkas yang dikembalikan. Segera koordinasi dengan OPD terkait.
+            <strong>Perlu Perhatian —</strong> Ada <strong>{data.filter(d=>d.status==="kembali").length} pengajuan</strong> dengan berkas yang dikembalikan. Segera koordinasi dengan OPD terkait.
           </div>
         </div>
       )}
@@ -2396,30 +2264,22 @@ export default function App() {
               <div className="topbar-title">{PAGE_TITLES[page]?.title}</div>
               <div className="topbar-sub">{PAGE_TITLES[page]?.sub}</div>
             </div>
-            <div className="topbar-actions">
+            <div style={{display:"flex",gap:10,alignItems:"center"}}>
               {errLoad && (
                 <div className="alert alert-red" style={{margin:0,padding:"6px 12px",fontSize:12}}>
                   <IcoAlert size={14}/><span>{errLoad}</span>
                   <button className="btn btn-secondary btn-sm" style={{marginLeft:8}} onClick={load}>Coba Lagi</button>
                 </div>
               )}
-              <div className="topbar-search">
-                <span className="topbar-search-icon"><IcoSearch size={15}/></span>
-                <input className="topbar-search-input" placeholder="Cari pengajuan..." />
-              </div>
-              <button className="notif-btn">
-                <IcoAlert size={18}/>
-                <span className="notif-dot"/>
-              </button>
-              <div className="avatar" title={user?.nama || ""}>
-                {user?.nama ? user.nama.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase() : "U"}
+              <div className="topbar-date">
+                {new Date().toLocaleDateString("id-ID",{weekday:"long",day:"2-digit",month:"long",year:"numeric"})}
               </div>
             </div>
           </div>
 
           {/* Content */}
           <div className="content">
-            {page==="dashboard" && <PageDashboard data={data} loading={loading} user={user}/>}
+            {page==="dashboard" && <PageDashboard data={data} loading={loading}/>}
             {page==="pengajuan" && <PagePengajuan data={data} loading={loading} onRefresh={load} onDetail={setSelected} onInputBaru={()=>setShowInput(true)} onExport={exportCSV} user={user}/>}
             {page==="input"     && <div className="card card-body"><PagePengajuan data={[]} loading={false} onRefresh={()=>{}} onDetail={()=>{}} onInputBaru={()=>setShowInput(true)} onExport={()=>{}} user={user}/></div>}
             {page==="riwayat"   && <PageRiwayat data={data} loading={loading} onDetail={setSelected}/>}
