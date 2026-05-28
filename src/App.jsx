@@ -306,8 +306,9 @@ const S = `
   ════════════════════════════════════════════ */
   .layout { display: flex; height: 100vh; overflow: hidden; }
 
+
   /* ════════════════════════════════════════════
-     SIDEBAR — expanded mode (280px)
+     SIDEBAR — smooth collapsible
   ════════════════════════════════════════════ */
   .sidebar {
     width: var(--sidebar);
@@ -316,18 +317,27 @@ const S = `
     flex-direction: column;
     flex-shrink: 0;
     border-right: 1px solid var(--outline-variant);
-    padding: 16px 14px;
-    overflow-y: auto;
-    overflow-x: hidden;
+    padding: 14px 10px;
+    overflow: hidden;           /* clip saat animasi */
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .sidebar.collapsed {
+    width: var(--sidebar-collapsed);
+    padding: 14px 6px;
   }
 
-  /* Header: logo + brand name + toggle button */
+  /* ── Header row ── */
   .sidebar-header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 16px;
+    gap: 8px;
+    margin-bottom: 14px;
+    height: 42px;
+    flex-shrink: 0;
   }
+
+  /* Logo / tombol expand — selalu terlihat, lebar tetap */
   .sidebar-logo {
     width: 40px; height: 40px;
     min-width: 40px;
@@ -338,6 +348,20 @@ const S = `
     box-shadow: 0 4px 12px rgba(0,50,125,0.3);
     flex-shrink: 0;
     font-family: var(--font);
+    cursor: default;
+  }
+
+  /* Teks brand — fade in/out */
+  .sidebar-brand-text {
+    flex: 1;
+    overflow: hidden;
+    opacity: 1;
+    max-width: 160px;
+    transition: opacity 0.2s ease, max-width 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+  .sidebar.collapsed .sidebar-brand-text {
+    opacity: 0;
+    max-width: 0;
   }
   .sidebar-brand-name {
     font-weight: 800; font-size: 14px; color: var(--primary);
@@ -347,25 +371,45 @@ const S = `
     font-size: 10px; color: var(--on-surface-variant);
     white-space: nowrap; margin-top: 1px; line-height: 1.3;
   }
+
+  /* Tombol toggle — selalu terlihat */
   .btn-toggle {
-    width: 30px; height: 30px; min-width: 30px;
+    width: 32px; height: 32px; min-width: 32px;
     background: none; border: none; cursor: pointer;
     color: var(--on-surface-variant);
     border-radius: 8px;
     display: flex; align-items: center; justify-content: center;
     transition: background 0.15s, color 0.15s;
-    margin-left: auto;
     flex-shrink: 0;
+    margin-left: auto;
   }
   .btn-toggle:hover { background: var(--surface-container-high); color: var(--primary); }
 
-  /* User card */
+  /* Saat collapsed: tombol toggle pindah ke posisi logo (logo disembunyikan) */
+  .sidebar.collapsed .sidebar-logo { display: none; }
+  .sidebar.collapsed .btn-toggle   { margin-left: 0; }
+
+  /* ── User card ── */
   .sidebar-user {
     background: var(--surface-container-low);
     border-radius: var(--r-md);
     padding: 10px 12px;
     border: 1px solid var(--outline-variant);
-    margin-bottom: 16px;
+    margin-bottom: 14px;
+    overflow: hidden;
+    opacity: 1;
+    max-height: 80px;
+    transition: opacity 0.2s ease,
+                max-height 0.3s cubic-bezier(0.4,0,0.2,1),
+                padding 0.3s ease,
+                margin 0.3s ease;
+  }
+  .sidebar.collapsed .sidebar-user {
+    opacity: 0;
+    max-height: 0;
+    padding-top: 0; padding-bottom: 0;
+    margin-bottom: 0;
+    border-color: transparent;
   }
   .sidebar-user-name {
     font-weight: 700; font-size: 12.5px; color: var(--on-surface);
@@ -375,22 +419,32 @@ const S = `
     font-size: 11px; color: var(--on-surface-variant); margin-top: 2px;
   }
 
-  /* Nav section label */
+  /* ── Nav section label ── */
   .nav-section {
     font-size: 10px; font-weight: 700; color: var(--outline);
     text-transform: uppercase; letter-spacing: 0.08em;
     padding: 10px 8px 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    opacity: 1;
+    max-height: 32px;
+    transition: opacity 0.15s ease, max-height 0.3s ease, padding 0.3s ease;
+  }
+  .sidebar.collapsed .nav-section {
+    opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0;
   }
 
-  /* Nav */
+  /* ── Nav ── */
   .sidebar-nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
 
   .nav-item {
     display: flex; align-items: center; gap: 10px;
-    width: 100%; height: 44px; padding: 0 10px;
+    width: 100%; height: 44px;
+    padding: 0 8px;
     border-radius: var(--r-md);
     cursor: pointer;
-    transition: background 0.15s, color 0.15s;
+    transition: background 0.15s, color 0.15s,
+                border-radius 0.3s, justify-content 0.15s;
     color: var(--on-surface-variant);
     position: relative;
     border-left: 3px solid transparent;
@@ -402,106 +456,20 @@ const S = `
     background: var(--primary-fixed); color: var(--primary);
     border-left-color: var(--primary); font-weight: 600;
   }
-  .nav-item .ni {
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; width: 20px;
-  }
-  .nav-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
-  .nav-badge {
-    margin-left: auto;
-    background: var(--error); color: white;
-    font-size: 10px; font-weight: 700;
-    padding: 2px 7px; border-radius: var(--r-full);
-    min-width: 20px; text-align: center; flex-shrink: 0;
-  }
 
-  /* Sidebar footer */
-  .sidebar-footer {
-    display: flex; flex-direction: column; gap: 4px;
-    border-top: 1px solid var(--outline-variant);
-    padding-top: 12px; margin-top: 8px;
-  }
-  .logout-btn {
-    display: flex; align-items: center; gap: 10px;
-    width: 100%; padding: 10px 10px;
-    background: none; border: none; border-radius: var(--r-md);
-    color: var(--on-surface-variant);
-    font-family: var(--font); font-size: 13.5px; font-weight: 600;
-    cursor: pointer; transition: all 0.15s;
-    white-space: nowrap;
-  }
-  .logout-btn:hover { background: var(--error-container); color: var(--error); }
-
-  /* ════════════════════════════════════════════
-     SIDEBAR — collapsed mode (80px, icon-only rail)
-  ════════════════════════════════════════════ */
-  .sidebar-collapsed-rail {
-    width: var(--sidebar-collapsed);
-    min-width: var(--sidebar-collapsed);
-    background: var(--surface-container-lowest);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    flex-shrink: 0;
-    border-right: 1px solid var(--outline-variant);
-    padding: 16px 0;
-    overflow: visible;
-  }
-
-  /* Logo di rail — bisa diklik untuk expand */
-  .rail-logo {
-    width: 42px; height: 42px;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
-    border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 15px; font-weight: 900; color: white;
-    box-shadow: 0 4px 12px rgba(0,50,125,0.3);
-    font-family: var(--font);
-    cursor: pointer;
-    transition: box-shadow 0.15s;
-    margin-bottom: 6px;
-  }
-  .rail-logo:hover { box-shadow: 0 6px 18px rgba(0,50,125,0.4); }
-
-  /* Tombol expand di rail */
-  .rail-toggle {
-    width: 34px; height: 34px;
-    background: none; border: none; cursor: pointer;
-    color: var(--on-surface-variant);
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    transition: background 0.15s, color 0.15s;
-    margin-bottom: 16px;
-  }
-  .rail-toggle:hover { background: var(--surface-container-high); color: var(--primary); }
-
-  /* Nav items di rail */
-  .rail-nav { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; width: 100%; }
-  .rail-item {
-    position: relative;
-    width: 50px; height: 50px;
-    display: flex; align-items: center; justify-content: center;
+  /* Saat collapsed: item jadi bulat terpusat */
+  .sidebar.collapsed .nav-item {
+    justify-content: center;
+    padding: 0;
+    border-left-color: transparent;
     border-radius: 14px;
-    cursor: pointer;
-    color: var(--on-surface-variant);
-    transition: background 0.15s, color 0.15s;
-    border-left: 3px solid transparent;
   }
-  .rail-item:hover { background: var(--surface-container-high); color: var(--primary); }
-  .rail-item.active {
-    background: var(--primary-fixed); color: var(--primary);
-    border-left-color: var(--primary);
+  .sidebar.collapsed .nav-item.active {
+    border-left: 3px solid var(--primary);
   }
-  /* Badge di rail */
-  .rail-badge {
-    position: absolute; top: 7px; right: 7px;
-    background: var(--error); color: white;
-    font-size: 9px; font-weight: 700;
-    padding: 1px 5px; border-radius: var(--r-full);
-    min-width: 16px; text-align: center; line-height: 14px;
-  }
-  /* Tooltip di rail */
-  .rail-item::after {
+
+  /* Tooltip — hanya muncul saat collapsed */
+  .nav-item::after {
     content: attr(data-tip);
     position: absolute;
     left: calc(100% + 10px);
@@ -512,27 +480,65 @@ const S = `
     font-size: 12px; font-weight: 600;
     white-space: nowrap;
     pointer-events: none;
-    opacity: 0; transition: opacity 0.15s;
+    opacity: 0;
+    transition: opacity 0.15s;
     z-index: 9999;
   }
-  .rail-item:hover::after { opacity: 1; }
+  .sidebar.collapsed .nav-item:hover::after { opacity: 1; }
 
-  /* Footer di rail */
-  .rail-footer {
+  .nav-item .ni {
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; width: 20px;
+  }
+  /* Label teks nav — fade out saat collapsed */
+  .nav-label {
+    flex: 1; overflow: hidden; text-overflow: ellipsis;
+    opacity: 1; max-width: 180px;
+    transition: opacity 0.15s ease, max-width 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+  .sidebar.collapsed .nav-label { opacity: 0; max-width: 0; }
+
+  .nav-badge {
+    margin-left: auto; flex-shrink: 0;
+    background: var(--error); color: white;
+    font-size: 10px; font-weight: 700;
+    padding: 2px 7px; border-radius: var(--r-full);
+    min-width: 20px; text-align: center;
+    transition: opacity 0.15s, position 0.15s;
+  }
+  /* Badge: di pojok saat collapsed */
+  .sidebar.collapsed .nav-badge {
+    position: absolute; top: 7px; right: 5px;
+    margin-left: 0; padding: 1px 5px;
+    font-size: 9px; min-width: 16px; line-height: 14px;
+  }
+
+  /* ── Footer ── */
+  .sidebar-footer {
+    display: flex; flex-direction: column; gap: 4px;
     border-top: 1px solid var(--outline-variant);
     padding-top: 12px; margin-top: 8px;
-    display: flex; flex-direction: column; align-items: center;
-    width: 100%;
+    flex-shrink: 0;
   }
-  .rail-logout {
-    width: 44px; height: 44px;
-    background: none; border: none; cursor: pointer;
+  .logout-btn {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 10px 8px;
+    background: none; border: none; border-radius: var(--r-md);
     color: var(--on-surface-variant);
-    border-radius: 14px;
-    display: flex; align-items: center; justify-content: center;
-    transition: background 0.15s, color 0.15s;
+    font-family: var(--font); font-size: 13.5px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
   }
-  .rail-logout:hover { background: var(--error-container); color: var(--error); }
+  .logout-btn:hover { background: var(--error-container); color: var(--error); }
+  .sidebar.collapsed .logout-btn { justify-content: center; padding: 10px 0; }
+  .logout-label {
+    opacity: 1; max-width: 180px;
+    transition: opacity 0.15s ease, max-width 0.3s cubic-bezier(0.4,0,0.2,1);
+    overflow: hidden;
+  }
+  .sidebar.collapsed .logout-label { opacity: 0; max-width: 0; }
+
+
 
   /* ════════════════════════════════════════════
      MAIN CONTENT
@@ -1380,80 +1386,43 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
   const roleLabel = user.role==="admin" ? "Admin" : user.role==="operator" ? "Staf Loket" : "Staf Pengampuh OPD";
   const roleClass = user.role==="admin" ? "badge-purple" : user.role==="operator" ? "badge-gold" : "badge-blue";
 
-  const ToggleIcon = ({ flipped }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-      fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-      style={{transition:"transform 0.2s", transform: flipped ? "rotate(180deg)" : "rotate(0deg)"}}>
-      <rect width="18" height="18" x="3" y="3" rx="2"/>
-      <path d="M9 3v18"/>
-    </svg>
-  );
-
-  /* ── COLLAPSED: icon-only rail ── */
-  if (collapsed) {
-    const allItems = [
-      ...items.filter(it => !(user.role === "staf" && it.id === "input")),
-      ...(user.role === "admin" ? adminItems : []),
-    ];
-    return (
-      <div className="sidebar-collapsed-rail">
-        {/* Logo */}
-        <div className="rail-logo" title="Perluas menu" onClick={() => setCollapsed(false)}>
-          {initials}
-        </div>
-        {/* Tombol expand */}
-        <button className="rail-toggle" onClick={() => setCollapsed(false)} title="Perluas menu">
-          <ToggleIcon flipped={true}/>
-        </button>
-
-        {/* Nav icons */}
-        <div className="rail-nav">
-          {allItems.map(it => (
-            <div
-              key={it.id}
-              className={`rail-item${active===it.id?" active":""}`}
-              onClick={() => onChange(it.id)}
-              data-tip={it.label}
-            >
-              {it.icon}
-              {it.badge > 0 && <span className="rail-badge">{it.badge}</span>}
-            </div>
-          ))}
-        </div>
-
-        {/* Footer */}
-        <div className="rail-footer">
-          <button className="rail-logout" onClick={onLogout} title="Keluar">
-            <IcoLogout size={18}/>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  /* ── EXPANDED: full sidebar ── */
   return (
-    <div className="sidebar">
-      {/* Header */}
+    <div className={`sidebar${collapsed ? " collapsed" : ""}`}>
+
+      {/* ── Header ── */}
       <div className="sidebar-header">
+        {/* Logo (hanya tampil saat expanded) */}
         <div className="sidebar-logo">{initials}</div>
-        <div style={{flex:1, overflow:"hidden"}}>
+
+        {/* Teks brand (fade out saat collapsed) */}
+        <div className="sidebar-brand-text">
           <div className="sidebar-brand-name">SKPP Tracker</div>
           <div className="sidebar-brand-sub">Bidang Perbendaharaan – BKD NTT</div>
         </div>
-        <button className="btn-toggle" onClick={() => setCollapsed(true)} title="Ciutkan menu">
-          <ToggleIcon flipped={false}/>
+
+        {/* Tombol toggle — selalu terlihat, menggantikan logo saat collapsed */}
+        <button
+          className="btn-toggle"
+          onClick={() => setCollapsed(c => !c)}
+          title={collapsed ? "Perluas menu" : "Ciutkan menu"}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            style={{transition:"transform 0.3s", transform: collapsed ? "rotate(180deg)" : "rotate(0deg)"}}>
+            <rect width="18" height="18" x="3" y="3" rx="2"/>
+            <path d="M9 3v18"/>
+          </svg>
         </button>
       </div>
 
-      {/* User card */}
+      {/* ── User card (collapse via max-height) ── */}
       <div className="sidebar-user">
         <div className="sidebar-user-name">{user.nama}</div>
         <div className="sidebar-user-role-label">{user.opd || "—"}</div>
         <span className={`badge ${roleClass}`} style={{fontSize:10,marginTop:4,display:"inline-flex"}}>{roleLabel}</span>
       </div>
 
-      {/* Navigation */}
+      {/* ── Navigation ── */}
       <div className="sidebar-nav">
         <div className="nav-section">Menu Utama</div>
         {items.map(it => {
@@ -1463,6 +1432,7 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
               key={it.id}
               className={`nav-item${active===it.id?" active":""}`}
               onClick={() => onChange(it.id)}
+              data-tip={it.label}
             >
               <span className="ni">{it.icon}</span>
               <span className="nav-label">{it.label}</span>
@@ -1478,6 +1448,7 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
                 key={it.id}
                 className={`nav-item${active===it.id?" active":""}`}
                 onClick={() => onChange(it.id)}
+                data-tip={it.label}
               >
                 <span className="ni">{it.icon}</span>
                 <span className="nav-label">{it.label}</span>
@@ -1487,13 +1458,14 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
         )}
       </div>
 
-      {/* Footer */}
+      {/* ── Footer ── */}
       <div className="sidebar-footer">
         <button className="logout-btn" onClick={onLogout}>
           <IcoLogout size={16}/>
-          <span>Keluar dari Sistem</span>
+          <span className="logout-label">Keluar dari Sistem</span>
         </button>
       </div>
+
     </div>
   );
 }
