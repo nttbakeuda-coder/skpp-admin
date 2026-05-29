@@ -606,6 +606,8 @@ const S = `
   .ticker-wrap {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
+    margin-right: 16px;
     gap: 10px;
     overflow: hidden;
     position: relative;
@@ -657,18 +659,18 @@ const S = `
   }
   /* berhenti di tengah dulu, baru keluar ke kiri */
   @keyframes tickerScrollCredit {
-    0%   { transform: translateX(110%); opacity: 0; }
-    5%   { opacity: 1; }
-    20%  { transform: translateX(10%); }
-    55%  { transform: translateX(10%); }
-    95%  { transform: translateX(-110%); opacity: 1; }
-    100% { transform: translateX(-110%); opacity: 0; }
+    0%   { transform: translateX(100%); opacity: 0; }
+    2%   { opacity: 1; }
+    98%  { opacity: 1; }
+    100% { transform: translateX(-100%); opacity: 0; }
   }
+  
   .ticker-text.animating {
-    animation: tickerScrollCredit 8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    animation: tickerScrollCredit 8s linear forwards; 
   }
   .topbar-actions {
-    display: flex; align-items: center; gap: 12px; flex: 1; justify-content: flex-end; min-width: 0;
+    display: flex; align-items: center; gap: 12px; justify-content: flex-end;
+    min-width: 0;
   }
   /* Profile popup */
   .profile-popup {
@@ -1360,12 +1362,12 @@ const S = `
   }
   .login-logo {
     width: 40px; height: 40px;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
-    border-radius: 12px;
+    background: transparent;
+    border-radius: 0;
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 16px rgba(0,50,125,0.35);
+    box-shadow: none;
     flex-shrink: 0;
-    color: white;
+    color: var(--primary);
   }
   .login-brand-text {}
   .login-brand-name {
