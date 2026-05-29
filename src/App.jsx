@@ -604,16 +604,18 @@ const S = `
 
   /* ── Ticker motivasi — credit scroll kanan ke kiri ── */
   .ticker-wrap {
-    flex: 1 1 0% !important; /* Memaksa ticker mengambil ruang yang konsisten */
-    width: 100%;
-    max-width: none !important; /* Menghapus batas lebar agar wadah tidak mengecil-membesar */
+    flex: 1 1 0px !important; 
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
     display: flex;
     align-items: center;
-    justify-content: flex-end; /* Memastikan teks mengalir ke arah kanan */
+    justify-content: flex-end; 
     gap: 10px;
     overflow: hidden;
     position: relative;
     margin-right: 16px;
+    margin-left: 20px; /* Memberi jarak aman dari teks Selamat Siang */
   }
   .ticker-greeting {
     font-size: 12px;
@@ -673,19 +675,21 @@ const S = `
     min-width: 0;
   }
     /* --- PERBAIKAN LOGO KANAN ATAS --- */
-  /* 1. Menghapus bentuk lingkaran dan background abu-abu pada WADAH logo */
+  /* 1. Memaksa SEMUA lapisan wadah logo menjadi transparan */
+  .topbar-actions,
   .topbar-actions *:has(img),
   .topbar-actions [class*="avatar"],
-  .topbar-actions [class*="profile"] {
+  .topbar-actions [class*="profile"],
+  .topbar-actions button {
     background: transparent !important;
     background-color: transparent !important;
-    border-radius: 0 !important; /* Membunuh efek lingkaran */
+    border-radius: 0 !important;
     border: none !important;
     box-shadow: none !important;
-    padding: 0 !important;
+    outline: none !important;
   }
 
-  /* 2. Memastikan GAMBAR logo tampil utuh berbentuk perisai */
+  /* 2. Memastikan GAMBAR logo bebas dari warna dasar */
   .topbar-actions img {
     width: 35px !important; 
     height: 35px !important;
@@ -694,7 +698,7 @@ const S = `
     border-radius: 0 !important; 
     border: none !important;
     box-shadow: none !important;
-    object-fit: contain !important; /* Sangat penting agar perisai tidak terpotong */
+    object-fit: contain !important; 
   }
   /* Profile popup */
   .profile-popup {
