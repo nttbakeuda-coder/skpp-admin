@@ -672,6 +672,29 @@ const S = `
     display: flex; align-items: center; gap: 12px; justify-content: flex-end;
     min-width: 0;
   }
+    /* --- PERBAIKAN LOGO KANAN ATAS --- */
+  /* Targetkan container avatar/logo di dalam topbar actions */
+  .topbar-actions div[class*="avatar"],
+  .topbar-actions .avatar,
+  .topbar-actions .profile-btn {
+    background: transparent !important;
+    background-color: transparent !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Targetkan foto/gambar logo di dalam topbar actions */
+  .topbar-actions img {
+    width: 35px !important; /* Ukuran ideal agar presisi dengan ikon lonceng */
+    height: 35px !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border-radius: 0 !important; /* Menghapus potongan bulat/lingkaran */
+    border: none !important;
+    box-shadow: none !important;
+    object-fit: contain !important; /* Memastikan logo perisai NTT tampil utuh */
+  }
   /* Profile popup */
   .profile-popup {
     position: absolute;
