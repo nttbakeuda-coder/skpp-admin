@@ -578,6 +578,89 @@ const S = `
     border-radius: var(--r-full);
     border: 1px solid var(--outline-variant);
   }
+
+  /* ── Topbar kiri: identitas instansi ── */
+  .topbar-instansi {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .topbar-instansi-name {
+    font-size: 12.5px;
+    font-weight: 800;
+    color: var(--primary);
+    letter-spacing: -0.3px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  .topbar-instansi-sub {
+    font-size: 10px;
+    color: var(--on-surface-variant);
+    font-weight: 500;
+    margin-top: 1px;
+    white-space: nowrap;
+  }
+
+  /* ── Ticker motivasi ── */
+  .ticker-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface-container-low);
+    border: 1.5px solid var(--outline-variant);
+    border-radius: var(--r-full);
+    padding: 0 14px;
+    height: 32px;
+    min-width: 260px;
+    max-width: 340px;
+    overflow: hidden;
+    position: relative;
+  }
+  .ticker-greeting {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--primary);
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: -0.1px;
+  }
+  .ticker-divider {
+    width: 1px;
+    height: 14px;
+    background: var(--outline-variant);
+    flex-shrink: 0;
+  }
+  .ticker-text-clip {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    height: 100%;
+    display: flex;
+    align-items: center;
+  }
+  .ticker-chars {
+    display: inline-flex;
+    white-space: nowrap;
+    position: relative;
+  }
+  .ticker-char {
+    display: inline-block;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--on-surface-variant);
+    line-height: 1;
+    will-change: transform, opacity;
+  }
+  @keyframes charRollIn {
+    0%   { transform: translateY(100%); opacity: 0; }
+    100% { transform: translateY(0);    opacity: 1; }
+  }
+  @keyframes charRollOut {
+    0%   { transform: translateY(0);     opacity: 1; }
+    100% { transform: translateY(-100%); opacity: 0; }
+  }
+  .ticker-char.roll-in  { animation: charRollIn  0.35s cubic-bezier(0.16,1,0.3,1) forwards; }
+  .ticker-char.roll-out { animation: charRollOut 0.25s cubic-bezier(0.4,0,1,1)    forwards; }
   .topbar-actions {
     display: flex; align-items: center; gap: 12px;
   }
@@ -1272,6 +1355,66 @@ const S = `
   ::-webkit-scrollbar-thumb { background: var(--outline-variant); border-radius: var(--r-full); }
   ::-webkit-scrollbar-thumb:hover { background: var(--outline); }
 `;
+
+// ─── TICKER MOTIVASI ─────────────────────────────────────────────────────────
+const MOTIVASI_LIST = [
+  "Kerja keras hari ini adalah investasi terbaik untuk masa depan.",
+  "Setiap pelayanan tulus adalah cahaya bagi masyarakat NTT.",
+  "Integritas dan dedikasi adalah fondasi birokrasi yang kuat.",
+  "Satu langkah kecil dalam pelayanan berdampak besar bagi rakyat.",
+  "Profesionalisme kita menentukan kepercayaan publik kepada pemerintah.",
+];
+
+function getSapaan() {
+  const jam = new Date().getHours();
+  if (jam >= 5  && jam < 11) return "Selamat Pagi";
+  if (jam >= 11 && jam < 15) return "Selamat Siang";
+  if (jam >= 15 && jam < 19) return "Selamat Sore";
+  return "Selamat Malam";
+}
+
+function TickerMotivasi() {
+  const [idx, setIdx]             = useState(0);
+  const [phase, setPhase]         = useState("idle");
+  const [displayed, setDisplayed] = useState(MOTIVASI_LIST[0]);
+  const timerRef                  = useRef(null);
+  const sapaan                    = getSapaan();
+
+  useEffect(() => {
+    timerRef.current = setTimeout(() => {
+      const nxt = (idx + 1) % MOTIVASI_LIST.length;
+      setPhase("out");
+      setTimeout(() => {
+        setDisplayed(MOTIVASI_LIST[nxt]);
+        setIdx(nxt);
+        setPhase("in");
+        setTimeout(() => setPhase("idle"), 700);
+      }, 380);
+    }, 5000);
+    return () => clearTimeout(timerRef.current);
+  }, [idx]);
+
+  const chars = displayed.split("").map((ch, i) => {
+    let cls = "ticker-char";
+    if (phase === "out") cls += " roll-out";
+    if (phase === "in")  cls += " roll-in";
+    const delay = phase === "out" ? i * 10 : i * 13;
+    return (
+      <span key={idx + "-" + i} className={cls}
+        style={{animationDelay: delay + "ms"}}>{ch}</span>
+    );
+  });
+
+  return (
+    <div className="ticker-wrap">
+      <span className="ticker-greeting">{sapaan} 👋</span>
+      <span className="ticker-divider"/>
+      <div className="ticker-text-clip">
+        <span className="ticker-chars">{chars}</span>
+      </div>
+    </div>
+  );
+}
 
 // ─── TOAST ───────────────────────────────────────────────────────────────────
 function Toast({ msg, onDone }) {
@@ -2556,9 +2699,10 @@ export default function App() {
         <div className="main">
           {/* Topbar */}
           <div className="topbar">
-            <div>
-              <div className="topbar-title">{PAGE_TITLES[page]?.title}</div>
-              <div className="topbar-sub">{PAGE_TITLES[page]?.sub}</div>
+            {/* Kiri — identitas instansi */}
+            <div className="topbar-instansi">
+              <div className="topbar-instansi-name">Pemerintah Provinsi Nusa Tenggara Timur</div>
+              <div className="topbar-instansi-sub">Badan Keuangan Daerah Provinsi NTT — Bidang Perbendaharaan</div>
             </div>
             <div className="topbar-actions">
               {errLoad && (
@@ -2567,10 +2711,8 @@ export default function App() {
                   <button className="btn btn-secondary btn-sm" style={{marginLeft:8}} onClick={load}>Coba Lagi</button>
                 </div>
               )}
-              <div className="topbar-search">
-                <span className="topbar-search-icon"><IcoSearch size={12}/></span>
-                <input className="topbar-search-input" placeholder="Cari pengajuan..." />
-              </div>
+              {/* Ticker motivasi menggantikan search */}
+              <TickerMotivasi/>
               <button className="notif-btn">
                 <IcoAlert size={15}/>
                 <span className="notif-dot"/>
