@@ -73,7 +73,7 @@ function generateTemplateNomor(nomorUrut, kasubid, alasan) {
 }
 
 const AKUN_STAF = [
-  { id:"1", username:"admin",    password:"(tersimpan di database)", nama:"Administrator",        role:"admin",    opd:"Badan Keuangan Daerah Provinsi NTT" },
+  { id:"1", username:"admin",    password:"(tersimpan di database)", nama:"Administrator",        role:"admin",    opd:"BKD Provinsi NTT" },
   { id:"2", username:"operator", password:"(tersimpan di database)", nama:"Staf Loket",           role:"operator", opd:"Loket SKPP" },
   { id:"3", username:"staf",     password:"(tersimpan di database)", nama:"Staf Pengampuh OPD",  role:"staf",     opd:"Pengampuh OPD" },
 ];
@@ -188,6 +188,7 @@ const IcoRefresh = () => <Ico><polyline points="23 4 23 10 17 10"/><path d="M20.
 const IcoDownload = () => <Ico><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></Ico>;
 const IcoCheck = () => <Ico><polyline points="20 6 9 17 4 12"/></Ico>;
 const IcoAlert = () => <Ico><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></Ico>;
+const IcoBell = () => <Ico><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></Ico>;
 const IcoArrowBack = () => <Ico><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></Ico>;
 const IcoPrint = () => <Ico><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></Ico>;
 
@@ -601,28 +602,24 @@ const S = `
     white-space: nowrap;
   }
 
-  /* ── Ticker motivasi ── */
+  /* ── Ticker motivasi (menyatu topbar, bukan badge) ── */
   .ticker-wrap {
     display: flex;
     align-items: center;
-    gap: 8px;
-    background: var(--surface-container-low);
-    border: 1.5px solid var(--outline-variant);
-    border-radius: var(--r-full);
-    padding: 0 14px;
-    height: 32px;
-    min-width: 260px;
-    max-width: 340px;
+    gap: 10px;
     overflow: hidden;
     position: relative;
+    flex: 1;
+    min-width: 0;
+    max-width: 500px;
   }
   .ticker-greeting {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--primary);
     white-space: nowrap;
     flex-shrink: 0;
-    letter-spacing: -0.1px;
+    letter-spacing: -0.2px;
   }
   .ticker-divider {
     width: 1px;
@@ -634,9 +631,10 @@ const S = `
     flex: 1;
     overflow: hidden;
     position: relative;
-    height: 100%;
+    height: 20px;
     display: flex;
     align-items: center;
+    min-width: 0;
   }
   .ticker-chars {
     display: inline-flex;
@@ -645,8 +643,8 @@ const S = `
   }
   .ticker-char {
     display: inline-block;
-    font-size: 11.5px;
-    font-weight: 500;
+    font-size: 12px;
+    font-weight: 400;
     color: var(--on-surface-variant);
     line-height: 1;
     will-change: transform, opacity;
@@ -662,8 +660,84 @@ const S = `
   .ticker-char.roll-in  { animation: charRollIn  0.35s cubic-bezier(0.16,1,0.3,1) forwards; }
   .ticker-char.roll-out { animation: charRollOut 0.25s cubic-bezier(0.4,0,1,1)    forwards; }
   .topbar-actions {
-    display: flex; align-items: center; gap: 12px;
+    display: flex; align-items: center; gap: 12px; flex: 1; justify-content: flex-end; min-width: 0;
   }
+  /* Profile popup */
+  .profile-popup {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 220px;
+    background: var(--surface-container-lowest);
+    border: 1px solid var(--outline-variant);
+    border-radius: var(--r);
+    box-shadow: var(--shadow-2);
+    z-index: 1000;
+    overflow: hidden;
+  }
+  .profile-popup-header {
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--outline-variant);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .profile-popup-avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 2px solid var(--outline-variant);
+    display: flex; align-items: center; justify-content: center;
+    background: var(--surface-container-low);
+  }
+  .profile-popup-name { font-size: 12px; font-weight: 700; color: var(--on-surface); line-height: 1.3; }
+  .profile-popup-role { font-size: 10px; color: var(--on-surface-variant); margin-top: 2px; }
+  .profile-popup-section { padding: 8px 6px; }
+  .profile-popup-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px;
+    border-radius: var(--r-md);
+    font-size: 12.5px; font-weight: 500;
+    color: var(--on-surface-variant);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .profile-popup-item:hover { background: var(--surface-container-low); color: var(--on-surface); }
+  .profile-popup-item.danger:hover { background: var(--error-container); color: var(--error); }
+  .profile-popup-opd {
+    padding: 8px 16px 10px;
+    border-top: 1px solid var(--outline-variant);
+    font-size: 10px; color: var(--on-surface-variant);
+  }
+  .profile-popup-opd strong { display: block; color: var(--on-surface); font-size: 11px; font-weight: 600; margin-bottom: 1px; }
+  .notif-popup {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 300px;
+    background: var(--surface-container-lowest);
+    border: 1px solid var(--outline-variant);
+    border-radius: var(--r);
+    box-shadow: var(--shadow-2);
+    z-index: 1000;
+    overflow: hidden;
+  }
+  .notif-popup-header {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--outline-variant);
+    font-weight: 700; font-size: 13px; color: var(--on-surface);
+  }
+  .notif-item {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--surface-container-low);
+    font-size: 12px; color: var(--on-surface-variant);
+    cursor: pointer; transition: background 0.15s;
+  }
+  .notif-item:hover { background: var(--surface-container-low); }
+  .notif-item-title { font-weight: 600; color: var(--on-surface); font-size: 12px; margin-bottom: 2px; }
+  .notif-item-sub { font-size: 11px; color: var(--on-surface-variant); }
+  .notif-empty { padding: 24px 14px; text-align: center; font-size: 12px; color: var(--outline); }
   .topbar-search {
     position: relative; display: flex; align-items: center;
   }
@@ -1455,7 +1529,7 @@ function Login({ onLogin }) {
           </div>
           <div className="login-brand-text">
             <div className="login-brand-name">SKPP Tracker</div>
-            <div className="login-brand-sub">Bidang Perbendaharaan — Badan Keuangan Daerah Provinsi NTT</div>
+            <div className="login-brand-sub">Bidang Perbendaharaan — BKD Provinsi NTT</div>
           </div>
         </div>
         <div className="login-divider" />
@@ -1540,7 +1614,7 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
         {/* Teks brand (fade out saat collapsed) */}
         <div className="sidebar-brand-text">
           <div className="sidebar-brand-name">SKPP Tracker</div>
-          <div className="sidebar-brand-sub">Bidang Perbendaharaan – Badan Keuangan Daerah Provinsi NTT</div>
+          <div className="sidebar-brand-sub">Bidang Perbendaharaan – BKD NTT</div>
         </div>
 
         {/* Tombol toggle — selalu terlihat, menggantikan logo saat collapsed */}
@@ -2599,6 +2673,8 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
   const [kodeAksesModal, setKodeAksesModal] = useState(null);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showNotif, setShowNotif] = useState(false);
 
   const showToast = msg => { setToast(msg); setTimeout(()=>setToast(""), 3200); };
 
@@ -2702,7 +2778,7 @@ export default function App() {
             {/* Kiri — identitas instansi */}
             <div className="topbar-instansi">
               <div className="topbar-instansi-name">Pemerintah Provinsi Nusa Tenggara Timur</div>
-              <div className="topbar-instansi-sub">Badan Keuangan Daerah Provinsi NTT — Bidang Perbendaharaan</div>
+              <div className="topbar-instansi-sub">Badan Keuangan Daerah — Bidang Perbendaharaan</div>
             </div>
             <div className="topbar-actions">
               {errLoad && (
@@ -2711,14 +2787,76 @@ export default function App() {
                   <button className="btn btn-secondary btn-sm" style={{marginLeft:8}} onClick={load}>Coba Lagi</button>
                 </div>
               )}
-              {/* Ticker motivasi menggantikan search */}
+              {/* Ticker motivasi — menyatu dengan topbar, tanpa badge */}
               <TickerMotivasi/>
-              <button className="notif-btn">
-                <IcoAlert size={15}/>
-                <span className="notif-dot"/>
-              </button>
-              <div className="avatar" title={user?.nama || ""}>
-                {user?.nama ? user.nama.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase() : "U"}
+              {/* Notifikasi lonceng */}
+              <div style={{position:"relative"}}>
+                <button className="notif-btn" onClick={()=>{setShowNotif(v=>!v);setShowProfile(false);}}>
+                  <IcoBell size={16}/>
+                  {data.filter(d=>d.status==="proses").length>0 && <span className="notif-dot"/>}
+                </button>
+                {showNotif && (
+                  <>
+                    <div style={{position:"fixed",inset:0,zIndex:999}} onClick={()=>setShowNotif(false)}/>
+                    <div className="notif-popup">
+                      <div className="notif-popup-header">🔔 Notifikasi Progres</div>
+                      {data.filter(d=>d.status==="proses").length===0 ? (
+                        <div className="notif-empty">Tidak ada notifikasi saat ini</div>
+                      ) : data.filter(d=>d.status==="proses").slice(0,5).map(d=>(
+                        <div key={d.id} className="notif-item" onClick={()=>{setSelected(d);setShowNotif(false);}}>
+                          <div className="notif-item-title">{d.nama}</div>
+                          <div className="notif-item-sub">{d.id} · Menunggu tindakan</div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+              {/* Logo Pemprov NTT + popup profil */}
+              <div style={{position:"relative"}}>
+                <div
+                  style={{width:30,height:30,borderRadius:"50%",overflow:"hidden",cursor:"pointer",border:"2px solid var(--outline-variant)",flexShrink:0,background:"white",display:"flex",alignItems:"center",justifyContent:"center"}}
+                  title="Profil"
+                  onClick={()=>{setShowProfile(v=>!v);setShowNotif(false);}}
+                >
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/Logo_Provinsi_Nusa_Tenggara_Timur.svg/200px-Logo_Provinsi_Nusa_Tenggara_Timur.svg.png"
+                    alt="NTT" style={{width:"100%",height:"100%",objectFit:"cover"}}
+                    onError={e=>{e.target.style.display="none";e.target.parentElement.innerHTML=`<span style="font-size:10px;font-weight:800;color:var(--primary)">${user?.nama?user.nama.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase():"U"}</span>`;}}
+                  />
+                </div>
+                {showProfile && (
+                  <>
+                    <div style={{position:"fixed",inset:0,zIndex:999}} onClick={()=>setShowProfile(false)}/>
+                    <div className="profile-popup">
+                      <div className="profile-popup-header">
+                        <div className="profile-popup-avatar">
+                          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/Logo_Provinsi_Nusa_Tenggara_Timur.svg/200px-Logo_Provinsi_Nusa_Tenggara_Timur.svg.png"
+                            alt="NTT" style={{width:"100%",height:"100%",objectFit:"contain",padding:3}}
+                            onError={e=>{e.target.style.display="none";}}
+                          />
+                        </div>
+                        <div>
+                          <div className="profile-popup-name">{user?.nama||"Pengguna"}</div>
+                          <div className="profile-popup-role">{user?.role==="admin"?"Administrator":user?.role==="operator"?"Staf Loket":"Staf Pengampuh OPD"}</div>
+                        </div>
+                      </div>
+                      <div className="profile-popup-opd">
+                        <strong>Provinsi Nusa Tenggara Timur</strong>
+                        Tahun {new Date().getFullYear()}
+                      </div>
+                      <div className="profile-popup-section">
+                        <div className="profile-popup-item">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                          Profil
+                        </div>
+                        <div className="profile-popup-item danger" onClick={()=>{setShowProfile(false);setUser(null);}}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                          Keluar
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
