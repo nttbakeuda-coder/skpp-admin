@@ -604,16 +604,16 @@ const S = `
 
   /* ── Ticker motivasi — credit scroll kanan ke kiri ── */
   .ticker-wrap {
+    flex: 1 1 0% !important; /* Memaksa ticker mengambil ruang yang konsisten */
+    width: 100%;
+    max-width: none !important; /* Menghapus batas lebar agar wadah tidak mengecil-membesar */
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    margin-right: 16px;
+    justify-content: flex-end; /* Memastikan teks mengalir ke arah kanan */
     gap: 10px;
     overflow: hidden;
     position: relative;
-    flex: 1;
-    min-width: 0;
-    max-width: 500px;
+    margin-right: 16px;
   }
   .ticker-greeting {
     font-size: 12px;
@@ -673,27 +673,28 @@ const S = `
     min-width: 0;
   }
     /* --- PERBAIKAN LOGO KANAN ATAS --- */
-  /* Targetkan container avatar/logo di dalam topbar actions */
-  .topbar-actions div[class*="avatar"],
-  .topbar-actions .avatar,
-  .topbar-actions .profile-btn {
+  /* 1. Menghapus bentuk lingkaran dan background abu-abu pada WADAH logo */
+  .topbar-actions *:has(img),
+  .topbar-actions [class*="avatar"],
+  .topbar-actions [class*="profile"] {
     background: transparent !important;
     background-color: transparent !important;
-    border-radius: 0 !important;
+    border-radius: 0 !important; /* Membunuh efek lingkaran */
     border: none !important;
     box-shadow: none !important;
+    padding: 0 !important;
   }
 
-  /* Targetkan foto/gambar logo di dalam topbar actions */
+  /* 2. Memastikan GAMBAR logo tampil utuh berbentuk perisai */
   .topbar-actions img {
-    width: 35px !important; /* Ukuran ideal agar presisi dengan ikon lonceng */
+    width: 35px !important; 
     height: 35px !important;
     background: transparent !important;
     background-color: transparent !important;
-    border-radius: 0 !important; /* Menghapus potongan bulat/lingkaran */
+    border-radius: 0 !important; 
     border: none !important;
     box-shadow: none !important;
-    object-fit: contain !important; /* Memastikan logo perisai NTT tampil utuh */
+    object-fit: contain !important; /* Sangat penting agar perisai tidak terpotong */
   }
   /* Profile popup */
   .profile-popup {
