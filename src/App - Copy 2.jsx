@@ -2245,302 +2245,89 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
   );
 }
 
-// ─── HELPER: hitung usia dokumen dari tanggal masuk ──────────────────────────
-function hitungHariKe(tanggalMasuk) {
-  if (!tanggalMasuk) return null;
-  const masuk = new Date(tanggalMasuk);
-  if (isNaN(masuk)) return null;
-  const diff = Math.floor((Date.now() - masuk.getTime()) / (1000 * 60 * 60 * 24));
-  return diff;
-}
-
-function AgingBadge({ tanggalMasuk, status, progress }) {
-  if (status === "selesai" || progress === 100) return null;
-  const hari = hitungHariKe(tanggalMasuk);
-  if (hari === null) return null;
-  // SLA: batas 14 hari kerja (kuning ≥ 10, merah ≥ 14)
-  const isKritis = hari >= 14;
-  const isWarning = hari >= 10 && hari < 14;
-  if (!isKritis && !isWarning && hari < 3) return (
-    <span style={{fontSize:10,fontFamily:"var(--mono)",fontWeight:600,color:"var(--on-surface-variant)"}}>Hari ke-{hari+1}</span>
-  );
-  return (
-    <span style={{
-      fontSize:10,fontFamily:"var(--mono)",fontWeight:700,
-      padding:"2px 7px",borderRadius:999,
-      background: isKritis ? "var(--error-container)" : "var(--warning-pale)",
-      color: isKritis ? "var(--error)" : "#92400e",
-      display:"inline-flex",alignItems:"center",gap:4,
-    }}>
-      {isKritis ? "🔴" : "🟡"} Hari ke-{hari+1}
-    </span>
-  );
-}
-
 // ─── PAGE DASHBOARD ───────────────────────────────────────────────────────────
-function PageDashboard({ data, loading, user, onDetail }) {
-  // ── Filter waktu ──
-  const [filterWaktu, setFilterWaktu] = useState("bulan_ini");
-
-  const filterData = useCallback((arr) => {
-    const now = new Date();
-    return arr.filter(p => {
-      if (!p.tanggalMasuk) return filterWaktu === "semua";
-      const d = new Date(p.tanggalMasuk);
-      if (isNaN(d)) return filterWaktu === "semua";
-      if (filterWaktu === "hari_ini") {
-        return d.toDateString() === now.toDateString();
-      }
-      if (filterWaktu === "minggu_ini") {
-        const startOfWeek = new Date(now);
-        startOfWeek.setDate(now.getDate() - now.getDay());
-        startOfWeek.setHours(0,0,0,0);
-        return d >= startOfWeek;
-      }
-      if (filterWaktu === "bulan_ini") {
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-      }
-      return true; // "semua"
-    });
-  }, [filterWaktu]);
-
-  const filteredData = filterData(data);
-
+function PageDashboard({ data, loading, user }) {
   const s = {
-    total:   filteredData.length,
-    proses:  filteredData.filter(d => !(d.status==="selesai"||getProgress(d)===100) && d.status!=="kembali").length,
-    selesai: filteredData.filter(d => d.status==="selesai"||getProgress(d)===100).length,
-    kembali: filteredData.filter(d => d.status==="kembali").length,
+    total:   data.length,
+    proses:  data.filter(d => !(d.status==="selesai"||getProgress(d)===100) && d.status!=="kembali").length,
+    selesai: data.filter(d => d.status==="selesai"||getProgress(d)===100).length,
+    kembali: data.filter(d => d.status==="kembali").length,
   };
-
-  const byOPD  = filteredData.reduce((acc,p)=>{ acc[p.opd]=(acc[p.opd]||0)+1; return acc; }, {});
+  const byOPD  = data.reduce((acc,p)=>{ acc[p.opd]=(acc[p.opd]||0)+1; return acc; }, {});
   const topOPD = Object.entries(byOPD).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const pctSelesai = s.total ? Math.round((s.selesai/s.total)*100) : 0;
-  const recent = [...filteredData].sort((a,b)=>new Date(b.tanggalMasuk)-new Date(a.tanggalMasuk)).slice(0,6);
+  const recent = [...data].sort((a,b)=>new Date(b.tanggalMasuk)-new Date(a.tanggalMasuk)).slice(0,5);
 
-  const WAKTU_OPTS = [
-    { v:"hari_ini",  l:"Hari Ini" },
-    { v:"minggu_ini",l:"Minggu Ini" },
-    { v:"bulan_ini", l:"Bulan Ini" },
-    { v:"semua",     l:"Semua Data" },
-  ];
-
-  const labelWaktu = WAKTU_OPTS.find(o=>o.v===filterWaktu)?.l || "";
-
-  // Sparkline data dari filteredData (dikelompokkan 7 titik terakhir)
-  const sparkline7 = (() => {
-    const days = 7;
-    const pts = [];
-    for (let i = days-1; i >= 0; i--) {
-      const d = new Date(); d.setDate(d.getDate() - i); d.setHours(0,0,0,0);
-      const next = new Date(d); next.setDate(next.getDate()+1);
-      pts.push(data.filter(p => {
-        if(!p.tanggalMasuk) return false;
-        const m = new Date(p.tanggalMasuk);
-        return m >= d && m < next;
-      }).length);
-    }
-    return pts;
-  })();
-
-  const sparkPath = (pts, maxH=24) => {
-    const max = Math.max(...pts, 1);
-    const w = 100 / (pts.length - 1);
-    return pts.map((v,i) => `${i===0?"M":"L"}${i*w},${maxH - (v/max)*maxH}`).join(" ");
-  };
+  // SVG circle math
+  const R = 15.9155;
+  const circ = 2 * Math.PI * R; // ≈ 100
+  const dashArr = `${pctSelesai}, 100`;
 
   return (
     <div>
-      {/* Welcome + Filter Waktu */}
-      <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between",marginBottom:18,flexWrap:"wrap",gap:10}}>
-        <div className="welcome-area" style={{marginBottom:0}}>
-          <div className="welcome-greeting">Selamat Datang,</div>
-          <div className="welcome-name">{user?.nama || "—"}</div>
-        </div>
-        {/* ── Filter Rentang Waktu ── */}
-        <div style={{display:"flex",gap:4,background:"var(--surface-container-low)",padding:4,borderRadius:12,border:"1.5px solid var(--outline-variant)"}}>
-          {WAKTU_OPTS.map(opt=>(
-            <button key={opt.v} onClick={()=>setFilterWaktu(opt.v)} style={{
-              padding:"5px 14px",borderRadius:9,fontSize:12,fontWeight:600,
-              border:"none",cursor:"pointer",transition:"all .15s",
-              background: filterWaktu===opt.v ? "var(--primary)" : "transparent",
-              color: filterWaktu===opt.v ? "white" : "var(--on-surface-variant)",
-              boxShadow: filterWaktu===opt.v ? "0 2px 8px rgba(0,50,125,.2)" : "none",
-            }}>{opt.l}</button>
-          ))}
-        </div>
+      {/* Welcome */}
+      <div className="welcome-area">
+        <div className="welcome-greeting">Selamat Datang,</div>
+        <div className="welcome-name">{user?.nama || "—"}</div>
       </div>
 
-      {/* 4 Stat Cards — baris pertama, menggantikan hero card besar */}
-      <div className="stat-grid" style={{marginBottom:14}}>
-        {/* Total Pengajuan */}
-        <div className="stat-card" style={{flexDirection:"column",gap:6,padding:"14px 16px",position:"relative",overflow:"hidden"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-            <div>
-              <div className="stat-label" style={{marginBottom:4}}>Total Pengajuan</div>
-              <div className="stat-num">{loading?"—":s.total}</div>
-            </div>
-            <div className="stat-icon" style={{background:"var(--primary-fixed)",color:"var(--primary)",fontSize:15}}>📋</div>
+      {/* 3-column main grid */}
+      <div className="dash-grid">
+        {/* Col 1 — Radial hero card */}
+        <div className="hero-card">
+          <div style={{position:"relative",zIndex:1,display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"auto"}}>
+            <span style={{fontSize:10,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",opacity:0.6}}>Persentase Selesai</span>
+            <span style={{fontStyle:"italic",fontWeight:800,fontSize:16,opacity:0.8}}>SKPP</span>
           </div>
-          {/* Sparkline 7 hari — dengan label */}
-          <div style={{marginTop:4}}>
-            <div style={{fontSize:9,color:"var(--outline)",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:3}}>
-              Tren 7 Hari Terakhir
-            </div>
-            <svg viewBox="0 0 100 26" style={{width:"100%",height:26}} preserveAspectRatio="none">
-              <path d={sparkPath(sparkline7)} fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <div style={{fontSize:10,color:"var(--on-surface-variant)",marginTop:2}}>{labelWaktu}</div>
-        </div>
-
-        {/* Sedang Diproses */}
-        <div className="stat-card" style={{flexDirection:"column",gap:6,padding:"14px 16px",position:"relative",overflow:"hidden",
-          borderLeft:"3px solid var(--primary)"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-            <div>
-              <div className="stat-label" style={{marginBottom:4}}>Sedang Diproses</div>
-              <div className="stat-num" style={{color:"var(--primary)"}}>{loading?"—":s.proses}</div>
-            </div>
-            <div className="stat-icon" style={{background:"var(--primary-fixed)",color:"var(--primary)",fontSize:15}}>⚙️</div>
-          </div>
-          <div style={{marginTop:4}}>
-            <div style={{fontSize:9,color:"var(--outline)",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:3}}>
-              Tren 7 Hari Terakhir
-            </div>
-            <svg viewBox="0 0 100 26" style={{width:"100%",height:26}} preserveAspectRatio="none">
-              <path d={sparkPath(sparkline7.map((_,i)=>
-                data.filter(p=>{
-                  if(!p.tanggalMasuk) return false;
-                  const d=new Date(); d.setDate(d.getDate()-(6-i)); d.setHours(0,0,0,0);
-                  const n=new Date(d); n.setDate(n.getDate()+1);
-                  const m=new Date(p.tanggalMasuk);
-                  return m>=d&&m<n&&!(p.status==="selesai"||getProgress(p)===100)&&p.status!=="kembali";
-                }).length
-              ))} fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <div style={{fontSize:10,color:"var(--on-surface-variant)",marginTop:2}}>{labelWaktu}</div>
-        </div>
-
-        {/* Selesai */}
-        <div className="stat-card" style={{flexDirection:"column",gap:6,padding:"14px 16px",
-          borderLeft:"3px solid var(--success)"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-            <div>
-              <div className="stat-label" style={{marginBottom:4}}>Selesai</div>
-              <div className="stat-num" style={{color:"var(--success)"}}>{loading?"—":s.selesai}</div>
-            </div>
-            <div className="stat-icon" style={{background:"var(--success-pale)",color:"var(--success)",fontSize:15}}>✅</div>
-          </div>
-          {/* Progress bar visual */}
-          <div style={{marginTop:4}}>
-            <div style={{fontSize:9,color:"var(--outline)",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:6}}>
-              Persentase Selesai
-            </div>
-            <div style={{background:"var(--surface-container-high)",borderRadius:99,height:6,overflow:"hidden"}}>
-              <div style={{height:"100%",borderRadius:99,background:"var(--success)",width:`${pctSelesai}%`,transition:"width .6s ease"}}/>
-            </div>
-            <div style={{fontSize:10,fontWeight:700,color:"var(--success)",marginTop:4,fontFamily:"var(--mono)"}}>{pctSelesai}%</div>
-          </div>
-        </div>
-
-        {/* Dikembalikan */}
-        <div className="stat-card" style={{flexDirection:"column",gap:6,padding:"14px 16px",
-          borderLeft: s.kembali>0 ? "3px solid var(--warning)" : "3px solid var(--outline-variant)"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-            <div>
-              <div className="stat-label" style={{marginBottom:4}}>Dikembalikan</div>
-              <div className="stat-num" style={{color:s.kembali>0?"var(--amber)":"var(--on-surface)"}}>{loading?"—":s.kembali}</div>
-            </div>
-            <div className="stat-icon" style={{
-              background:s.kembali>0?"var(--warning-pale)":"var(--surface-container-low)",
-              color:s.kembali>0?"#92400e":"var(--on-surface-variant)",fontSize:15}}>↩️</div>
-          </div>
-          <div style={{marginTop:4}}>
-            <div style={{fontSize:9,color:"var(--outline)",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:4}}>
-              Distribusi
-            </div>
-            <div style={{display:"flex",alignItems:"flex-end",gap:3,height:22}}>
-              {[0.4,0.8,0.6,1.0].map((h,i)=>(
-                <div key={i} style={{flex:1,height:`${h*100}%`,background:s.kembali>0?"var(--amber)":"var(--outline-variant)",borderRadius:"2px 2px 0 0",opacity:0.5}}/>
-              ))}
-            </div>
-          </div>
-          <div style={{fontSize:10,color:"var(--on-surface-variant)",marginTop:2}}>{labelWaktu}</div>
-        </div>
-      </div>
-
-      {/* 3-column grid — Top OPD + mini insight */}
-      <div className="dash-grid" style={{marginBottom:16}}>
-        {/* Col 1+2 — Quick stats row */}
-        <div style={{gridColumn:"span 2",display:"flex",flexDirection:"column",gap:10}}>
-          {/* SLA Alert — dokumen mendekati batas */}
-          {(() => {
-            const kritisItems = data.filter(p =>
-              !(p.status==="selesai"||getProgress(p)===100) &&
-              hitungHariKe(p.tanggalMasuk) >= 10
-            );
-            if (kritisItems.length === 0) return null;
-            return (
-              <div style={{
-                background:"linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%)",
-                border:"1.5px solid #fde68a",borderRadius:14,padding:"12px 16px",
-                display:"flex",alignItems:"center",gap:12,
-              }}>
-                <span style={{fontSize:20}}>⚠️</span>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:12,fontWeight:700,color:"#92400e"}}>
-                    {kritisItems.length} dokumen mendekati batas waktu SLA
-                  </div>
-                  <div style={{fontSize:11,color:"#b45309",marginTop:2}}>
-                    {kritisItems.slice(0,2).map(p=>`${p.nama||"—"} (Hari ke-${(hitungHariKe(p.tanggalMasuk)||0)+1})`).join(", ")}
-                    {kritisItems.length > 2 && ` +${kritisItems.length-2} lainnya`}
-                  </div>
-                </div>
-                <div style={{fontSize:11,fontWeight:700,color:"#92400e",background:"#fde68a",borderRadius:8,padding:"4px 10px",whiteSpace:"nowrap"}}>
-                  Perlu Tindakan
-                </div>
+          <div style={{position:"relative",zIndex:1,flex:1,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <div className="radial-wrap">
+              <svg style={{position:"absolute",inset:0,width:"100%",height:"100%",transform:"rotate(-90deg)"}} viewBox="0 0 36 36">
+                <path style={{color:"rgba(255,255,255,0.2)"}} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3.5"/>
+                <path style={{color:"white",transition:"stroke-dasharray .6s ease"}} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeDasharray={dashArr} strokeLinecap="round" strokeWidth="3.5"/>
+              </svg>
+              <div className="radial-inner">
+                <span className="radial-pct">{loading?"—":`${pctSelesai}%`}</span>
+                <span className="radial-lbl">Selesai</span>
               </div>
-            );
-          })()}
+            </div>
+          </div>
+          <div style={{position:"relative",zIndex:1,textAlign:"center"}}>
+            <div style={{fontSize:26,fontWeight:800,letterSpacing:"-1.5px",lineHeight:1}}>{loading?"—":s.selesai}</div>
+            <div style={{fontSize:11,opacity:0.7,marginTop:3}}>Total Selesai</div>
+          </div>
+        </div>
 
-          {/* Breakdown jalur */}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            {[
-              { jalur:"A", label:"Jalur A", sub:"Tanpa Pangkat Pengabdian", color:"var(--primary)", bg:"var(--primary-fixed)" },
-              { jalur:"B", label:"Jalur B", sub:"Ada Pangkat Pengabdian",   color:"#5b21b6",        bg:"#f5f3ff" },
-            ].map(j => {
-              const total = filteredData.filter(p=>p.jalur===j.jalur).length;
-              const selesai = filteredData.filter(p=>p.jalur===j.jalur&&(p.status==="selesai"||getProgress(p)===100)).length;
-              return (
-                <div key={j.jalur} style={{
-                  background:"var(--surface-container-lowest)",
-                  border:`1.5px solid var(--outline-variant)`,
-                  borderLeft:`4px solid ${j.color}`,
-                  borderRadius:14,padding:"14px 16px",
-                  boxShadow:"var(--shadow-card)",
-                }}>
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-                    <div>
-                      <span style={{
-                        fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:999,
-                        background:j.bg,color:j.color,
-                      }}>{j.label}</span>
-                    </div>
-                    <span style={{fontSize:20,fontWeight:800,color:j.color,fontFamily:"var(--mono)",letterSpacing:"-1px"}}>{loading?"—":total}</span>
-                  </div>
-                  <div style={{fontSize:11,color:"var(--on-surface-variant)",marginBottom:8}}>{j.sub}</div>
-                  <div style={{background:"var(--surface-container-high)",borderRadius:99,height:5,overflow:"hidden"}}>
-                    <div style={{height:"100%",borderRadius:99,background:j.color,width:`${total?Math.round(selesai/total*100):0}%`,transition:"width .6s ease"}}/>
-                  </div>
-                  <div style={{fontSize:10,color:"var(--on-surface-variant)",marginTop:5,display:"flex",justifyContent:"space-between"}}>
-                    <span>{selesai} selesai</span>
-                    <span style={{fontFamily:"var(--mono)",fontWeight:700,color:j.color}}>{total?Math.round(selesai/total*100):0}%</span>
-                  </div>
-                </div>
-              );
-            })}
+        {/* Col 2 — Stacked stat cards */}
+        <div className="dash-stacked">
+          {/* Sedang Diproses */}
+          <div className="stat-card-v2">
+            <div>
+              <div className="stat-v2-label">Sedang Diproses</div>
+              <div className="stat-v2-num">{loading?"—":s.proses}</div>
+            </div>
+            <svg className="stat-mini-chart" viewBox="0 0 100 30" preserveAspectRatio="none">
+              <path d="M0 15 Q 25 5, 50 15 T 100 15" fill="none" stroke="var(--primary)" strokeWidth="3"/>
+            </svg>
+          </div>
+          {/* Total Pengajuan */}
+          <div className="stat-card-v2">
+            <div>
+              <div className="stat-v2-label">Total Pengajuan</div>
+              <div className="stat-v2-num">{loading?"—":s.total}</div>
+            </div>
+            <svg className="stat-mini-chart" viewBox="0 0 100 30" preserveAspectRatio="none">
+              <path d="M0 25 Q 25 5, 50 15 T 100 5" fill="none" stroke="var(--secondary)" strokeWidth="3"/>
+            </svg>
+          </div>
+          {/* Dikembalikan */}
+          <div className="stat-card-v2">
+            <div>
+              <div className="stat-v2-label">Dikembalikan</div>
+              <div className="stat-v2-num" style={{color:s.kembali>0?"var(--error)":undefined}}>{loading?"—":s.kembali}</div>
+            </div>
+            <div style={{display:"flex",alignItems:"flex-end",gap:3,height:36,opacity:0.25}}>
+              {[40,80,60,100].map((h,i)=><div key={i} style={{width:10,height:`${h}%`,background:"var(--error)",borderRadius:"3px 3px 0 0"}}/>)}
+            </div>
           </div>
         </div>
 
@@ -2576,81 +2363,45 @@ function PageDashboard({ data, loading, user, onDetail }) {
         </div>
       </div>
 
-      {/* Daftar Pengajuan Terbaru — dengan kolom NIP, Aging, dan tombol Aksi */}
+      {/* Daftar Pengajuan Terbaru */}
       <div>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-          <div style={{fontWeight:700,fontSize:14,color:"var(--on-surface)",letterSpacing:"-0.3px"}}>
-            Daftar Pengajuan Terbaru
-          </div>
-          <span className="chip" style={{fontSize:10}}>6 terbaru · {labelWaktu}</span>
-        </div>
+        <div style={{fontWeight:700,fontSize:14,color:"var(--on-surface)",letterSpacing:"-0.3px",marginBottom:10}}>Daftar Pengajuan Terbaru</div>
         <div className="terbaru-card">
           {loading ? (
             <div className="loading-box"><div className="spinner"/><span>Memuat data...</span></div>
           ) : recent.length===0 ? (
-            <div className="empty-box"><div className="empty-icon">📂</div><div className="empty-text">Belum ada pengajuan pada periode ini</div></div>
+            <div className="empty-box"><div className="empty-icon">📂</div><div className="empty-text">Belum ada pengajuan</div></div>
           ) : (
             <table>
               <thead>
                 <tr>
-                  <th>No. Pengajuan</th>
-                  <th>OPD / Nama</th>
-                  <th>NIP</th>
+                  <th>OPD</th>
                   <th>Jalur</th>
                   <th>Status</th>
-                  <th>Tgl Masuk · Aging</th>
-                  <th style={{textAlign:"center"}}>Aksi</th>
+                  <th>Tanggal Masuk</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
-                {recent.map(p=>{
-                  const prog = getProgress(p);
-                  const isDone = p.status==="selesai"||prog===100;
-                  return (
-                    <tr key={p.id} className="tr-clickable" onClick={()=>onDetail && onDetail(p)}>
-                      <td style={{fontFamily:"var(--mono)",fontSize:11,fontWeight:700,color:"var(--primary)",whiteSpace:"nowrap"}}>{p.id||"—"}</td>
-                      <td>
-                        <div style={{display:"flex",alignItems:"center",gap:9}}>
-                          <div style={{width:26,height:26,borderRadius:"50%",background:"var(--primary-fixed)",color:"var(--primary)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:10,flexShrink:0}}>
-                            {(p.opd||"?")[0].toUpperCase()}
-                          </div>
-                          <div>
-                            <div style={{fontWeight:600,fontSize:12,color:"var(--on-surface)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.opd||"—"}</div>
-                            <div style={{fontSize:10,color:"var(--on-surface-variant)"}}>{p.nama||"—"}</div>
-                          </div>
+                {recent.map(p=>(
+                  <tr key={p.id} style={{cursor:"default"}}>
+                    <td>
+                      <div style={{display:"flex",alignItems:"center",gap:9}}>
+                        <div style={{width:28,height:28,borderRadius:"50%",background:"var(--primary-fixed)",color:"var(--primary)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:11,flexShrink:0}}>
+                          {(p.opd||"?")[0].toUpperCase()}
                         </div>
-                      </td>
-                      <td style={{fontFamily:"var(--mono)",fontSize:11,color:"var(--outline)",whiteSpace:"nowrap"}}>{p.nip||"—"}</td>
-                      <td>
-                        {/* Warna berbeda: Jalur A = biru, Jalur B = ungu */}
-                        <span style={{
-                          fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:999,whiteSpace:"nowrap",
-                          background: p.jalur==="A" ? "var(--primary-fixed)" : "#f5f3ff",
-                          color:       p.jalur==="A" ? "var(--primary)"       : "#5b21b6",
-                        }}>Jalur {p.jalur||"A"}</span>
-                      </td>
-                      <td><SBadge p={p}/></td>
-                      <td>
-                        <div style={{fontSize:11,color:"var(--on-surface-variant)",fontFamily:"var(--mono)",whiteSpace:"nowrap",marginBottom:3}}>{fmtDate(p.tanggalMasuk)}</div>
-                        {!isDone && <AgingBadge tanggalMasuk={p.tanggalMasuk} status={p.status} progress={prog}/>}
-                      </td>
-                      <td style={{textAlign:"center"}}>
-                        <button
-                          onClick={e=>{e.stopPropagation();onDetail && onDetail(p);}}
-                          title="Lihat Detail Berkas"
-                          style={{
-                            width:30,height:30,borderRadius:8,border:"1.5px solid var(--outline-variant)",
-                            background:"var(--surface-container-low)",color:"var(--primary)",
-                            display:"inline-flex",alignItems:"center",justifyContent:"center",
-                            cursor:"pointer",transition:"all .15s",fontSize:14,
-                          }}
-                          onMouseEnter={e=>{e.currentTarget.style.background="var(--primary-fixed)";e.currentTarget.style.borderColor="var(--primary)";}}
-                          onMouseLeave={e=>{e.currentTarget.style.background="var(--surface-container-low)";e.currentTarget.style.borderColor="var(--outline-variant)";}}
-                        >👁</button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                        <div>
+                          <div style={{fontWeight:600,fontSize:12,color:"var(--on-surface)",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.opd||"—"}</div>
+                          <div style={{fontSize:10,color:"var(--on-surface-variant)",fontFamily:"var(--mono)"}}>{p.nama||"—"}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td><span className="chip chip-blue" style={{fontSize:11}}>Jalur {p.jalur||"A"}</span></td>
+                    <td><SBadge p={p}/></td>
+                    <td style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--on-surface-variant)"}}>{fmtDate(p.tanggalMasuk)}</td>
+                    <td></td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}
@@ -2747,7 +2498,7 @@ function PagePengajuan({ data, loading, onRefresh, onDetail, onInputBaru, onExpo
                       <td style={{fontFamily:"var(--mono)",fontSize:11,color:"var(--outline)"}}>{p.nip}</td>
                       <td style={{fontSize:12,maxWidth:140,color:"var(--on-surface-variant)"}}>{p.opd}</td>
                       <td><span className="chip">{p.alasan}</span></td>
-                      <td><span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:999,whiteSpace:"nowrap",background:p.jalur==="A"?"var(--primary-fixed)":"#f5f3ff",color:p.jalur==="A"?"var(--primary)":"#5b21b6"}}>Jalur {p.jalur}</span></td>
+                      <td><span className={`chip ${p.jalur==="A"?"chip-blue":"chip-green"}`}>Jalur {p.jalur}</span></td>
                       <td>
                         <div style={{display:"flex",alignItems:"center",gap:6}}>
                           <div className="progress-wrap" style={{flex:1,height:6}}>
@@ -3019,11 +2770,7 @@ export default function App() {
     setSaving(false);
   };
 
-  // Badge sidebar = semua pengajuan yang butuh perhatian (proses + dikembalikan)
-  // agar konsisten dengan angka di dashboard
-  const counts = {
-    proses: data.filter(d => !(d.status==="selesai"||getProgress(d)===100)).length
-  };
+  const counts = { proses: data.filter(d=>d.status==="proses").length };
 
   const PAGE_TITLES = {
     dashboard: { title:"Dashboard",               sub:`Selamat datang, ${user?.nama||""}` },
@@ -3139,7 +2886,7 @@ export default function App() {
 
           {/* Content */}
           <div className="content">
-            {page==="dashboard" && <PageDashboard data={data} loading={loading} user={user} onDetail={setSelected}/>}
+            {page==="dashboard" && <PageDashboard data={data} loading={loading} user={user}/>}
             {page==="pengajuan" && <PagePengajuan data={data} loading={loading} onRefresh={load} onDetail={setSelected} onInputBaru={()=>setShowInput(true)} onExport={exportCSV} user={user}/>}
             {page==="input"     && <div className="card card-body"><PagePengajuan data={[]} loading={false} onRefresh={()=>{}} onDetail={()=>{}} onInputBaru={()=>setShowInput(true)} onExport={()=>{}} user={user}/></div>}
             {page==="riwayat"   && <PageRiwayat data={data} loading={loading} onDetail={setSelected}/>}
