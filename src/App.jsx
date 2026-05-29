@@ -73,7 +73,7 @@ function generateTemplateNomor(nomorUrut, kasubid, alasan) {
 }
 
 const AKUN_STAF = [
-  { id:"1", username:"admin",    password:"(tersimpan di database)", nama:"Administrator",        role:"admin",    opd:"BKD Provinsi NTT" },
+  { id:"1", username:"admin",    password:"(tersimpan di database)", nama:"Administrator",        role:"admin",    opd:"Badan Keuanga Daerah Provinsi NTT" },
   { id:"2", username:"operator", password:"(tersimpan di database)", nama:"Staf Loket",           role:"operator", opd:"Loket SKPP" },
   { id:"3", username:"staf",     password:"(tersimpan di database)", nama:"Staf Pengampuh OPD",  role:"staf",     opd:"Pengampuh OPD" },
 ];
@@ -1312,7 +1312,7 @@ function Login({ onLogin }) {
           </div>
           <div className="login-brand-text">
             <div className="login-brand-name">SKPP Tracker</div>
-            <div className="login-brand-sub">Bidang Perbendaharaan — BKD Provinsi NTT</div>
+            <div className="login-brand-sub">Bidang Perbendaharaan — Badan Keuangan Daerah Provinsi NTT</div>
           </div>
         </div>
         <div className="login-divider" />
@@ -1397,7 +1397,7 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
         {/* Teks brand (fade out saat collapsed) */}
         <div className="sidebar-brand-text">
           <div className="sidebar-brand-name">SKPP Tracker</div>
-          <div className="sidebar-brand-sub">Bidang Perbendaharaan – BKD NTT</div>
+          <div className="sidebar-brand-sub">Bidang Perbendaharaan – Badan Keuangan Daerah Provinsi NTT</div>
         </div>
 
         {/* Tombol toggle — selalu terlihat, menggantikan logo saat collapsed */}
