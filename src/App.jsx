@@ -73,7 +73,7 @@ function generateTemplateNomor(nomorUrut, kasubid, alasan) {
 }
 
 const AKUN_STAF = [
-  { id:"1", username:"admin",    password:"(tersimpan di database)", nama:"Administrator",        role:"admin",    opd:"Badan Keuanga Daerah Provinsi NTT" },
+  { id:"1", username:"admin",    password:"(tersimpan di database)", nama:"Administrator",        role:"admin",    opd:"Badan Keuangan Daerah Provinsi NTT" },
   { id:"2", username:"operator", password:"(tersimpan di database)", nama:"Staf Loket",           role:"operator", opd:"Loket SKPP" },
   { id:"3", username:"staf",     password:"(tersimpan di database)", nama:"Staf Pengampuh OPD",  role:"staf",     opd:"Pengampuh OPD" },
 ];
@@ -168,7 +168,7 @@ function exportCSV(data) {
 }
 
 // ─── SVG ICON COMPONENTS ─────────────────────────────────────────────────────
-function Ico({ children, size = 18 }) {
+function Ico({ children, size = 15 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -287,8 +287,8 @@ const S = `
     --rs:     12px;      /* compat alias */
 
     /* ── SPACING ── */
-    --sidebar: 280px;
-    --sidebar-collapsed: 80px;
+    --sidebar: 224px;
+    --sidebar-collapsed: 60px;
   }
 
   body {
@@ -317,35 +317,35 @@ const S = `
     flex-direction: column;
     flex-shrink: 0;
     border-right: 1px solid var(--outline-variant);
-    padding: 14px 10px;
+    padding: 10px 8px;
     overflow: hidden;           /* clip saat animasi */
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
                 padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .sidebar.collapsed {
     width: var(--sidebar-collapsed);
-    padding: 14px 6px;
+    padding: 10px 4px;
   }
 
   /* ── Header row ── */
   .sidebar-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 14px;
-    height: 42px;
+    gap: 7px;
+    margin-bottom: 10px;
+    height: 34px;
     flex-shrink: 0;
   }
 
   /* Logo / tombol expand — selalu terlihat, lebar tetap */
   .sidebar-logo {
-    width: 40px; height: 40px;
-    min-width: 40px;
+    width: 30px; height: 30px;
+    min-width: 30px;
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
-    border-radius: 12px;
+    border-radius: 9px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 15px; font-weight: 900; color: white;
-    box-shadow: 0 4px 12px rgba(0,50,125,0.3);
+    font-size: 12px; font-weight: 900; color: white;
+    box-shadow: 0 3px 10px rgba(0,50,125,0.3);
     flex-shrink: 0;
     font-family: var(--font);
     cursor: default;
@@ -364,20 +364,20 @@ const S = `
     max-width: 0;
   }
   .sidebar-brand-name {
-    font-weight: 800; font-size: 14px; color: var(--primary);
-    white-space: nowrap; letter-spacing: -0.4px; line-height: 1.2;
+    font-weight: 800; font-size: 12px; color: var(--primary);
+    white-space: nowrap; letter-spacing: -0.3px; line-height: 1.2;
   }
   .sidebar-brand-sub {
-    font-size: 10px; color: var(--on-surface-variant);
+    font-size: 9px; color: var(--on-surface-variant);
     white-space: nowrap; margin-top: 1px; line-height: 1.3;
   }
 
   /* Tombol toggle — selalu terlihat */
   .btn-toggle {
-    width: 32px; height: 32px; min-width: 32px;
+    width: 26px; height: 26px; min-width: 26px;
     background: none; border: none; cursor: pointer;
     color: var(--on-surface-variant);
-    border-radius: 8px;
+    border-radius: 6px;
     display: flex; align-items: center; justify-content: center;
     transition: background 0.15s, color 0.15s;
     flex-shrink: 0;
@@ -393,12 +393,12 @@ const S = `
   .sidebar-user {
     background: var(--surface-container-low);
     border-radius: var(--r-md);
-    padding: 10px 12px;
+    padding: 8px 10px;
     border: 1px solid var(--outline-variant);
-    margin-bottom: 14px;
+    margin-bottom: 10px;
     overflow: hidden;
     opacity: 1;
-    max-height: 80px;
+    max-height: 68px;
     transition: opacity 0.2s ease,
                 max-height 0.3s cubic-bezier(0.4,0,0.2,1),
                 padding 0.3s ease,
@@ -412,22 +412,22 @@ const S = `
     border-color: transparent;
   }
   .sidebar-user-name {
-    font-weight: 700; font-size: 12.5px; color: var(--on-surface);
+    font-weight: 700; font-size: 11px; color: var(--on-surface);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .sidebar-user-role-label {
-    font-size: 11px; color: var(--on-surface-variant); margin-top: 2px;
+    font-size: 10px; color: var(--on-surface-variant); margin-top: 1px;
   }
 
   /* ── Nav section label ── */
   .nav-section {
-    font-size: 10px; font-weight: 700; color: var(--outline);
+    font-size: 9px; font-weight: 700; color: var(--outline);
     text-transform: uppercase; letter-spacing: 0.08em;
-    padding: 10px 8px 4px;
+    padding: 7px 6px 3px;
     white-space: nowrap;
     overflow: hidden;
     opacity: 1;
-    max-height: 32px;
+    max-height: 28px;
     transition: opacity 0.15s ease, max-height 0.3s ease, padding 0.3s ease;
   }
   .sidebar.collapsed .nav-section {
@@ -435,12 +435,12 @@ const S = `
   }
 
   /* ── Nav ── */
-  .sidebar-nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+  .sidebar-nav { display: flex; flex-direction: column; gap: 1px; flex: 1; }
 
   .nav-item {
-    display: flex; align-items: center; gap: 10px;
-    width: 100%; height: 44px;
-    padding: 0 8px;
+    display: flex; align-items: center; gap: 8px;
+    width: 100%; height: 36px;
+    padding: 0 7px;
     border-radius: var(--r-md);
     cursor: pointer;
     transition: background 0.15s, color 0.15s,
@@ -448,7 +448,7 @@ const S = `
     color: var(--on-surface-variant);
     position: relative;
     border-left: 3px solid transparent;
-    font-size: 13.5px; font-weight: 500;
+    font-size: 12.5px; font-weight: 500;
     white-space: nowrap;
   }
   .nav-item:hover { background: var(--surface-container-low); color: var(--on-surface); }
@@ -488,7 +488,7 @@ const S = `
 
   .nav-item .ni {
     display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; width: 20px;
+    flex-shrink: 0; width: 16px;
   }
   /* Label teks nav — fade out saat collapsed */
   .nav-label {
@@ -515,17 +515,17 @@ const S = `
 
   /* ── Footer ── */
   .sidebar-footer {
-    display: flex; flex-direction: column; gap: 4px;
+    display: flex; flex-direction: column; gap: 3px;
     border-top: 1px solid var(--outline-variant);
-    padding-top: 12px; margin-top: 8px;
+    padding-top: 8px; margin-top: 6px;
     flex-shrink: 0;
   }
   .logout-btn {
-    display: flex; align-items: center; gap: 10px;
-    width: 100%; padding: 10px 8px;
+    display: flex; align-items: center; gap: 8px;
+    width: 100%; padding: 8px 7px;
     background: none; border: none; border-radius: var(--r-md);
     color: var(--on-surface-variant);
-    font-family: var(--font); font-size: 13.5px; font-weight: 600;
+    font-family: var(--font); font-size: 12.5px; font-weight: 600;
     cursor: pointer; transition: background 0.15s, color 0.15s;
     white-space: nowrap;
   }
@@ -549,8 +549,8 @@ const S = `
     background: rgba(249,249,252,0.9);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--outline-variant);
-    padding: 0 32px;
-    height: 72px;
+    padding: 0 24px;
+    height: 54px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -558,13 +558,13 @@ const S = `
   }
   .topbar-title {
     font-weight: 700;
-    font-size: 20px;
+    font-size: 15px;
     color: var(--on-surface);
-    letter-spacing: -0.5px;
+    letter-spacing: -0.4px;
     line-height: 1.2;
   }
   .topbar-sub {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--on-surface-variant);
     margin-top: 1px;
   }
@@ -579,32 +579,32 @@ const S = `
     border: 1px solid var(--outline-variant);
   }
   .topbar-actions {
-    display: flex; align-items: center; gap: 20px;
+    display: flex; align-items: center; gap: 12px;
   }
   .topbar-search {
     position: relative; display: flex; align-items: center;
   }
   .topbar-search-input {
-    height: 40px;
-    padding: 0 16px 0 42px;
-    width: 240px;
+    height: 32px;
+    padding: 0 12px 0 34px;
+    width: 200px;
     border-radius: var(--r-full);
     border: 1.5px solid var(--outline-variant);
     background: var(--surface-container-lowest);
     font-family: var(--font);
-    font-size: 13px;
+    font-size: 12px;
     color: var(--on-surface);
     outline: none;
     transition: border-color .15s, box-shadow .15s;
   }
   .topbar-search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,50,125,.08); }
   .topbar-search-icon {
-    position: absolute; left: 14px; color: var(--outline);
+    position: absolute; left: 10px; color: var(--outline);
     display: flex; align-items: center;
   }
   .notif-btn {
     position: relative;
-    width: 40px; height: 40px;
+    width: 32px; height: 32px;
     background: none; border: none; cursor: pointer;
     color: var(--on-surface-variant);
     display: flex; align-items: center; justify-content: center;
@@ -613,25 +613,25 @@ const S = `
   }
   .notif-btn:hover { background: var(--surface-container); color: var(--primary); }
   .notif-dot {
-    position: absolute; top: 8px; right: 8px;
-    width: 8px; height: 8px;
+    position: absolute; top: 6px; right: 6px;
+    width: 6px; height: 6px;
     background: var(--primary);
     border-radius: 50%;
     border: 2px solid var(--surface-container-lowest);
   }
   .avatar {
-    width: 38px; height: 38px;
+    width: 30px; height: 30px;
     border-radius: 50%;
     background: var(--primary-fixed);
     color: var(--primary);
     display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 13px;
+    font-weight: 700; font-size: 11px;
     cursor: pointer;
     box-shadow: var(--shadow-1);
     flex-shrink: 0;
   }
 
-  .content { flex: 1; overflow-y: auto; padding: 28px 32px; }
+  .content { flex: 1; overflow-y: auto; padding: 20px 24px; }
 
   /* ════════════════════════════════════════════
      CARDS  — Level 1 elevation
@@ -644,22 +644,22 @@ const S = `
     overflow: hidden;
   }
   .card-header {
-    padding: 18px 24px;
+    padding: 13px 18px;
     border-bottom: 1px solid var(--outline-variant);
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 10px;
     background: var(--surface-container-lowest);
   }
   .card-header-title {
     font-weight: 700;
-    font-size: 14px;
+    font-size: 13px;
     color: var(--on-surface);
     letter-spacing: -0.2px;
   }
-  .card-body { padding: 24px; }
+  .card-body { padding: 18px; }
 
   /* ════════════════════════════════════════════
      STAT GRID  (4-column dashboard)
@@ -667,18 +667,18 @@ const S = `
   .stat-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-    margin-bottom: 20px;
+    gap: 12px;
+    margin-bottom: 14px;
   }
   .stat-card {
     background: var(--surface-container-lowest);
     border-radius: var(--r);
-    padding: 20px 22px;
+    padding: 14px 16px;
     border: 1px solid var(--outline-variant);
     box-shadow: var(--shadow-card);
     display: flex;
     align-items: flex-start;
-    gap: 14px;
+    gap: 10px;
     transition: box-shadow 0.2s ease, transform 0.2s ease;
   }
   .stat-card:hover {
@@ -686,38 +686,38 @@ const S = `
     transform: translateY(-1px);
   }
   .stat-icon {
-    width: 48px; height: 48px;
-    border-radius: 14px;
+    width: 36px; height: 36px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
+    font-size: 17px;
     flex-shrink: 0;
   }
   .stat-num {
-    font-size: 30px;
+    font-size: 22px;
     font-weight: 800;
-    letter-spacing: -1.5px;
+    letter-spacing: -1px;
     line-height: 1;
   }
   .stat-label {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--on-surface-variant);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    margin-top: 4px;
+    margin-top: 3px;
   }
 
   /* Hero gradient card */
   .hero-card {
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 60%, #1a4db3 100%);
-    border-radius: 28px;
-    padding: 32px;
+    border-radius: 20px;
+    padding: 22px;
     color: white;
     position: relative;
     overflow: hidden;
-    height: 380px;
+    height: 280px;
     display: flex;
     flex-direction: column;
   }
@@ -742,86 +742,86 @@ const S = `
 
   /* Radial progress ring */
   .radial-wrap {
-    position: relative; width: 152px; height: 152px;
+    position: relative; width: 110px; height: 110px;
     display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 16px;
+    margin: 0 auto 12px;
   }
   .radial-inner {
     position: absolute;
     background: white;
     border-radius: 50%;
-    width: 120px; height: 120px;
+    width: 86px; height: 86px;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
   }
-  .radial-pct { font-size: 28px; font-weight: 800; color: var(--primary); letter-spacing: -1px; line-height: 1; }
-  .radial-lbl { font-size: 9px; font-weight: 700; color: var(--outline); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+  .radial-pct { font-size: 20px; font-weight: 800; color: var(--primary); letter-spacing: -1px; line-height: 1; }
+  .radial-lbl { font-size: 8px; font-weight: 700; color: var(--outline); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
 
   /* Dashboard 3-column grid */
   .dash-grid {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
-    gap: 20px;
-    margin-bottom: 24px;
+    gap: 14px;
+    margin-bottom: 16px;
     align-items: start;
   }
-  .dash-stacked { display: flex; flex-direction: column; gap: 16px; }
+  .dash-stacked { display: flex; flex-direction: column; gap: 10px; }
   .stat-card-v2 {
     background: var(--surface-container-lowest);
-    border-radius: 24px;
-    padding: 24px;
+    border-radius: 18px;
+    padding: 16px;
     border: 1px solid var(--outline-variant);
     box-shadow: var(--shadow-card);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    min-height: 100px;
+    min-height: 76px;
     transition: box-shadow 0.2s ease, transform 0.2s ease;
   }
   .stat-card-v2:hover { box-shadow: var(--shadow-2); transform: translateY(-1px); }
   .stat-v2-num {
-    font-size: 36px; font-weight: 800; color: var(--on-surface);
-    letter-spacing: -2px; line-height: 1;
+    font-size: 26px; font-weight: 800; color: var(--on-surface);
+    letter-spacing: -1.5px; line-height: 1;
   }
   .stat-v2-label {
-    font-size: 10px; font-weight: 700; color: var(--on-surface-variant);
-    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px;
+    font-size: 9px; font-weight: 700; color: var(--on-surface-variant);
+    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;
   }
-  .stat-mini-chart { width: 70px; height: 36px; opacity: 0.25; }
+  .stat-mini-chart { width: 56px; height: 28px; opacity: 0.25; }
 
   /* Top OPD card */
   .opd-card {
     background: var(--surface-container-lowest);
-    border-radius: 28px;
-    padding: 28px;
+    border-radius: 20px;
+    padding: 20px;
     border: 1px solid var(--outline-variant);
     box-shadow: var(--shadow-card);
-    height: 380px;
+    height: 280px;
     display: flex; flex-direction: column;
     overflow: hidden;
   }
   .opd-rank {
-    width: 30px; height: 30px; border-radius: 8px;
+    width: 24px; height: 24px; border-radius: 6px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 700;
+    font-size: 10px; font-weight: 700;
     flex-shrink: 0;
   }
   .opd-rank.first { background: rgba(0,50,125,0.1); color: var(--primary); }
   .opd-rank.other { background: var(--surface-container-high); color: var(--on-surface-variant); }
 
   /* Welcome area */
-  .welcome-area { margin-bottom: 28px; }
-  .welcome-greeting { font-size: 15px; color: var(--on-surface-variant); font-weight: 500; margin-bottom: 4px; }
-  .welcome-name { font-size: 32px; font-weight: 800; color: var(--on-surface); letter-spacing: -1.5px; line-height: 1.15; }
+  .welcome-area { margin-bottom: 18px; }
+  .welcome-greeting { font-size: 12px; color: var(--on-surface-variant); font-weight: 500; margin-bottom: 2px; }
+  .welcome-name { font-size: 22px; font-weight: 800; color: var(--on-surface); letter-spacing: -1px; line-height: 1.15; }
 
   /* Terbaru table card */
   .terbaru-card {
     background: var(--surface-container-lowest);
-    border-radius: 24px;
+    border-radius: 16px;
     overflow: hidden;
     border: 1px solid var(--outline-variant);
     box-shadow: var(--shadow-card);
-    margin-top: 24px;
+    margin-top: 16px;
   }
 
   /* ════════════════════════════════════════════
@@ -866,11 +866,11 @@ const S = `
   .btn {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    padding: 9px 18px;
+    gap: 6px;
+    padding: 7px 14px;
     border-radius: var(--r-md);
     font-family: var(--font);
-    font-size: 13.5px;
+    font-size: 12.5px;
     font-weight: 600;
     cursor: pointer;
     border: none;
@@ -896,28 +896,28 @@ const S = `
   .btn-danger:hover  { background: #941a1f; }
   .btn-ghost    { background: none; color: var(--on-surface-variant); border: 1.5px solid var(--outline-variant); }
   .btn-ghost:hover { background: var(--surface-container-low); }
-  .btn-sm { padding: 7px 13px; font-size: 12.5px; }
+  .btn-sm { padding: 5px 10px; font-size: 11.5px; }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
   /* ════════════════════════════════════════════
      TABLE
   ════════════════════════════════════════════ */
   .table-wrap { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
   th {
     background: var(--surface-container-low);
-    padding: 11px 16px;
+    padding: 9px 13px;
     text-align: left;
     font-weight: 700;
     color: var(--on-surface-variant);
-    font-size: 11px;
+    font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.07em;
     border-bottom: 1.5px solid var(--outline-variant);
     white-space: nowrap;
   }
   td {
-    padding: 14px 16px;
+    padding: 11px 13px;
     border-bottom: 1px solid var(--outline-variant);
     color: var(--on-surface);
     vertical-align: middle;
@@ -928,23 +928,23 @@ const S = `
   /* ════════════════════════════════════════════
      FORM CONTROLS
   ════════════════════════════════════════════ */
-  .form-group { margin-bottom: 16px; }
+  .form-group { margin-bottom: 13px; }
   .form-label {
     display: block;
-    font-size: 11.5px;
+    font-size: 10.5px;
     font-weight: 700;
     color: var(--on-surface-variant);
-    margin-bottom: 6px;
+    margin-bottom: 5px;
     text-transform: uppercase;
     letter-spacing: 0.06em;
   }
   .form-control {
     width: 100%;
-    padding: 10px 14px;
+    padding: 8px 12px;
     border: 1.5px solid var(--outline-variant);
     border-radius: var(--r-md);
     font-family: var(--font);
-    font-size: 14px;
+    font-size: 13px;
     color: var(--on-surface);
     outline: none;
     transition: border-color 0.15s, box-shadow 0.15s;
@@ -994,31 +994,31 @@ const S = `
     backdrop-filter: blur(8px);
     display: flex; align-items: flex-start; justify-content: center;
     z-index: 1000;
-    padding: 32px;
+    padding: 24px;
     overflow-y: auto;
   }
   .modal {
     background: var(--surface-container-lowest);
     border-radius: var(--r-lg);
     width: 100%;
-    max-width: 740px;
+    max-width: 680px;
     box-shadow: var(--shadow-modal);
     margin: auto;
     animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
     border: 1px solid var(--outline-variant);
   }
   .modal-header {
-    padding: 22px 26px;
+    padding: 16px 20px;
     border-bottom: 1px solid var(--outline-variant);
-    display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 14px;
   }
   .modal-body {
-    padding: 22px 26px;
+    padding: 16px 20px;
     max-height: 68vh;
     overflow-y: auto;
   }
   .modal-footer {
-    padding: 14px 26px;
+    padding: 12px 20px;
     border-top: 1px solid var(--outline-variant);
     display: flex; gap: 8px; justify-content: flex-end;
     background: var(--surface-container-low);
@@ -1047,11 +1047,11 @@ const S = `
   .tabs {
     display: flex; gap: 2px;
     border-bottom: 1.5px solid var(--outline-variant);
-    margin-bottom: 22px;
+    margin-bottom: 16px;
   }
   .tab {
-    padding: 11px 18px;
-    font-size: 13.5px; font-weight: 600;
+    padding: 8px 14px;
+    font-size: 12.5px; font-weight: 600;
     cursor: pointer;
     border-bottom: 3px solid transparent;
     margin-bottom: -1.5px;
@@ -1065,15 +1065,15 @@ const S = `
   /* ════════════════════════════════════════════
      TIMELINE
   ════════════════════════════════════════════ */
-  .timeline-item { display: flex; gap: 16px; position: relative; }
-  .timeline-item:not(:last-child) { padding-bottom: 22px; }
-  .timeline-left { display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0; }
+  .timeline-item { display: flex; gap: 12px; position: relative; }
+  .timeline-item:not(:last-child) { padding-bottom: 16px; }
+  .timeline-left { display: flex; flex-direction: column; align-items: center; width: 32px; flex-shrink: 0; }
   .t-dot {
-    width: 40px; height: 40px;
+    width: 32px; height: 32px;
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 16px;
-    border: 2.5px solid transparent;
+    font-size: 13px;
+    border: 2px solid transparent;
     flex-shrink: 0; position: relative; z-index: 1;
   }
   .t-dot.done    { background: var(--success-pale);  border-color: var(--success); }
@@ -1113,11 +1113,11 @@ const S = `
      ALERTS
   ════════════════════════════════════════════ */
   .alert {
-    padding: 12px 16px;
+    padding: 10px 13px;
     border-radius: var(--r-md);
-    font-size: 13.5px;
-    display: flex; gap: 12px; align-items: flex-start;
-    margin-bottom: 16px;
+    font-size: 12.5px;
+    display: flex; gap: 10px; align-items: flex-start;
+    margin-bottom: 13px;
     border: 1.5px solid;
   }
   .alert-blue   { background: var(--primary-fixed);    border-color: var(--primary-fixed-dim); color: var(--primary); }
@@ -1182,36 +1182,36 @@ const S = `
   .login-card {
     background: var(--surface-container-lowest);
     border-radius: var(--r-lg);
-    width: 420px;
+    width: 380px;
     max-width: calc(100vw - 32px);
-    padding: 44px;
+    padding: 32px;
     box-shadow: 0px 24px 72px rgba(0,0,0,0.35), 0px 4px 16px rgba(0,0,0,0.12);
     position: relative;
     z-index: 1;
   }
   .login-logo-wrap {
-    display: flex; align-items: center; gap: 14px;
-    margin-bottom: 28px;
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 20px;
   }
   .login-logo {
-    width: 52px; height: 52px;
+    width: 40px; height: 40px;
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
-    border-radius: 16px;
+    border-radius: 12px;
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 6px 20px rgba(0,50,125,0.35);
+    box-shadow: 0 4px 16px rgba(0,50,125,0.35);
     flex-shrink: 0;
     color: white;
   }
   .login-brand-text {}
   .login-brand-name {
     font-weight: 800;
-    font-size: 20px;
+    font-size: 17px;
     color: var(--primary);
     letter-spacing: -0.5px;
     line-height: 1.2;
   }
   .login-brand-sub {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--on-surface-variant);
     margin-top: 2px;
   }
@@ -1243,8 +1243,8 @@ const S = `
      LOADING / EMPTY STATES
   ════════════════════════════════════════════ */
   .spinner {
-    width: 28px; height: 28px;
-    border: 3px solid var(--surface-container-high);
+    width: 22px; height: 22px;
+    border: 2.5px solid var(--surface-container-high);
     border-top-color: var(--primary);
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
@@ -1253,13 +1253,13 @@ const S = `
   @keyframes spin { to { transform: rotate(360deg); } }
   .loading-box {
     display: flex; flex-direction: column; align-items: center;
-    gap: 12px; padding: 56px;
-    color: var(--on-surface-variant); font-size: 14px;
+    gap: 10px; padding: 40px;
+    color: var(--on-surface-variant); font-size: 13px;
   }
-  .empty-box { text-align: center; padding: 48px; color: var(--on-surface-variant); }
-  .empty-icon { font-size: 44px; margin-bottom: 12px; }
-  .empty-text { font-size: 15px; font-weight: 700; color: var(--on-surface); }
-  .empty-sub  { font-size: 13px; margin-top: 6px; color: var(--on-surface-variant); }
+  .empty-box { text-align: center; padding: 36px; color: var(--on-surface-variant); }
+  .empty-icon { font-size: 36px; margin-bottom: 10px; }
+  .empty-text { font-size: 13px; font-weight: 700; color: var(--on-surface); }
+  .empty-sub  { font-size: 12px; margin-top: 4px; color: var(--on-surface-variant); }
 
   /* Role table badges */
   .role-admin    { background: #f5f3ff; color: #5b21b6; }
@@ -1406,7 +1406,7 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
           onClick={() => setCollapsed(c => !c)}
           title={collapsed ? "Perluas menu" : "Ciutkan menu"}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
             fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
             style={{transition:"transform 0.3s", transform: collapsed ? "rotate(180deg)" : "rotate(0deg)"}}>
             <rect width="18" height="18" x="3" y="3" rx="2"/>
@@ -1461,7 +1461,7 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
       {/* ── Footer ── */}
       <div className="sidebar-footer">
         <button className="logout-btn" onClick={onLogout}>
-          <IcoLogout size={16}/>
+          <IcoLogout size={14}/>
           <span className="logout-label">Keluar dari Sistem</span>
         </button>
       </div>
@@ -1538,9 +1538,9 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
       <div className="modal" style={{maxWidth:740}}>
         <div className="modal-header">
           <div>
-            <div style={{fontFamily:"var(--mono)",fontSize:11,color:"var(--primary)",fontWeight:700,marginBottom:3,letterSpacing:"0.05em"}}>{p.id}</div>
-            <div style={{fontWeight:800,fontSize:17,color:"var(--on-surface)",letterSpacing:"-0.4px"}}>{p.nama}</div>
-            <div style={{fontSize:12,color:"var(--on-surface-variant)",marginTop:3}}>{p.opd} · {p.alasan} · {p.jalur==="A"?"Jalur A":"Jalur B"}</div>
+            <div style={{fontFamily:"var(--mono)",fontSize:10,color:"var(--primary)",fontWeight:700,marginBottom:2,letterSpacing:"0.05em"}}>{p.id}</div>
+            <div style={{fontWeight:800,fontSize:15,color:"var(--on-surface)",letterSpacing:"-0.4px"}}>{p.nama}</div>
+            <div style={{fontSize:11,color:"var(--on-surface-variant)",marginTop:2}}>{p.opd} · {p.alasan} · {p.jalur==="A"?"Jalur A":"Jalur B"}</div>
           </div>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             <SBadge p={p}/>
@@ -1845,7 +1845,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
       <div className="modal" style={{maxWidth:mode==="bulk"?860:600}}>
         <div className="modal-header">
           <div>
-            <div style={{fontWeight:800,fontSize:16,color:"var(--primary)",letterSpacing:"-0.4px"}}>Input Pengajuan SKPP</div>
+            <div style={{fontWeight:800,fontSize:14,color:"var(--primary)",letterSpacing:"-0.4px"}}>Input Pengajuan SKPP</div>
             <div style={{display:"flex",gap:6,marginTop:8}}>
               {["tunggal","bulk"].map(m=>(
                 <button key={m} onClick={()=>setMode(m)} style={{
@@ -2054,8 +2054,8 @@ function PageDashboard({ data, loading, user }) {
             </div>
           </div>
           <div style={{position:"relative",zIndex:1,textAlign:"center"}}>
-            <div style={{fontSize:38,fontWeight:800,letterSpacing:"-2px",lineHeight:1}}>{loading?"—":s.selesai}</div>
-            <div style={{fontSize:12,opacity:0.7,marginTop:4}}>Total Selesai</div>
+            <div style={{fontSize:26,fontWeight:800,letterSpacing:"-1.5px",lineHeight:1}}>{loading?"—":s.selesai}</div>
+            <div style={{fontSize:11,opacity:0.7,marginTop:3}}>Total Selesai</div>
           </div>
         </div>
 
@@ -2095,28 +2095,28 @@ function PageDashboard({ data, loading, user }) {
 
         {/* Col 3 — Top OPD */}
         <div className="opd-card">
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-            <div style={{fontWeight:700,fontSize:16,color:"var(--on-surface)",letterSpacing:"-0.3px"}}>Top OPD Pengajuan</div>
-            <span className="chip" style={{fontSize:11}}>{topOPD.length} OPD</span>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <div style={{fontWeight:700,fontSize:13,color:"var(--on-surface)",letterSpacing:"-0.2px"}}>Top OPD Pengajuan</div>
+            <span className="chip" style={{fontSize:10}}>{topOPD.length} OPD</span>
           </div>
-          <div style={{flex:1,display:"flex",flexDirection:"column",gap:10,overflowY:"auto"}}>
+          <div style={{flex:1,display:"flex",flexDirection:"column",gap:6,overflowY:"auto"}}>
             {loading ? (
-              <div className="loading-box" style={{padding:24}}><div className="spinner"/></div>
+              <div className="loading-box" style={{padding:18}}><div className="spinner"/></div>
             ) : topOPD.length===0 ? (
-              <div style={{color:"var(--outline)",fontSize:13,textAlign:"center",padding:"24px 0"}}>Belum ada data</div>
+              <div style={{color:"var(--outline)",fontSize:12,textAlign:"center",padding:"18px 0"}}>Belum ada data</div>
             ) : topOPD.map(([opd,jml],i) => {
               const pct = s.total ? Math.round((jml/s.total)*100) : 0;
               return (
-                <div key={opd} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",borderRadius:14,transition:"background .15s"}}
+                <div key={opd} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"7px 10px",borderRadius:10,transition:"background .15s"}}
                   onMouseEnter={e=>e.currentTarget.style.background="var(--surface-container-low)"}
                   onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  <div style={{display:"flex",alignItems:"center",gap:12}}>
+                  <div style={{display:"flex",alignItems:"center",gap:9}}>
                     <div className={`opd-rank ${i===0?"first":"other"}`}>{i+1}</div>
-                    <div style={{fontSize:13,fontWeight:500,color:"var(--on-surface)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={opd}>{opd}</div>
+                    <div style={{fontSize:12,fontWeight:500,color:"var(--on-surface)",maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={opd}>{opd}</div>
                   </div>
-                  <div style={{textAlign:"right",flexShrink:0,marginLeft:8}}>
-                    <div style={{fontWeight:700,fontSize:14,color:"var(--on-surface)"}}>{jml}</div>
-                    <div style={{fontSize:10,color:"var(--on-surface-variant)",fontWeight:600,textTransform:"uppercase"}}>{pct}%</div>
+                  <div style={{textAlign:"right",flexShrink:0,marginLeft:6}}>
+                    <div style={{fontWeight:700,fontSize:13,color:"var(--on-surface)"}}>{jml}</div>
+                    <div style={{fontSize:9,color:"var(--on-surface-variant)",fontWeight:600,textTransform:"uppercase"}}>{pct}%</div>
                   </div>
                 </div>
               );
@@ -2127,7 +2127,7 @@ function PageDashboard({ data, loading, user }) {
 
       {/* Daftar Pengajuan Terbaru */}
       <div>
-        <div style={{fontWeight:700,fontSize:18,color:"var(--on-surface)",letterSpacing:"-0.4px",marginBottom:14}}>Daftar Pengajuan Terbaru</div>
+        <div style={{fontWeight:700,fontSize:14,color:"var(--on-surface)",letterSpacing:"-0.3px",marginBottom:10}}>Daftar Pengajuan Terbaru</div>
         <div className="terbaru-card">
           {loading ? (
             <div className="loading-box"><div className="spinner"/><span>Memuat data...</span></div>
@@ -2148,13 +2148,13 @@ function PageDashboard({ data, loading, user }) {
                 {recent.map(p=>(
                   <tr key={p.id} style={{cursor:"default"}}>
                     <td>
-                      <div style={{display:"flex",alignItems:"center",gap:12}}>
-                        <div style={{width:36,height:36,borderRadius:"50%",background:"var(--primary-fixed)",color:"var(--primary)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:13,flexShrink:0}}>
+                      <div style={{display:"flex",alignItems:"center",gap:9}}>
+                        <div style={{width:28,height:28,borderRadius:"50%",background:"var(--primary-fixed)",color:"var(--primary)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:11,flexShrink:0}}>
                           {(p.opd||"?")[0].toUpperCase()}
                         </div>
                         <div>
-                          <div style={{fontWeight:600,fontSize:13,color:"var(--on-surface)",maxWidth:220,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.opd||"—"}</div>
-                          <div style={{fontSize:11,color:"var(--on-surface-variant)",fontFamily:"var(--mono)"}}>{p.nama||"—"}</div>
+                          <div style={{fontWeight:600,fontSize:12,color:"var(--on-surface)",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.opd||"—"}</div>
+                          <div style={{fontSize:10,color:"var(--on-surface-variant)",fontFamily:"var(--mono)"}}>{p.nama||"—"}</div>
                         </div>
                       </div>
                     </td>
@@ -2412,7 +2412,7 @@ function PageUsers() {
         <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setShowForm(false);}}>
           <div className="modal" style={{maxWidth:500}}>
             <div className="modal-header">
-              <div style={{fontWeight:800,fontSize:16,color:"var(--primary)",letterSpacing:"-0.4px"}}>Tambah Akun Staf Baru</div>
+              <div style={{fontWeight:800,fontSize:14,color:"var(--primary)",letterSpacing:"-0.4px"}}>Tambah Akun Staf Baru</div>
               <button className="modal-close" onClick={()=>setShowForm(false)}>✕</button>
             </div>
             <div className="modal-body">
@@ -2568,11 +2568,11 @@ export default function App() {
                 </div>
               )}
               <div className="topbar-search">
-                <span className="topbar-search-icon"><IcoSearch size={15}/></span>
+                <span className="topbar-search-icon"><IcoSearch size={12}/></span>
                 <input className="topbar-search-input" placeholder="Cari pengajuan..." />
               </div>
               <button className="notif-btn">
-                <IcoAlert size={18}/>
+                <IcoAlert size={15}/>
                 <span className="notif-dot"/>
               </button>
               <div className="avatar" title={user?.nama || ""}>
@@ -2613,7 +2613,7 @@ export default function App() {
         <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setKodeAksesModal(null);}}>
           <div className="modal" style={{maxWidth:520}}>
             <div className="modal-header">
-              <div style={{fontWeight:800,fontSize:16,color:"var(--primary)",letterSpacing:"-0.4px"}}>
+              <div style={{fontWeight:800,fontSize:14,color:"var(--primary)",letterSpacing:"-0.4px"}}>
                 {kodeAksesModal.isBulk?"📦 Pengajuan Bulk Berhasil Didaftarkan":"🎉 Pengajuan Berhasil Didaftarkan"}
               </div>
               <button className="modal-close" onClick={()=>setKodeAksesModal(null)}>✕</button>
@@ -2631,15 +2631,15 @@ export default function App() {
 
               <div style={{
                 background:"linear-gradient(135deg,var(--primary) 0%,var(--primary-container) 100%)",
-                borderRadius:16,padding:24,textAlign:"center",marginBottom:16
+                borderRadius:12,padding:18,textAlign:"center",marginBottom:13
               }}>
-                <div style={{color:"rgba(255,255,255,.5)",fontSize:10,fontWeight:700,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:10}}>
+                <div style={{color:"rgba(255,255,255,.5)",fontSize:9,fontWeight:700,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:8}}>
                   {kodeAksesModal.isBulk?"Kode Akses Bersama (1 Kode untuk Semua)":"Kode Akses Portal Pelacakan"}
                 </div>
-                <div style={{color:"var(--secondary-container)",fontFamily:"var(--mono)",fontSize:52,fontWeight:900,letterSpacing:14,lineHeight:1}}>
+                <div style={{color:"var(--secondary-container)",fontFamily:"var(--mono)",fontSize:38,fontWeight:900,letterSpacing:10,lineHeight:1}}>
                   {kodeAksesModal.kode}
                 </div>
-                <div style={{color:"rgba(255,255,255,.4)",fontSize:11,marginTop:12}}>
+                <div style={{color:"rgba(255,255,255,.4)",fontSize:10,marginTop:10}}>
                   {kodeAksesModal.isBulk
                     ? <>Grup: <span style={{color:"var(--secondary-container)",fontFamily:"var(--mono)"}}>{kodeAksesModal.grupId}</span></>
                     : <>Untuk pengajuan: <span style={{color:"var(--secondary-container)",fontFamily:"var(--mono)"}}>{kodeAksesModal.id}</span></>
