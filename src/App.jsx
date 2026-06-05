@@ -328,25 +328,26 @@ const S = `
   .sidebar-header {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 8px;
     margin-bottom: 10px;
-    height: 34px;
+    min-height: 34px;
     flex-shrink: 0;
   }
 
   /* Logo / tombol expand — selalu terlihat, lebar tetap */
   .sidebar-logo {
-    width: 30px; height: 30px;
-    min-width: 30px;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
+    width: 32px; height: 32px;
+    min-width: 32px;
+    background: transparent;
     border-radius: 9px;
+    overflow: hidden;
     display: flex; align-items: center; justify-content: center;
     font-size: 12px; font-weight: 900; color: white;
-    box-shadow: 0 3px 10px rgba(0,50,125,0.3);
     flex-shrink: 0;
     font-family: var(--font);
     cursor: default;
   }
+  .sidebar-logo img { width: 100%; height: 100%; object-fit: contain; }
 
   /* Teks brand — fade in/out */
   .sidebar-brand-text {
@@ -361,12 +362,12 @@ const S = `
     max-width: 0;
   }
   .sidebar-brand-name {
-    font-weight: 800; font-size: 12px; color: var(--primary);
-    white-space: nowrap; letter-spacing: -0.3px; line-height: 1.2;
+    font-weight: 800; font-size: 13px; color: var(--primary);
+    white-space: nowrap; letter-spacing: 0.2px; line-height: 1.2;
   }
   .sidebar-brand-sub {
-    font-size: 9px; color: var(--on-surface-variant);
-    white-space: nowrap; margin-top: 1px; line-height: 1.3;
+    font-size: 8.5px; color: var(--on-surface-variant);
+    margin-top: 1px; line-height: 1.25;
   }
 
   /* Tombol toggle — selalu terlihat */
@@ -1402,14 +1403,16 @@ const S = `
     margin-bottom: 20px;
   }
   .login-logo {
-    width: 40px; height: 40px;
+    width: 54px; height: 54px;
     background: transparent;
     border-radius: 0;
     display: flex; align-items: center; justify-content: center;
     box-shadow: none;
     flex-shrink: 0;
     color: var(--primary);
+    overflow: hidden;
   }
+  .login-logo img { width: 100%; height: 100%; object-fit: contain; }
   .login-brand-text {}
   .login-brand-name {
     font-weight: 800;
@@ -1562,11 +1565,15 @@ function Login({ onLogin }) {
       <div className="login-card">
         <div className="login-logo-wrap">
           <div className="login-logo">
-            <IcoFile size={26} />
+            <img
+              src="/logo-sipasti.png"
+              alt="SI-PASTI"
+              onError={e=>{e.target.style.display="none";e.target.parentElement.appendChild(Object.assign(document.createElement("span"),{textContent:"SP"}));}}
+            />
           </div>
           <div className="login-brand-text">
-            <div className="login-brand-name">SKPP Tracker</div>
-            <div className="login-brand-sub">Bidang Perbendaharaan — BKD Provinsi NTT</div>
+            <div className="login-brand-name">SI-PASTI</div>
+            <div className="login-brand-sub">Sistem Pemantauan Alur SKPP Terintegrasi</div>
           </div>
         </div>
         <div className="login-divider" />
@@ -1645,13 +1652,24 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
 
       {/* ── Header ── */}
       <div className="sidebar-header">
-        {/* Logo (hanya tampil saat expanded) */}
-        <div className="sidebar-logo">{initials}</div>
+        {/* Logo SI-PASTI (fallback ke inisial bila gambar tak ada) */}
+        <div className="sidebar-logo">
+          <img
+            src="/logo-sipasti.png"
+            alt="SI-PASTI"
+            onError={e=>{
+              const p=e.target.parentElement;
+              p.style.background="linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%)";
+              p.style.boxShadow="0 3px 10px rgba(0,50,125,0.3)";
+              p.textContent=initials;
+            }}
+          />
+        </div>
 
         {/* Teks brand (fade out saat collapsed) */}
         <div className="sidebar-brand-text">
-          <div className="sidebar-brand-name">SKPP Tracker</div>
-          <div className="sidebar-brand-sub">Bidang Perbendaharaan – BKD NTT</div>
+          <div className="sidebar-brand-name">SI-PASTI</div>
+          <div className="sidebar-brand-sub">Sistem Pemantauan Alur SKPP Terintegrasi</div>
         </div>
 
         {/* Tombol toggle — selalu terlihat, menggantikan logo saat collapsed */}
