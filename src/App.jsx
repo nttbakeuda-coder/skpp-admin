@@ -2981,10 +2981,16 @@ function PageProfil({ user, onToast, onUpdateUser }) {
     setSaving(true);
     try {
       localStorage.setItem(storeKey, JSON.stringify(form));
-      // Sinkron ke backend (best-effort; abaikan bila action belum tersedia)
-      try { await apiPost({ action:"updateProfil", username:user?.username, data:form }); } catch {}
       onUpdateUser?.({ nama: form.nama.trim() });
-      onToast("Profil berhasil diperbarui.");
+      // Sinkron ke backend; bila action belum tersedia, data tetap aman di perangkat
+      let serverOk = false;
+      try {
+        const res = await apiPost({ action:"updateProfil", username:user?.username, data:form });
+        serverOk = !!(res && res.ok);
+      } catch {}
+      onToast(serverOk
+        ? "Profil berhasil diperbarui."
+        : "Profil tersimpan di perangkat ini. (Server belum menyimpan — aktifkan action updateProfil di backend.)");
     } catch {
       onToast("Gagal menyimpan profil.");
     } finally { setSaving(false); }
@@ -3003,11 +3009,11 @@ function PageProfil({ user, onToast, onUpdateUser }) {
         passwordLama:pwd.lama,
         passwordBaru:pwd.baru,
       });
-      if (res && res.sukses === false) {
-        onToast(res.pesan || "Gagal memperbarui kata sandi.");
-      } else {
+      if (res && res.ok) {
         setPwd({ lama:"", baru:"", konfirmasi:"" });
         onToast("Kata sandi berhasil diperbarui.");
+      } else {
+        onToast((res && res.pesan) || "Gagal memperbarui kata sandi. Pastikan kata sandi lama benar.");
       }
     } catch {
       onToast("Gagal terhubung ke server untuk memperbarui kata sandi.");
