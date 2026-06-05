@@ -671,31 +671,24 @@ const S = `
     display: flex; align-items: center; gap: 12px; justify-content: flex-end;
     min-width: 0;
   }
-    /* --- PERBAIKAN LOGO KANAN ATAS --- */
-  /* 1. Memaksa SEMUA lapisan wadah logo menjadi transparan */
-  .topbar-actions,
-  .topbar-actions *:has(img),
-  .topbar-actions [class*="avatar"],
-  .topbar-actions [class*="profile"],
-  .topbar-actions button {
+  /* --- Logo Pemprov NTT di kanan atas --- */
+  /* Hanya tombol PEMICU logo yang dibuat transparan, JANGAN popup-nya.
+     (Selektor lama [class*="profile"] tak sengaja menarget .profile-popup
+      sehingga popup ikut transparan.) */
+  .topbar-logo-btn {
     background: transparent !important;
-    background-color: transparent !important;
-    border-radius: 0 !important;
     border: none !important;
     box-shadow: none !important;
     outline: none !important;
   }
-
-  /* 2. Memastikan GAMBAR logo bebas dari warna dasar */
-  .topbar-actions img {
-    width: 35px !important; 
+  .topbar-logo-btn img {
+    width: 35px !important;
     height: 35px !important;
     background: transparent !important;
-    background-color: transparent !important;
-    border-radius: 0 !important; 
+    border-radius: 0 !important;
     border: none !important;
     box-shadow: none !important;
-    object-fit: contain !important; 
+    object-fit: contain !important;
   }
   /* Profile popup */
   .profile-popup {
@@ -821,6 +814,30 @@ const S = `
     cursor: pointer;
     box-shadow: var(--shadow-1);
     flex-shrink: 0;
+  }
+
+  /* ── Halaman Profil ── */
+  .profil-row {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 4px;
+    border-bottom: 1px solid var(--outline-variant);
+  }
+  .profil-row:last-of-type { border-bottom: none; }
+  .profil-row-label {
+    display: flex; align-items: center; gap: 9px;
+    font-size: 13px; font-weight: 500;
+    color: var(--on-surface-variant);
+  }
+  .profil-row-label svg { color: var(--outline); flex-shrink: 0; }
+  .profil-section-title {
+    font-size: 14px; font-weight: 800; color: var(--primary);
+    letter-spacing: -0.3px; margin-bottom: 2px;
+  }
+  @media (max-width: 720px) {
+    .profil-row { grid-template-columns: 1fr; gap: 6px; align-items: start; }
   }
 
   .content { flex: 1; overflow-y: auto; padding: 20px 24px; }
@@ -2931,6 +2948,159 @@ function PageUsers() {
   );
 }
 
+// ─── HALAMAN PROFIL ───────────────────────────────────────────────────────────
+function PageProfil({ user, onToast, onUpdateUser }) {
+  const storeKey = `skpp_profil_${user?.username || "anon"}`;
+  const load = () => {
+    try { return JSON.parse(localStorage.getItem(storeKey) || "{}"); }
+    catch { return {}; }
+  };
+  const saved = load();
+  const [form, setForm] = useState({
+    nama:    saved.nama    ?? user?.nama ?? "",
+    nik:     saved.nik     ?? "",
+    npwp:    saved.npwp    ?? "",
+    tglLahir:saved.tglLahir ?? "",
+    pangkat: saved.pangkat ?? "",
+    alamat:  saved.alamat  ?? "",
+  });
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  const [saving, setSaving] = useState(false);
+
+  // ── Kata sandi ──
+  const [pwd, setPwd] = useState({ lama:"", baru:"", konfirmasi:"" });
+  const setP = (k,v) => setPwd(p=>({...p,[k]:v}));
+  const [showPwd, setShowPwd] = useState({});
+  const [savingPwd, setSavingPwd] = useState(false);
+
+  const simpanProfil = async () => {
+    if (!form.nama.trim()) { onToast("Nama wajib diisi."); return; }
+    setSaving(true);
+    try {
+      localStorage.setItem(storeKey, JSON.stringify(form));
+      // Sinkron ke backend (best-effort; abaikan bila action belum tersedia)
+      try { await apiPost({ action:"updateProfil", username:user?.username, data:form }); } catch {}
+      onUpdateUser?.({ nama: form.nama.trim() });
+      onToast("Profil berhasil diperbarui.");
+    } catch {
+      onToast("Gagal menyimpan profil.");
+    } finally { setSaving(false); }
+  };
+
+  const simpanPassword = async () => {
+    if (!pwd.lama || !pwd.baru) { onToast("Kata sandi lama dan baru wajib diisi."); return; }
+    if (pwd.baru.length < 6) { onToast("Kata sandi baru minimal 6 karakter."); return; }
+    if (!/[A-Z]/.test(pwd.baru)) { onToast("Kata sandi baru wajib memuat minimal 1 huruf kapital."); return; }
+    if (pwd.baru !== pwd.konfirmasi) { onToast("Konfirmasi kata sandi tidak cocok."); return; }
+    setSavingPwd(true);
+    try {
+      const res = await apiPost({
+        action:"gantiPassword",
+        username:user?.username,
+        passwordLama:pwd.lama,
+        passwordBaru:pwd.baru,
+      });
+      if (res && res.sukses === false) {
+        onToast(res.pesan || "Gagal memperbarui kata sandi.");
+      } else {
+        setPwd({ lama:"", baru:"", konfirmasi:"" });
+        onToast("Kata sandi berhasil diperbarui.");
+      }
+    } catch {
+      onToast("Gagal terhubung ke server untuk memperbarui kata sandi.");
+    } finally { setSavingPwd(false); }
+  };
+
+  const Eye = ({on}) => on
+    ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+    : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-7-10-7a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>;
+
+  const pwdField = (key, label, placeholder) => (
+    <div className="form-group">
+      <label className="form-label">{label}</label>
+      <div style={{position:"relative"}}>
+        <input
+          className="form-control"
+          style={{paddingRight:40}}
+          type={showPwd[key]?"text":"password"}
+          value={pwd[key]}
+          onChange={e=>setP(key, e.target.value)}
+          placeholder={placeholder}
+          autoComplete="new-password"
+        />
+        <button type="button"
+          onClick={()=>setShowPwd(s=>({...s,[key]:!s[key]}))}
+          style={{position:"absolute", right:6, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:"var(--outline)", display:"flex", alignItems:"center", padding:6}}>
+          <Eye on={showPwd[key]}/>
+        </button>
+      </div>
+    </div>
+  );
+
+  const ico = {
+    nama: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+    nik:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
+    npwp: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>,
+    tgl:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+    pangkat: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>,
+    alamat: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
+  };
+
+  return (
+    <div className="card">
+      <div className="card-header">
+        <div className="card-header-title">Profil</div>
+      </div>
+      <div className="card-body">
+        <div className="profil-row">
+          <div className="profil-row-label">{ico.nama} Nama</div>
+          <input className="form-control" style={{marginBottom:0}} value={form.nama} onChange={e=>set("nama", e.target.value)} placeholder="Nama lengkap & gelar"/>
+        </div>
+        <div className="profil-row">
+          <div className="profil-row-label">{ico.nik} NIK</div>
+          <input className="form-control" style={{marginBottom:0}} value={form.nik} onChange={e=>set("nik", e.target.value)} placeholder="Nomor Induk Kependudukan"/>
+        </div>
+        <div className="profil-row">
+          <div className="profil-row-label">{ico.npwp} NPWP SKPD</div>
+          <input className="form-control" style={{marginBottom:0}} value={form.npwp} onChange={e=>set("npwp", e.target.value)} placeholder="NPWP SKPD"/>
+        </div>
+        <div className="profil-row">
+          <div className="profil-row-label">{ico.tgl} Tanggal Lahir</div>
+          <input className="form-control" style={{marginBottom:0}} type="date" value={form.tglLahir} onChange={e=>set("tglLahir", e.target.value)}/>
+        </div>
+        <div className="profil-row">
+          <div className="profil-row-label">{ico.pangkat} Pangkat dan Golongan</div>
+          <div style={{marginTop:-8, marginBottom:-16}}>
+            <SearchableSelect value={form.pangkat} onChange={v=>set("pangkat", v)} options={DAFTAR_PANGKAT} placeholder="-- Pilih Pangkat / Golongan --"/>
+          </div>
+        </div>
+        <div className="profil-row">
+          <div className="profil-row-label" style={{alignSelf:"start", paddingTop:10}}>{ico.alamat} Alamat</div>
+          <textarea className="form-control" style={{marginBottom:0, minHeight:70, resize:"vertical"}} value={form.alamat} onChange={e=>set("alamat", e.target.value)} placeholder="Alamat domisili"/>
+        </div>
+
+        <div style={{marginTop:20}}>
+          <button className="btn btn-primary" onClick={simpanProfil} disabled={saving}>
+            {saving ? "Menyimpan…" : "Perbarui"}
+          </button>
+        </div>
+
+        <div style={{borderTop:"1px solid var(--outline-variant)", margin:"28px 0 20px"}}/>
+
+        <div className="profil-section-title">Perbarui Kata Sandi</div>
+        <div style={{maxWidth:520, marginTop:14}}>
+          {pwdField("lama", "Kata Sandi Sebelumnya", "Masukkan kata sandi saat ini")}
+          {pwdField("baru", "Kata Sandi Baru", "6+ karakter, 1 huruf kapital")}
+          {pwdField("konfirmasi", "Konfirmasi Kata Sandi Baru", "Ulangi kata sandi baru")}
+          <button className="btn btn-primary" style={{marginTop:6}} onClick={simpanPassword} disabled={savingPwd}>
+            {savingPwd ? "Menyimpan…" : "Perbarui Kata Sandi"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── APP ROOT ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [user, setUser] = useState(null);
@@ -3089,6 +3259,7 @@ export default function App() {
               {/* Logo Pemprov NTT + popup profil */}
               <div style={{position:"relative"}}>
                 <div
+                  className="topbar-logo-btn"
                   style={{width: 35, height: 35, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center"}}
                   title="Profil"
                   onClick={()=>{setShowProfile(v=>!v);setShowNotif(false);}}
@@ -3121,7 +3292,7 @@ export default function App() {
                         Tahun {new Date().getFullYear()}
                       </div>
                       <div className="profile-popup-section">
-                        <div className="profile-popup-item">
+                        <div className="profile-popup-item" onClick={()=>{setShowProfile(false);setPage("profil");}}>
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                           Profil
                         </div>
@@ -3143,6 +3314,7 @@ export default function App() {
             {page==="pengajuan" && <PagePengajuan data={data} loading={loading} onRefresh={load} onDetail={setSelected} onInputBaru={()=>setShowInput(true)} onExport={exportCSV} user={user}/>}
             {page==="input"     && <div className="card card-body"><PagePengajuan data={[]} loading={false} onRefresh={()=>{}} onDetail={()=>{}} onInputBaru={()=>setShowInput(true)} onExport={()=>{}} user={user}/></div>}
             {page==="riwayat"   && <PageRiwayat data={data} loading={loading} onDetail={setSelected}/>}
+            {page==="profil"    && <PageProfil user={user} onToast={setToast} onUpdateUser={u=>setUser(prev=>({...prev,...u}))}/>}
             {page==="users"     && user.role==="admin" && <PageUsers/>}
             {page==="users"     && user.role!=="admin" && (
               <div className="alert alert-red">
