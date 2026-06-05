@@ -5,7 +5,7 @@
 <title>Tanda Terima Pengajuan SKPP</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
-  *{box-sizing:border-box;margin:0;padding:0;}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   body{font-family:'DM Sans',sans-serif;background:#f0f0f0;display:flex;flex-direction:column;align-items:center;padding:32px 16px;min-height:100vh;gap:24px;}
 
   /* TOOLBAR — tidak ikut tercetak */
@@ -120,9 +120,13 @@
 
   /* PRINT */
   @media print {
-    body{background:white;padding:0;gap:0;}
+    html,body{background:white;padding:0;gap:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
     .toolbar{display:none!important;}
     .slip-page{box-shadow:none;border-radius:0;max-width:100%;}
+    /* Pastikan blok berwarna tetap solid saat dicetak */
+    .slip-header,.slip-title-bar,.access-box,.inst-num,.stub,.info-cell:nth-child(odd){
+      -webkit-print-color-adjust:exact;print-color-adjust:exact;
+    }
     @page{margin:1cm;}
   }
 </style>
@@ -300,6 +304,17 @@ const data = {
   jalur:   params.get('jalur')  || 'A',
   tgl:     params.get('tgl')    || now.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}),
 };
+
+// Rapikan tanggal: bila berupa ISO / tanggal yang bisa di-parse, format jadi "05 Jun 2026"
+function fmtTgl(v){
+  if(!v) return '-';
+  const d = new Date(v);
+  if(!isNaN(d.getTime()) && /\d{4}-\d{2}-\d{2}|T\d{2}:\d{2}/.test(v)){
+    return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+  }
+  return v; // sudah dalam format rapi (mis. "05 Jun 2026")
+}
+data.tgl = fmtTgl(data.tgl);
 
 document.getElementById('nomorPengajuan').textContent = data.id;
 document.getElementById('kodeAkses').textContent      = data.kode;
