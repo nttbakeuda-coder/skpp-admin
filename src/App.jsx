@@ -2976,6 +2976,28 @@ function PageProfil({ user, onToast, onUpdateUser }) {
   const [showPwd, setShowPwd] = useState({});
   const [savingPwd, setSavingPwd] = useState(false);
 
+  // Muat profil dari server saat halaman dibuka (fallback: data lokal)
+  useEffect(() => {
+    let aktif = true;
+    (async () => {
+      try {
+        const res = await apiGet({ action:"profil", username:user?.username });
+        if (aktif && res && res.ok && res.data) {
+          const d = res.data;
+          setForm(f => ({
+            nama:    d.nama     ?? f.nama,
+            nik:     d.nik      ?? f.nik,
+            npwp:    d.npwp     ?? f.npwp,
+            tglLahir:d.tglLahir ?? f.tglLahir,
+            pangkat: d.pangkat  ?? f.pangkat,
+            alamat:  d.alamat   ?? f.alamat,
+          }));
+        }
+      } catch {}
+    })();
+    return () => { aktif = false; };
+  }, []);
+
   const simpanProfil = async () => {
     if (!form.nama.trim()) { onToast("Nama wajib diisi."); return; }
     setSaving(true);
