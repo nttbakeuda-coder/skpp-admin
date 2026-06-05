@@ -391,12 +391,12 @@ const S = `
   .sidebar-user {
     background: var(--surface-container-low);
     border-radius: var(--r-md);
-    padding: 8px 10px;
+    padding: 10px 12px;
     border: 1px solid var(--outline-variant);
     margin-bottom: 10px;
     overflow: hidden;
     opacity: 1;
-    max-height: 68px;
+    max-height: 90px;
     transition: opacity 0.2s ease,
                 max-height 0.3s cubic-bezier(0.4,0,0.2,1),
                 padding 0.3s ease,
@@ -410,11 +410,13 @@ const S = `
     border-color: transparent;
   }
   .sidebar-user-name {
-    font-weight: 700; font-size: 11px; color: var(--on-surface);
+    font-weight: 700; font-size: 12.5px; color: var(--on-surface);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    line-height: 1.3; letter-spacing: -0.2px;
   }
   .sidebar-user-role-label {
-    font-size: 10px; color: var(--on-surface-variant); margin-top: 1px;
+    font-size: 10.5px; color: var(--on-surface-variant); margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
 
   /* ── Nav section label ── */
@@ -1690,8 +1692,8 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
       {/* ── User card (collapse via max-height) ── */}
       <div className="sidebar-user">
         <div className="sidebar-user-name">{user.nama}</div>
-        <div className="sidebar-user-role-label">{user.opd || "—"}</div>
-        <span className={`badge ${roleClass}`} style={{fontSize:10,marginTop:4,display:"inline-flex"}}>{roleLabel}</span>
+        {user.opd && <div className="sidebar-user-role-label">{user.opd}</div>}
+        <span className={`badge ${roleClass}`} style={{fontSize:10,marginTop:5,display:"inline-flex"}}>{roleLabel}</span>
       </div>
 
       {/* ── Navigation ── */}
