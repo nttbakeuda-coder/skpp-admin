@@ -1841,8 +1841,8 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
                     ["Pangkat", p.pangkat],
                     ["Keperluan", p.alasan],
                     ["Kasubid",   p.kasubid],
-                    ["Tgl Masuk", p.tanggalMasuk],
-                    [p.status==="selesai"?"Tgl Selesai":"Est. Selesai", p.status==="selesai"?p.tanggalSelesai:p.estimasiSelesai],
+                    ["Tgl Masuk", fmtDate(p.tanggalMasuk)],
+                    [p.status==="selesai"?"Tgl Selesai":"Est. Selesai", fmtDate(p.status==="selesai"?p.tanggalSelesai:p.estimasiSelesai)],
                   ].map(([l,v,mono])=>(
                     <div key={l} className="info-row">
                       <span className="info-lbl">{l}</span>
@@ -2793,7 +2793,7 @@ function PagePengajuan({ data, loading, onRefresh, onDetail, onInputBaru, onExpo
                         </div>
                       </td>
                       <td><SBadge p={p}/></td>
-                      <td style={{fontSize:12,color:"var(--outline)",whiteSpace:"nowrap"}}>{p.tanggalMasuk}</td>
+                      <td style={{fontSize:12,color:"var(--outline)",whiteSpace:"nowrap"}}>{fmtDate(p.tanggalMasuk)}</td>
                     </tr>
                   );
                 })}
@@ -2860,8 +2860,8 @@ function PageRiwayat({ data, loading, onDetail }) {
                   <td style={{fontWeight:600}}>{p.nama}</td>
                   <td style={{fontSize:12,color:"var(--on-surface-variant)"}}>{p.opd}</td>
                   <td><span className="chip">{p.alasan}</span></td>
-                  <td style={{fontSize:12,color:"var(--outline)"}}>{p.tanggalMasuk}</td>
-                  <td style={{fontSize:12,color:"var(--success)",fontWeight:600}}>{p.tanggalSelesai}</td>
+                  <td style={{fontSize:12,color:"var(--outline)"}}>{fmtDate(p.tanggalMasuk)}</td>
+                  <td style={{fontSize:12,color:"var(--success)",fontWeight:600}}>{fmtDate(p.tanggalSelesai)}</td>
                 </tr>
               ))}
               {filtered.length===0 && (
