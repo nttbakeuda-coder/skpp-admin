@@ -72,11 +72,7 @@ function generateTemplateNomor(nomorUrut, kasubid, alasan) {
   return `900.1.3/${nomorUrut}/${kodeKasubid}/${kodeAlasan}/${tahun}`;
 }
 
-const AKUN_STAF = [
-  { id:"1", username:"admin",    password:"(tersimpan di database)", nama:"Administrator",        role:"admin",    opd:"BKD Provinsi NTT" },
-  { id:"2", username:"operator", password:"(tersimpan di database)", nama:"Staf Loket",           role:"operator", opd:"Loket SKPP" },
-  { id:"3", username:"staf",     password:"(tersimpan di database)", nama:"Staf Pengampuh OPD",  role:"staf",     opd:"Pengampuh OPD" },
-];
+// Akun staf kini dikelola langsung dari sheet "Akun" via action daftarAkun/tambahAkun/hapusAkun/resetPassword.
 
 const API_URL = "https://script.google.com/macros/s/AKfycbxdSGg9F6P4FpNJsr3jhVklVKTqxFjepQbs4mHblDDv2ySMXD8nkZfrhMcEgz8IcPOoeA/exec";
 const TANDA_TERIMA_URL = "/tanda_terima_SKPP.html";
@@ -2866,48 +2862,110 @@ function PageRiwayat({ data, loading, onDetail }) {
 }
 
 // ─── PAGE USERS ───────────────────────────────────────────────────────────────
-function PageUsers() {
-  const [users, setUsers] = useState(AKUN_STAF);
+function PageUsers({ onToast }) {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [errLoad, setErrLoad] = useState("");
+
+  const muat = useCallback(async () => {
+    setLoading(true); setErrLoad("");
+    try {
+      const res = await apiGet({ action:"daftarAkun" });
+      if (res && res.ok) setUsers(res.data || []);
+      else setErrLoad((res && res.pesan) || "Gagal memuat daftar akun.");
+    } catch { setErrLoad("Gagal terhubung ke server."); }
+    setLoading(false);
+  }, []);
+  useEffect(() => { muat(); }, [muat]);
+
+  const jmlAdmin = users.filter(u=>u.role==="admin").length;
+
+  // ── Tambah akun ──
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ username:"", password:"", nama:"", role:"staf", opd:"" });
-  const [showPass, setShowPass] = useState({});
+  const [savingAdd, setSavingAdd] = useState(false);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
-  const save = () => {
-    if(!form.username||!form.password||!form.nama) return alert("Semua field wajib diisi.");
-    if(users.find(u=>u.username===form.username)) return alert("Username sudah digunakan.");
-    setUsers(prev=>[...prev,{id:String(prev.length+1),...form}]);
-    setForm({username:"",password:"",nama:"",role:"staf",opd:""});
-    setShowForm(false);
+  const simpanAkun = async () => {
+    if (!form.username.trim() || !form.password || !form.nama.trim()) return onToast("Username, password, dan nama wajib diisi.");
+    if (form.password.length < 6 || !/[A-Z]/.test(form.password)) return onToast("Password minimal 6 karakter & 1 huruf kapital.");
+    setSavingAdd(true);
+    try {
+      const res = await apiPost({ action:"tambahAkun", username:form.username.trim(), password:form.password, nama:form.nama.trim(), role:form.role, opd:form.opd.trim() });
+      if (res && res.ok) {
+        onToast(res.pesan || "Akun berhasil ditambahkan.");
+        setForm({username:"",password:"",nama:"",role:"staf",opd:""});
+        setShowForm(false);
+        muat();
+      } else onToast((res && res.pesan) || "Gagal menambah akun.");
+    } catch { onToast("Gagal terhubung ke server."); }
+    setSavingAdd(false);
   };
-  const del = (id) => { if(confirm("Hapus akun ini?")) setUsers(prev=>prev.filter(u=>u.id!==id)); };
+
+  // ── Hapus akun ──
+  const hapus = async (u) => {
+    if (!confirm(`Hapus akun "${u.username}"? Tindakan ini permanen.`)) return;
+    try {
+      const res = await apiPost({ action:"hapusAkun", username:u.username });
+      if (res && res.ok) { onToast(res.pesan || "Akun dihapus."); muat(); }
+      else onToast((res && res.pesan) || "Gagal menghapus akun.");
+    } catch { onToast("Gagal terhubung ke server."); }
+  };
+
+  // ── Reset kata sandi ──
+  const [resetTarget, setResetTarget] = useState(null);
+  const [rp, setRp] = useState({ baru:"", konfirmasi:"" });
+  const [showRp, setShowRp] = useState(false);
+  const [savingRp, setSavingRp] = useState(false);
+  const bukaReset = (u) => { setResetTarget(u); setRp({baru:"",konfirmasi:""}); setShowRp(false); };
+  const simpanReset = async () => {
+    if (!rp.baru) return onToast("Kata sandi baru wajib diisi.");
+    if (rp.baru.length < 6 || !/[A-Z]/.test(rp.baru)) return onToast("Kata sandi minimal 6 karakter & 1 huruf kapital.");
+    if (rp.baru !== rp.konfirmasi) return onToast("Konfirmasi kata sandi tidak cocok.");
+    setSavingRp(true);
+    try {
+      const res = await apiPost({ action:"resetPassword", username:resetTarget.username, passwordBaru:rp.baru });
+      if (res && res.ok) { onToast(res.pesan || "Kata sandi berhasil direset."); setResetTarget(null); }
+      else onToast((res && res.pesan) || "Gagal mereset kata sandi.");
+    } catch { onToast("Gagal terhubung ke server."); }
+    setSavingRp(false);
+  };
 
   return (
     <div className="card">
       <div className="card-header">
         <div className="card-header-title">Manajemen Akun Staf</div>
-        <button className="btn btn-primary btn-sm" onClick={()=>setShowForm(true)} style={{gap:6}}><IcoPlus size={14}/> Tambah Staf</button>
+        <div style={{display:"flex",gap:8}}>
+          <button className="btn btn-secondary btn-sm" onClick={muat} disabled={loading}>↻ Muat Ulang</button>
+          <button className="btn btn-primary btn-sm" onClick={()=>setShowForm(true)} style={{gap:6}}><IcoPlus size={14}/> Tambah Staf</button>
+        </div>
       </div>
-      <div className="alert alert-blue" style={{margin:"16px 20px 0"}}>
-        <span>ℹ️</span><span style={{fontSize:12}}>Perubahan akun bersifat sementara (session ini saja). Untuk permanen, edit array AKUN_STAF di file App.jsx.</span>
-      </div>
+
+      {errLoad && (
+        <div className="alert alert-red" style={{margin:"16px 20px 0"}}>
+          <IcoAlert size={14}/><span style={{fontSize:12}}>{errLoad}</span>
+          <button className="btn btn-secondary btn-sm" style={{marginLeft:8}} onClick={muat}>Coba Lagi</button>
+        </div>
+      )}
+
       <div className="table-wrap" style={{padding:"0 0 16px"}}>
         <table>
-          <thead><tr><th>Nama Lengkap</th><th>Username</th><th>Password</th><th>Role</th><th>OPD / Tugas</th><th>Aksi</th></tr></thead>
+          <thead><tr><th>Nama Lengkap</th><th>Username</th><th>Role</th><th>OPD / Tugas</th><th style={{textAlign:"right"}}>Aksi</th></tr></thead>
           <tbody>
-            {users.map(u=>(
-              <tr key={u.id}>
+            {loading ? (
+              <tr><td colSpan={5}><div className="empty-box"><div className="empty-text">Memuat akun…</div></div></td></tr>
+            ) : users.length===0 && !errLoad ? (
+              <tr><td colSpan={5}><div className="empty-box"><div className="empty-icon">👥</div><div className="empty-text">Belum ada akun</div></div></td></tr>
+            ) : users.map((u,i)=>(
+              <tr key={u.id||u.username||i}>
                 <td style={{fontWeight:600}}>{u.nama}</td>
                 <td style={{fontFamily:"var(--mono)",fontSize:12}}>{u.username}</td>
-                <td style={{fontFamily:"var(--mono)",fontSize:12}}>
-                  {showPass[u.id]?u.password:"••••••••"}
-                  <button className="btn btn-ghost btn-sm" style={{marginLeft:8,padding:"2px 7px"}} onClick={()=>setShowPass(p=>({...p,[u.id]:!p[u.id]}))}>
-                    {showPass[u.id]?"🙈":"👁"}
-                  </button>
-                </td>
                 <td><span className={`badge ${u.role==="admin"?"role-admin badge-purple":u.role==="operator"?"role-operator badge-gold":"role-staf badge-blue"}`}>{u.role}</span></td>
-                <td style={{fontSize:12,color:"var(--on-surface-variant)"}}>{u.opd}</td>
+                <td style={{fontSize:12,color:"var(--on-surface-variant)"}}>{u.opd||"—"}</td>
                 <td>
-                  <button className="btn btn-danger btn-sm" onClick={()=>del(u.id)} disabled={u.role==="admin"&&users.filter(x=>x.role==="admin").length===1}>Hapus</button>
+                  <div style={{display:"flex",gap:6,justifyContent:"flex-end"}}>
+                    <button className="btn btn-secondary btn-sm" onClick={()=>bukaReset(u)}>Reset Password</button>
+                    <button className="btn btn-danger btn-sm" onClick={()=>hapus(u)} disabled={u.role==="admin"&&jmlAdmin<=1}>Hapus</button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -2915,6 +2973,7 @@ function PageUsers() {
         </table>
       </div>
 
+      {/* Modal Tambah Akun */}
       {showForm && (
         <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setShowForm(false);}}>
           <div className="modal" style={{maxWidth:500}}>
@@ -2925,7 +2984,7 @@ function PageUsers() {
             <div className="modal-body">
               <div className="grid-2">
                 <div className="form-group"><label className="form-label">Username *</label><input className="form-control" value={form.username} onChange={e=>set("username",e.target.value)} placeholder="Tanpa spasi"/></div>
-                <div className="form-group"><label className="form-label">Password *</label><input className="form-control" value={form.password} onChange={e=>set("password",e.target.value)} placeholder="Min. 6 karakter"/></div>
+                <div className="form-group"><label className="form-label">Password *</label><input className="form-control" type="password" value={form.password} onChange={e=>set("password",e.target.value)} placeholder="6+ karakter, 1 huruf kapital"/></div>
               </div>
               <div className="form-group"><label className="form-label">Nama Lengkap *</label><input className="form-control" value={form.nama} onChange={e=>set("nama",e.target.value)}/></div>
               <div className="grid-2">
@@ -2942,7 +3001,39 @@ function PageUsers() {
             </div>
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={()=>setShowForm(false)}>Batal</button>
-              <button className="btn btn-primary" onClick={save}>Simpan Akun</button>
+              <button className="btn btn-primary" onClick={simpanAkun} disabled={savingAdd}>{savingAdd?"Menyimpan…":"Simpan Akun"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Reset Password */}
+      {resetTarget && (
+        <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setResetTarget(null);}}>
+          <div className="modal" style={{maxWidth:440}}>
+            <div className="modal-header">
+              <div style={{fontWeight:800,fontSize:14,color:"var(--primary)",letterSpacing:"-0.4px"}}>Reset Kata Sandi</div>
+              <button className="modal-close" onClick={()=>setResetTarget(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="alert alert-amber" style={{marginTop:0}}>
+                <span>🔑</span><span style={{fontSize:12}}>Menetapkan kata sandi baru untuk <strong>{resetTarget.nama}</strong> (<span style={{fontFamily:"var(--mono)"}}>{resetTarget.username}</span>). Kata sandi lama tidak diperlukan.</span>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Kata Sandi Baru</label>
+                <div style={{position:"relative"}}>
+                  <input className="form-control" style={{paddingRight:40}} type={showRp?"text":"password"} value={rp.baru} onChange={e=>setRp(p=>({...p,baru:e.target.value}))} placeholder="6+ karakter, 1 huruf kapital" autoComplete="new-password"/>
+                  <button type="button" onClick={()=>setShowRp(s=>!s)} style={{position:"absolute",right:6,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"var(--outline)",padding:6}}>{showRp?"🙈":"👁"}</button>
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Konfirmasi Kata Sandi Baru</label>
+                <input className="form-control" type={showRp?"text":"password"} value={rp.konfirmasi} onChange={e=>setRp(p=>({...p,konfirmasi:e.target.value}))} placeholder="Ulangi kata sandi baru" autoComplete="new-password"/>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={()=>setResetTarget(null)}>Batal</button>
+              <button className="btn btn-primary" onClick={simpanReset} disabled={savingRp}>{savingRp?"Menyimpan…":"Reset Kata Sandi"}</button>
             </div>
           </div>
         </div>
@@ -3356,7 +3447,7 @@ export default function App() {
             {page==="input"     && <div className="card card-body"><PagePengajuan data={[]} loading={false} onRefresh={()=>{}} onDetail={()=>{}} onInputBaru={()=>setShowInput(true)} onExport={()=>{}} user={user}/></div>}
             {page==="riwayat"   && <PageRiwayat data={data} loading={loading} onDetail={setSelected}/>}
             {page==="profil"    && <PageProfil user={user} onToast={setToast} onUpdateUser={u=>setUser(prev=>({...prev,...u}))}/>}
-            {page==="users"     && user.role==="admin" && <PageUsers/>}
+            {page==="users"     && user.role==="admin" && <PageUsers onToast={showToast}/>}
             {page==="users"     && user.role!=="admin" && (
               <div className="alert alert-red">
                 <span>🚫</span><span>Anda tidak memiliki akses ke halaman ini. Hanya Admin yang dapat mengelola akun staf.</span>
