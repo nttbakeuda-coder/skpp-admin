@@ -1827,18 +1827,112 @@ function Timeline({ p }) {
   );
 }
 
+// ─── CETAK FORMULIR PENGEMBALIAN ──────────────────────────────────────────────
+function cetakFormulirKembali({ p, fkData, stafLoketNama, nomorFormulir, tanggalKembali }) {
+  const al = p.alasan||"";
+  const isJD = al.includes("Janda")||al.includes("Duda")||al.includes("Meninggal");
+  const isBH = al.includes("Berhenti")||al.includes("Pemberhentian");
+  const isPD = al.includes("Pindah");
+  const isPS = al.includes("Pensiun")&&!isJD;
+  const cb = v => v?"☑":"☐";
+  const rows = fkData.rincian.map((r,i)=>`<tr>
+    <td style="text-align:center;padding:5px 7px;border:1px solid #999">${i+1}</td>
+    <td style="padding:5px 7px;border:1px solid #999">${r.kode||""}</td>
+    <td style="padding:5px 7px;border:1px solid #999">${r.dokumen||""}</td>
+    <td style="padding:5px 7px;border:1px solid #999">${r.tindakan||""}</td>
+    <td style="padding:5px 7px;border:1px solid #999">${r.batas||""}</td>
+  </tr>`).join("");
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+  <title>Formulir Pengembalian — ${p.nama}</title>
+  <style>
+    *{box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:10.5pt;margin:0;padding:20px 24px;color:#000}
+    .hd{text-align:center;margin-bottom:10px}.hd b{font-size:13pt}.hd p{margin:2px 0;font-size:9.5pt}
+    hr{border:none;border-top:1px solid #000;margin:3px 0}
+    table{width:100%;border-collapse:collapse;margin-bottom:7px}
+    td,th{border:1px solid #999;padding:5px 7px;font-size:10pt;vertical-align:top}
+    .sh td{font-weight:bold;font-size:10.5pt;text-align:center;background:#1a4b9b;color:#fff;border:1px solid #1a4b9b}
+    .lr td:first-child{font-weight:bold;background:#f0f0f0;width:35%}
+    .nb{border:none!important;background:transparent!important}
+    .fg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:16px;text-align:center}
+    .sl{border-top:1px solid #000;margin-top:55px;width:75%;margin-left:auto;margin-right:auto}
+    @media print{body{margin:0;padding:16px 20px}}
+  </style></head><body>
+  <div class="hd">
+    <b>PEMERINTAH PROVINSI NUSA TENGGARA TIMUR</b><br/>
+    <b style="font-size:14pt">BADAN KEUANGAN DAERAH</b>
+    <p>Jalan Raya El Tari Nomor 52 Kupang, Telp. –</p>
+    <p>Laman : https://bakeuda.nttprov.go.id, Email : badankeuanganprovntt@gmail.com</p>
+  </div>
+  <hr/><hr style="margin-top:2px"/>
+  <table style="border:none;margin-bottom:6px">
+    <tr><td class="nb" colspan="3" style="text-align:center;font-weight:bold;font-size:12pt">FORMULIR PENGEMBALIAN BERKAS</td></tr>
+    <tr><td class="nb" colspan="3" style="text-align:center">PERMOHONAN PENERBITAN SURAT KETERANGAN PENGHENTIAN PEMBAYARAN (SKPP)</td></tr>
+    <tr><td class="nb" style="font-weight:bold;width:32%">Nomor Formulir</td><td class="nb" style="width:4%">:</td><td class="nb">${nomorFormulir}</td></tr>
+    <tr><td class="nb" style="font-weight:bold">Tanggal Pengembalian</td><td class="nb">:</td><td class="nb">${tanggalKembali}</td></tr>
+  </table>
+  <table><tr class="sh"><td colspan="3">A. IDENTITAS PEMOHON</td></tr>
+    <tr class="lr"><td>Nama Pegawai</td><td style="width:4%">:</td><td>${p.nama||"—"}</td></tr>
+    <tr class="lr"><td>NIP</td><td>:</td><td>${p.nip||"—"}</td></tr>
+    <tr class="lr"><td>Pangkat / Golongan</td><td>:</td><td>${p.pangkat||"—"}</td></tr>
+    <tr class="lr"><td>Jabatan</td><td>:</td><td>${p.jabatan||"—"}</td></tr>
+    <tr class="lr"><td>OPD / Instansi</td><td>:</td><td>${p.opd||"—"}</td></tr>
+    <tr class="lr"><td>Nomor Register SKPP</td><td>:</td><td>${p.id||"—"}</td></tr>
+    <tr class="lr"><td>Jenis SKPP</td><td>:</td><td>${cb(isPS)} Pensiun &nbsp;&nbsp; ${cb(isPD)} Pindah &nbsp;&nbsp; ${cb(isBH)} Berhenti &nbsp;&nbsp; ${cb(isJD)} Janda/Duda</td></tr>
+  </table>
+  <table><tr class="sh"><td>B. ALASAN PENGEMBALIAN BERKAS</td></tr>
+    <tr><td>${cb(fkData.alasanDokumen)} Berkas tidak lengkap (dokumen persyaratan kurang)</td></tr>
+    <tr><td>${cb(fkData.alasanHutang)} Terdapat hutang/kewajiban finansial pegawai yang belum diselesaikan</td></tr>
+  </table>
+  <table>
+    <tr class="sh"><td colspan="5">C. RINCIAN DOKUMEN KURANG / HUTANG YANG HARUS DISELESAIKAN</td></tr>
+    <tr><th style="width:30px">No.</th><th style="width:60px">Kode</th><th>Dokumen Kurang / Jenis Hutang</th><th>Tindakan yang Diperlukan</th><th style="width:110px">Batas Waktu Pemenuhan</th></tr>
+    ${rows}
+  </table>
+  <table><tr class="sh"><td>D. MEKANISME PENYELESAIAN HUTANG (Diisi apabila terdapat kewajiban finansial)</td></tr>
+    <tr><td>${cb(fkData.mPotong)} Pemotongan dari hak keuangan pegawai (gaji terakhir, uang pensiun, dsb.)</td></tr>
+    <tr><td>${cb(fkData.mSetor)} Penyetoran tunai ke Rekening Kas Umum Daerah (RKUD)</td></tr>
+    <tr><td>${cb(fkData.mCicilan)} Cicilan sesuai kesepakatan (dilampiri Berita Acara Kesepakatan Pelunasan)</td></tr>
+    <tr><td><b>Jumlah hutang yang harus diselesaikan: Rp ${fkData.jumlahHutang||"___________________________________"}</b></td></tr>
+  </table>
+  <table><tr class="sh"><td>E. PERNYATAAN PEMOHON</td></tr>
+    <tr><td><em>Saya yang bertanda tangan di bawah ini menyatakan telah menerima pengembalian berkas permohonan SKPP beserta penjelasan atas kekurangan/kewajiban yang harus dipenuhi sebagaimana tercantum di atas. Saya bersedia melengkapi seluruh kekurangan dan/atau menyelesaikan seluruh kewajiban finansial tersebut sebelum mengajukan kembali permohonan SKPP.</em></td></tr>
+  </table>
+  <p style="text-align:right;margin:4px 0">Kupang, ${tanggalKembali}</p>
+  <div class="fg">
+    <div><b>Staf Loket,</b><div class="sl"></div><p>Nama : <u>${stafLoketNama||"___________________"}</u></p></div>
+    <div><b>Pengampu OPD,</b><div class="sl"></div><p>Nama : <u>${fkData.pengampuNama||"___________________"}</u><br/>NIP &nbsp;&nbsp;: <u>${fkData.pengampuNIP||"___________________"}</u></p></div>
+    <div><b>Pemohon / Bendahara OPD,</b><div class="sl"></div><p>Nama : <u>${fkData.pemohonNama||"___________________"}</u><br/>NIP &nbsp;&nbsp;: <u>${fkData.pemohonNIP||"___________________"}</u></p></div>
+  </div>
+  <hr style="margin-top:20px"/>
+  <p style="font-size:9pt;font-style:italic">Formulir ini dibuat dalam 2 (dua) rangkap: lembar pertama untuk Pemohon, lembar kedua untuk arsip Bidang Perbendaharaan.</p>
+  <script>window.onload=function(){window.print()}</script>
+  </body></html>`;
+  const win = window.open("","_blank","width=820,height=720");
+  win.document.write(html);
+  win.document.close();
+}
+
 // ─── DETAIL MODAL ─────────────────────────────────────────────────────────────
 function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
   const [tab, setTab] = useState("info");
   const [catatan, setCatatan] = useState("");
   const [isKembali, setIsKembali] = useState(false);
   const [nomorUrut, setNomorUrut] = useState("");
+  const [showFormKembali, setShowFormKembali] = useState(false);
+  const [fkData, setFkData] = useState({
+    alasanDokumen:false, alasanHutang:false,
+    rincian:Array(5).fill(null).map(()=>({kode:"",dokumen:"",tindakan:"",batas:""})),
+    mPotong:false, mSetor:false, mCicilan:false, jumlahHutang:"",
+    stafLoket:"", pengampuNama:"", pengampuNIP:"", pemohonNama:"", pemohonNIP:"",
+  });
+  const [stafLoketList, setStafLoketList] = useState([]);
   const isPenomoran = (stepId) => stepId === "A6" || stepId === "B10";
   const tahapan = p.jalur==="A" ? TAHAPAN_A : TAHAPAN_B;
   const stepAktif = tahapan.find(t => t.id===p.tahapAktif && !p.tahapSelesai.includes(t.id));
   const prog = getProgress(p);
 
   return (
+    <>
     <div className="modal-overlay">
       <div className="modal" style={{maxWidth:740}}>
         <div className="modal-header">
@@ -2000,6 +2094,11 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
                     }}
                     disabled={saving || !cekIzinProses(user?.role, stepAktif.pelaksana) || (isPenomoran(stepAktif.id) && !nomorUrut)}
                     onClick={() => {
+                      if (isKembali) {
+                        if (stafLoketList.length===0) daftarAkun().then(res=>{ if(res.ok) setStafLoketList(res.data.filter(a=>a.role==="operator")); });
+                        setShowFormKembali(true);
+                        return;
+                      }
                       const indexSaatIni = tahapan.findIndex(t => t.id===stepAktif.id);
                       const nextStepId = indexSaatIni < tahapan.length-1 ? tahapan[indexSaatIni+1].id : "";
                       onUpdate({
@@ -2039,6 +2138,235 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, user }) {
           )}
 
           {tab==="riwayat" && <Timeline p={p}/>}
+        </div>
+      </div>
+    </div>
+    {showFormKembali && stepAktif && (
+      <FormulirKembaliModal
+        p={p} user={user}
+        fkData={fkData} setFkData={setFkData}
+        stafLoketList={stafLoketList}
+        saving={saving}
+        onClose={()=>setShowFormKembali(false)}
+        onSubmit={()=>{
+          const idx = tahapan.findIndex(t=>t.id===stepAktif.id);
+          const nextStepId = idx < tahapan.length-1 ? tahapan[idx+1].id : "";
+          const stafNama = stafLoketList.find(s=>s.username===fkData.stafLoket)?.nama||fkData.stafLoket;
+          const nomorFormulir = `FPB-${p.id}-${new Date().getFullYear()}`;
+          const tanggalKembali = new Date().toLocaleDateString("id-ID",{day:"2-digit",month:"long",year:"numeric"});
+          const catatanStr = JSON.stringify({
+            _type:"FORMULIR_KEMBALI", nomorFormulir, tanggalKembali,
+            alasan:{dokumen:fkData.alasanDokumen,hutang:fkData.alasanHutang},
+            rincian:fkData.rincian.filter(r=>r.dokumen||r.kode),
+            mekanisme:{potong:fkData.mPotong,setor:fkData.mSetor,cicilan:fkData.mCicilan,jumlah:fkData.jumlahHutang},
+            stafLoket:stafNama,
+            pengampu:{nama:fkData.pengampuNama,nip:fkData.pengampuNIP},
+            pemohon:{nama:fkData.pemohonNama,nip:fkData.pemohonNIP},
+          });
+          onUpdate({pengajuanId:p.id,stepId:stepAktif.id,nextStepId,isKembali:true,catatan:catatanStr,isFinal:false});
+          setShowFormKembali(false);
+        }}
+      />
+    )}
+    </>
+  );
+}
+
+// ─── FORMULIR PENGEMBALIAN MODAL ──────────────────────────────────────────────
+function FormulirKembaliModal({ p, user, fkData, setFkData, stafLoketList, saving, onClose, onSubmit }) {
+  const nomorFormulir = `FPB-${p.id}-${new Date().getFullYear()}`;
+  const tanggalKembali = new Date().toLocaleDateString("id-ID",{day:"2-digit",month:"long",year:"numeric"});
+  const al = p.alasan||"";
+  const isJD = al.includes("Janda")||al.includes("Duda")||al.includes("Meninggal");
+  const isBH = al.includes("Berhenti")||al.includes("Pemberhentian");
+  const isPD = al.includes("Pindah");
+  const isPS = al.includes("Pensiun")&&!isJD;
+
+  const updRincian = (i,f,v) => setFkData(d=>({...d,rincian:d.rincian.map((r,ix)=>ix===i?{...r,[f]:v}:r)}));
+  const stafNama = stafLoketList.find(s=>s.username===fkData.stafLoket)?.nama||"";
+  const canSubmit = (fkData.alasanDokumen||fkData.alasanHutang) && fkData.stafLoket;
+
+  const handleCetak = () => cetakFormulirKembali({p, fkData, stafLoketNama:stafNama, nomorFormulir, tanggalKembali});
+
+  const SectionTitle = ({children}) => (
+    <div style={{fontWeight:800,fontSize:11.5,color:"white",textTransform:"uppercase",letterSpacing:"0.07em",
+      marginBottom:10,padding:"7px 14px",background:"#1a4b9b",borderRadius:8}}>
+      {children}
+    </div>
+  );
+
+  const CheckRow = ({field,label}) => (
+    <div style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 14px",cursor:"pointer",
+      background:fkData[field]?"#EEF2FF":"var(--surface-container-low)",
+      border:`1.5px solid ${fkData[field]?"#4F6BCD":"var(--outline-variant)"}`,
+      borderRadius:10,marginBottom:8}}
+      onClick={()=>setFkData(d=>({...d,[field]:!d[field]}))}>
+      <input type="checkbox" checked={fkData[field]} readOnly style={{width:16,height:16,marginTop:1,accentColor:"#4F6BCD",flexShrink:0}}/>
+      <span style={{fontSize:13,fontWeight:fkData[field]?600:400,lineHeight:1.5}}>{label}</span>
+    </div>
+  );
+
+  return (
+    <div className="modal-overlay" style={{zIndex:10000}}>
+      <div className="modal" style={{maxWidth:820,maxHeight:"92vh",display:"flex",flexDirection:"column"}}>
+        {/* Header */}
+        <div className="modal-header" style={{background:"#1a4b9b",flexShrink:0}}>
+          <div>
+            <div style={{fontFamily:"var(--mono)",fontSize:10,color:"rgba(255,255,255,.6)",fontWeight:700,marginBottom:2,letterSpacing:"0.05em"}}>{nomorFormulir}</div>
+            <div style={{fontWeight:800,fontSize:14,color:"white",letterSpacing:"-0.3px"}}>Formulir Pengembalian Berkas</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.7)",marginTop:2}}>SKPP — {p.nama} · {tanggalKembali}</div>
+          </div>
+          <button className="modal-close" onClick={onClose} disabled={saving} style={{color:"white",opacity:.7}}>✕</button>
+        </div>
+
+        {/* Body — scrollable */}
+        <div className="modal-body" style={{overflowY:"auto",flex:1}}>
+
+          {/* A. Identitas (auto-filled) */}
+          <div style={{marginBottom:16}}>
+            <SectionTitle>A. Identitas Pemohon (Otomatis)</SectionTitle>
+            <div style={{background:"var(--surface-container-low)",borderRadius:12,padding:"12px 16px",border:"1px solid var(--outline-variant)"}}>
+              <div className="grid-2" style={{gap:8}}>
+                {[["Nama Pegawai",p.nama],["NIP",p.nip],["Pangkat / Golongan",p.pangkat],["Jabatan",p.jabatan],["OPD / Instansi",p.opd],["Nomor Register SKPP",p.id]].map(([l,v])=>(
+                  <div key={l} className="info-row"><span className="info-lbl">{l}</span><span className="info-val">{v||"—"}</span></div>
+                ))}
+                <div className="info-row" style={{gridColumn:"1/-1"}}>
+                  <span className="info-lbl">Jenis SKPP</span>
+                  <span className="info-val" style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+                    {[["Pensiun",isPS],["Pindah",isPD],["Berhenti",isBH],["Janda/Duda",isJD]].map(([lbl,chk])=>(
+                      <span key={lbl} style={{display:"flex",alignItems:"center",gap:5,fontSize:12}}>
+                        <span style={{width:14,height:14,border:"1.5px solid var(--outline)",borderRadius:2,display:"inline-flex",alignItems:"center",justifyContent:"center",background:chk?"#1a4b9b":"white",flexShrink:0}}>
+                          {chk&&<span style={{color:"white",fontSize:9,fontWeight:900}}>✓</span>}
+                        </span>{lbl}
+                      </span>
+                    ))}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* B. Alasan */}
+          <div style={{marginBottom:16}}>
+            <SectionTitle>B. Alasan Pengembalian Berkas *</SectionTitle>
+            <CheckRow field="alasanDokumen" label="Berkas tidak lengkap (dokumen persyaratan kurang)"/>
+            <CheckRow field="alasanHutang" label="Terdapat hutang/kewajiban finansial pegawai yang belum diselesaikan"/>
+            {!fkData.alasanDokumen&&!fkData.alasanHutang&&(
+              <div style={{fontSize:11,color:"#dc2626",padding:"0 4px"}}>* Pilih minimal satu alasan pengembalian</div>
+            )}
+          </div>
+
+          {/* C. Rincian */}
+          <div style={{marginBottom:16}}>
+            <SectionTitle>C. Rincian Dokumen Kurang / Hutang yang Harus Diselesaikan</SectionTitle>
+            <div style={{overflowX:"auto",borderRadius:10,border:"1px solid var(--outline-variant)"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,minWidth:600}}>
+                <thead>
+                  <tr style={{background:"var(--surface-container-low)"}}>
+                    {["No.","Kode","Dokumen Kurang / Jenis Hutang","Tindakan yang Diperlukan","Batas Waktu"].map((h,i)=>(
+                      <th key={h} style={{padding:"8px 10px",fontWeight:700,textAlign:i===0?"center":"left",border:"1px solid var(--outline-variant)",fontSize:11,whiteSpace:"nowrap"}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {fkData.rincian.map((row,i)=>(
+                    <tr key={i} style={{background:i%2===1?"var(--surface-container-low)":"white"}}>
+                      <td style={{padding:"5px 8px",border:"1px solid var(--outline-variant)",textAlign:"center",fontWeight:700,width:32,color:"var(--on-surface-variant)"}}>{i+1}</td>
+                      {[["kode",65,"Kode"],["dokumen",0,"Nama dokumen / jenis hutang..."],["tindakan",0,"Tindakan yang diperlukan..."],["batas",110,"dd/mm/yyyy"]].map(([f,w,ph])=>(
+                        <td key={f} style={{padding:"4px 6px",border:"1px solid var(--outline-variant)",...(w?{width:w}:{})}}>
+                          <input value={row[f]} onChange={e=>updRincian(i,f,e.target.value)} placeholder={ph}
+                            style={{width:"100%",border:"none",outline:"none",background:"transparent",fontSize:12,padding:"4px 2px"}}/>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* D. Mekanisme Hutang — only if alasanHutang */}
+          {fkData.alasanHutang && (
+            <div style={{marginBottom:16}}>
+              <SectionTitle>D. Mekanisme Penyelesaian Hutang</SectionTitle>
+              <CheckRow field="mPotong" label="Pemotongan dari hak keuangan pegawai (gaji terakhir, uang pensiun, dsb.)"/>
+              <CheckRow field="mSetor" label="Penyetoran tunai ke Rekening Kas Umum Daerah (RKUD)"/>
+              <CheckRow field="mCicilan" label="Cicilan sesuai kesepakatan (dilampiri Berita Acara Kesepakatan Pelunasan)"/>
+              <div className="form-group" style={{marginTop:10,marginBottom:0}}>
+                <label className="form-label">Jumlah Hutang yang Harus Diselesaikan</label>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontWeight:700,fontSize:15,flexShrink:0}}>Rp</span>
+                  <input className="form-control" style={{margin:0}} type="text"
+                    value={fkData.jumlahHutang} onChange={e=>setFkData(d=>({...d,jumlahHutang:e.target.value}))}
+                    placeholder="0"/>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Penandatangan */}
+          <div style={{marginBottom:0}}>
+            <SectionTitle>Penandatangan Formulir</SectionTitle>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14}}>
+              {/* Staf Loket */}
+              <div style={{background:"var(--surface-container-low)",borderRadius:12,padding:"12px 14px",border:"1px solid var(--outline-variant)"}}>
+                <div style={{fontWeight:700,fontSize:12,marginBottom:10,color:"var(--on-surface)",display:"flex",alignItems:"center",gap:6}}>
+                  <span style={{width:6,height:6,borderRadius:"50%",background:"#4F6BCD",display:"inline-block"}}/>Staf Loket *
+                </div>
+                <div className="form-group" style={{marginBottom:0}}>
+                  <label className="form-label">Pilih Staf Loket</label>
+                  <select className="form-control" style={{margin:0}} value={fkData.stafLoket} onChange={e=>setFkData(d=>({...d,stafLoket:e.target.value}))}>
+                    <option value="">-- Pilih --</option>
+                    {stafLoketList.map(s=><option key={s.username} value={s.username}>{s.nama}</option>)}
+                  </select>
+                </div>
+                {!fkData.stafLoket&&<div style={{fontSize:11,color:"#dc2626",marginTop:4}}>* Wajib dipilih</div>}
+              </div>
+              {/* Pengampu OPD */}
+              <div style={{background:"var(--surface-container-low)",borderRadius:12,padding:"12px 14px",border:"1px solid var(--outline-variant)"}}>
+                <div style={{fontWeight:700,fontSize:12,marginBottom:10,color:"var(--on-surface)",display:"flex",alignItems:"center",gap:6}}>
+                  <span style={{width:6,height:6,borderRadius:"50%",background:"#10B981",display:"inline-block"}}/>Pengampu OPD
+                </div>
+                <div className="form-group" style={{marginBottom:8}}>
+                  <label className="form-label">Nama</label>
+                  <input className="form-control" style={{margin:0}} value={fkData.pengampuNama}
+                    onChange={e=>setFkData(d=>({...d,pengampuNama:e.target.value}))} placeholder="Nama pengampu OPD"/>
+                </div>
+                <div className="form-group" style={{marginBottom:0}}>
+                  <label className="form-label">NIP</label>
+                  <input className="form-control" style={{margin:0}} value={fkData.pengampuNIP}
+                    onChange={e=>setFkData(d=>({...d,pengampuNIP:e.target.value}))} placeholder="NIP pengampu OPD"/>
+                </div>
+              </div>
+              {/* Pemohon */}
+              <div style={{background:"var(--surface-container-low)",borderRadius:12,padding:"12px 14px",border:"1px solid var(--outline-variant)"}}>
+                <div style={{fontWeight:700,fontSize:12,marginBottom:10,color:"var(--on-surface)",display:"flex",alignItems:"center",gap:6}}>
+                  <span style={{width:6,height:6,borderRadius:"50%",background:"#f97316",display:"inline-block"}}/>Pemohon / Bendahara OPD
+                </div>
+                <div className="form-group" style={{marginBottom:8}}>
+                  <label className="form-label">Nama</label>
+                  <input className="form-control" style={{margin:0}} value={fkData.pemohonNama}
+                    onChange={e=>setFkData(d=>({...d,pemohonNama:e.target.value}))} placeholder="Opsional"/>
+                </div>
+                <div className="form-group" style={{marginBottom:0}}>
+                  <label className="form-label">NIP</label>
+                  <input className="form-control" style={{margin:0}} value={fkData.pemohonNIP}
+                    onChange={e=>setFkData(d=>({...d,pemohonNIP:e.target.value}))} placeholder="Opsional"/>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{padding:"14px 20px",borderTop:"1px solid var(--outline-variant)",display:"flex",gap:8,justifyContent:"flex-end",flexShrink:0,background:"var(--surface-container-lowest)"}}>
+          <button className="btn btn-ghost" onClick={onClose} disabled={saving}>Batal</button>
+          <button className="btn" style={{background:"#f97316",color:"white",gap:6}} onClick={handleCetak} disabled={!canSubmit}>
+            🖨️ Cetak Formulir
+          </button>
+          <button className="btn" style={{background:"#dc2626",color:"white",gap:6}} onClick={onSubmit} disabled={saving||!canSubmit}>
+            {saving?"⏳ Menyimpan...":"↩ Simpan & Kembalikan Berkas"}
+          </button>
         </div>
       </div>
     </div>
