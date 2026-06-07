@@ -548,6 +548,8 @@ const S = `
     align-items: center;
     justify-content: space-between;
     flex-shrink: 0;
+    position: relative;
+    z-index: 200;
   }
   .topbar-title {
     font-weight: 700;
