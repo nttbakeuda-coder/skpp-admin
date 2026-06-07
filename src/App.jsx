@@ -1685,7 +1685,6 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
       {/* ── User card (collapse via max-height) ── */}
       <div className="sidebar-user">
         <div className="sidebar-user-name">{user.nama}</div>
-        {user.opd && <div className="sidebar-user-role-label">{user.opd}</div>}
         <span className={`badge ${roleClass}`} style={{fontSize:10,marginTop:5,display:"inline-flex"}}>{roleLabel}</span>
       </div>
 
@@ -2895,7 +2894,7 @@ function PageUsers({ onToast }) {
 
   // ── Tambah akun ──
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ username:"", password:"", nama:"", role:"staf", opd:"" });
+  const [form, setForm] = useState({ username:"", password:"", nama:"", role:"staf" });
   const [savingAdd, setSavingAdd] = useState(false);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
   const simpanAkun = async () => {
@@ -2903,10 +2902,10 @@ function PageUsers({ onToast }) {
     if (form.password.length < 6 || !/[A-Z]/.test(form.password)) return onToast("Password minimal 6 karakter & 1 huruf kapital.");
     setSavingAdd(true);
     try {
-      const res = await tambahAkun({ username: form.username.trim(), password: form.password, nama: form.nama.trim(), role: form.role, opd: form.opd.trim() });
+      const res = await tambahAkun({ username: form.username.trim(), password: form.password, nama: form.nama.trim(), role: form.role });
       if (res && res.ok) {
         onToast(res.pesan || "Akun berhasil ditambahkan.");
-        setForm({username:"",password:"",nama:"",role:"staf",opd:""});
+        setForm({username:"",password:"",nama:"",role:"staf"});
         setShowForm(false);
         muat();
       } else onToast((res && res.pesan) || "Gagal menambah akun.");
@@ -2962,18 +2961,17 @@ function PageUsers({ onToast }) {
 
       <div className="table-wrap" style={{padding:"0 0 16px"}}>
         <table>
-          <thead><tr><th>Nama Lengkap</th><th>Username</th><th>Role</th><th>OPD / Tugas</th><th style={{textAlign:"right"}}>Aksi</th></tr></thead>
+          <thead><tr><th>Nama Lengkap</th><th>Username</th><th>Role</th><th style={{textAlign:"right"}}>Aksi</th></tr></thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5}><div className="empty-box"><div className="empty-text">Memuat akun…</div></div></td></tr>
+              <tr><td colSpan={4}><div className="empty-box"><div className="empty-text">Memuat akun…</div></div></td></tr>
             ) : users.length===0 && !errLoad ? (
-              <tr><td colSpan={5}><div className="empty-box"><div className="empty-icon">👥</div><div className="empty-text">Belum ada akun</div></div></td></tr>
+              <tr><td colSpan={4}><div className="empty-box"><div className="empty-icon">👥</div><div className="empty-text">Belum ada akun</div></div></td></tr>
             ) : users.map((u,i)=>(
               <tr key={u.id||u.username||i}>
                 <td style={{fontWeight:600}}>{u.nama}</td>
                 <td style={{fontFamily:"var(--mono)",fontSize:12}}>{u.username}</td>
                 <td><span className={`badge ${u.role==="admin"?"role-admin badge-purple":u.role==="operator"?"role-operator badge-gold":"role-staf badge-blue"}`}>{u.role}</span></td>
-                <td style={{fontSize:12,color:"var(--on-surface-variant)"}}>{u.opd||"—"}</td>
                 <td>
                   <div style={{display:"flex",gap:6,justifyContent:"flex-end"}}>
                     <button className="btn btn-secondary btn-sm" onClick={()=>bukaReset(u)}>Reset Password</button>
@@ -3000,16 +2998,13 @@ function PageUsers({ onToast }) {
                 <div className="form-group"><label className="form-label">Password *</label><input className="form-control" type="password" value={form.password} onChange={e=>set("password",e.target.value)} placeholder="6+ karakter, 1 huruf kapital"/></div>
               </div>
               <div className="form-group"><label className="form-label">Nama Lengkap *</label><input className="form-control" value={form.nama} onChange={e=>set("nama",e.target.value)}/></div>
-              <div className="grid-2">
-                <div className="form-group">
-                  <label className="form-label">Role</label>
-                  <select className="form-control" value={form.role} onChange={e=>set("role",e.target.value)}>
-                    <option value="staf">Staf</option>
-                    <option value="operator">Operator SIMgaji</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
-                <div className="form-group"><label className="form-label">OPD / Tugas</label><input className="form-control" value={form.opd} onChange={e=>set("opd",e.target.value)} placeholder="Pengampuh OPD..."/></div>
+              <div className="form-group">
+                <label className="form-label">Role</label>
+                <select className="form-control" value={form.role} onChange={e=>set("role",e.target.value)}>
+                  <option value="staf">Staf</option>
+                  <option value="operator">Operator SIMgaji</option>
+                  <option value="admin">Admin</option>
+                </select>
               </div>
             </div>
             <div className="modal-footer">

@@ -28,7 +28,7 @@ export async function login({ username, password }) {
     .eq("username", username).eq("password", password).maybeSingle();
   if (error) return err("Gagal terhubung ke database.");
   if (!data)  return err("Username atau password salah.");
-  return ok({ nama: data.nama, role: data.role, opd: data.opd ?? "" });
+  return ok({ nama: data.nama, role: data.role });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -37,17 +37,17 @@ export async function login({ username, password }) {
 
 export async function daftarAkun() {
   const { data, error } = await supabase
-    .from("Akun").select("username, nama, role, opd").order("nama");
+    .from("Akun").select("username, nama, role").order("nama");
   if (error) return err("Gagal memuat daftar akun.");
   return ok({ data });
 }
 
-export async function tambahAkun({ username, password, nama, role, opd }) {
+export async function tambahAkun({ username, password, nama, role }) {
   const { data: ada } = await supabase
     .from("Akun").select("username").eq("username", username).maybeSingle();
   if (ada) return err(`Username "${username}" sudah digunakan.`);
   const { error } = await supabase
-    .from("Akun").insert({ username, password, nama, role, opd: opd ?? "" });
+    .from("Akun").insert({ username, password, nama, role });
   if (error) return err("Gagal menambahkan akun: " + error.message);
   return ok({ pesan: `Akun "${username}" berhasil ditambahkan.` });
 }
@@ -75,7 +75,7 @@ export async function profil({ username }) {
 export async function updateProfil({ username, data: formData }) {
   const { error } = await supabase
     .from("Akun")
-    .update({ nama: formData.nama, opd: formData.opd ?? "" })
+    .update({ nama: formData.nama })
     .eq("username", username);
   if (error) return err("Gagal memperbarui profil.");
   return ok({ pesan: "Profil berhasil diperbarui." });
