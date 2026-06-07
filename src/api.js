@@ -104,7 +104,7 @@ export async function gantiPassword({ username, passwordLama, passwordBaru }) {
 
 export async function daftarSemua() {
   const [{ data: pengajuan, error: e1 }, { data: riwayat }] = await Promise.all([
-    supabase.from("Pengajuan").select("*").order("tanggalMasuk", { ascending: false }),
+    supabase.from("Pengajuan").select("*").order("id", { ascending: false }),
     supabase.from("Riwayat").select("*").order("waktu", { ascending: true }),
   ]);
   if (e1) return err("Gagal memuat data pengajuan.");
