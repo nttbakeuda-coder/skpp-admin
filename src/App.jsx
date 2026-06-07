@@ -92,23 +92,23 @@ function cetakTandaTerima(p) {
 
 const TAHAPAN_A = [
   { id:"A1", label:"Berkas Diterima di Loket",      icon:"📥", pelaksana:"Staf Loket" },
-  { id:"A2", label:"Verifikasi Kelengkapan Berkas", icon:"🔍", pelaksana:"Staf Pengampuh OPD" },
-  { id:"A3", label:"Verifikasi Data PNS",           icon:"👤", pelaksana:"Staf Pengampuh OPD" },
+  { id:"A2", label:"Verifikasi Kelengkapan Berkas", icon:"🔍", pelaksana:"Staf Pengampu OPD" },
+  { id:"A3", label:"Verifikasi Data PNS",           icon:"👤", pelaksana:"Staf Pengampu OPD" },
   { id:"A4", label:"Pembuatan Draft SKPP",          icon:"📝", pelaksana:"Penyusun SKPP" },
-  { id:"A5", label:"Verifikasi & Proses Tanda Tangan Pimpinan", icon:"✅", pelaksana:"Staf Pengampuh OPD → Kasubid → Kuasa BUD" },
+  { id:"A5", label:"Verifikasi & Proses Tanda Tangan Pimpinan", icon:"✅", pelaksana:"Staf Pengampu OPD → Kasubid → Kuasa BUD" },
   { id:"A6", label:"Penempelan Foto & Penomoran",   icon:"📸", pelaksana:"Staf Loket" },
   { id:"A7", label:"SKPP Siap Diserahkan",          icon:"🎉", pelaksana:"Staf Loket", final:true },
 ];
 const TAHAPAN_B = [
   { id:"B1",  label:"Berkas Diterima di Loket",            icon:"📥", pelaksana:"Staf Loket" },
-  { id:"B2",  label:"Verifikasi Kelengkapan Berkas",       icon:"🔍", pelaksana:"Staf Pengampuh OPD" },
-  { id:"B3",  label:"Identifikasi Pangkat Pengabdian",     icon:"🏅", pelaksana:"Staf Pengampuh OPD" },
-  { id:"B4",  label:"Perhitungan Kekurangan (SIMgaji)",    icon:"🖥️", pelaksana:"Staf Pengampuh OPD" },
-  { id:"B5",  label:"Rincian Kekurangan → Bendahara OPD", icon:"📤", pelaksana:"Staf Pengampuh OPD" },
+  { id:"B2",  label:"Verifikasi Kelengkapan Berkas",       icon:"🔍", pelaksana:"Staf Pengampu OPD" },
+  { id:"B3",  label:"Identifikasi Pangkat Pengabdian",     icon:"🏅", pelaksana:"Staf Pengampu OPD" },
+  { id:"B4",  label:"Perhitungan Kekurangan (SIMgaji)",    icon:"🖥️", pelaksana:"Staf Pengampu OPD" },
+  { id:"B5",  label:"Rincian Kekurangan → Bendahara OPD", icon:"📤", pelaksana:"Staf Pengampu OPD" },
   { id:"B6",  label:"SPP-SPM Diterima dari OPD",          icon:"📋", pelaksana:"Staf Perbendaharaan" },
   { id:"B7",  label:"Proses SP2D Kekurangan Pangkat",     icon:"💳", pelaksana:"Staf Perbendaharaan" },
   { id:"B8",  label:"Pembuatan Draft SKPP",               icon:"📝", pelaksana:"Staf Perbendaharaan" },
-  { id:"B9",  label:"Verifikasi & Proses Tanda Tangan Pimpinan", icon:"✅", pelaksana:"Staf Pengampuh OPD → Kasubid → Kuasa BUD" },
+  { id:"B9",  label:"Verifikasi & Proses Tanda Tangan Pimpinan", icon:"✅", pelaksana:"Staf Pengampu OPD → Kasubid → Kuasa BUD" },
   { id:"B10", label:"Penempelan Foto & Penomoran",        icon:"📸", pelaksana:"Staf Loket" },
   { id:"B11", label:"SKPP Siap Diserahkan",               icon:"🎉", pelaksana:"Staf Loket", final:true },
 ];
@@ -119,7 +119,7 @@ const cekIzinProses = (userRole, pelaksanaTahapan) => {
     return userRole === "operator" || userRole === "staf";
   }
   if (pelaksanaTahapan === "Staf Loket" || pelaksanaTahapan === "Operator SIMgaji") return userRole === "operator";
-  if (pelaksanaTahapan === "Staf Pengampuh OPD" || pelaksanaTahapan === "Penyusun SKPP") return userRole === "staf";
+  if (pelaksanaTahapan === "Staf Pengampu OPD" || pelaksanaTahapan === "Penyusun SKPP") return userRole === "staf";
   if (pelaksanaTahapan?.includes("Kasubid") || pelaksanaTahapan?.includes("Kuasa BUD")) {
     return userRole === "staf" || userRole === "admin";
   }
@@ -1639,7 +1639,7 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
   const initials = user?.nama
     ? user.nama.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()
     : "S";
-  const roleLabel = user.role==="admin" ? "Admin" : user.role==="operator" ? "Staf Loket" : "Staf Pengampuh OPD";
+  const roleLabel = user.role==="admin" ? "Admin" : user.role==="operator" ? "Staf Loket" : "Staf Pengampu OPD";
   const roleClass = user.role==="admin" ? "badge-purple" : user.role==="operator" ? "badge-gold" : "badge-blue";
 
   return (
@@ -2987,7 +2987,7 @@ function PageUsers({ onToast }) {
               <tr key={u.id||u.username||i}>
                 <td style={{fontWeight:600}}>{u.nama}</td>
                 <td style={{fontFamily:"var(--mono)",fontSize:12}}>{u.username}</td>
-                <td><span className={`badge ${u.role==="admin"?"role-admin badge-purple":u.role==="operator"?"role-operator badge-gold":"role-staf badge-blue"}`}>{u.role}</span></td>
+                <td><span className={`badge ${u.role==="admin"?"role-admin badge-purple":u.role==="operator"?"role-operator badge-gold":"role-staf badge-blue"}`}>{u.role==="admin"?"Admin":u.role==="operator"?"Staf Loket":"Staf Pengampu OPD"}</span></td>
                 <td>
                   <div style={{display:"flex",gap:6,justifyContent:"flex-end"}}>
                     <button className="btn btn-secondary btn-sm" onClick={()=>bukaEdit(u)}>Edit</button>
@@ -3018,8 +3018,8 @@ function PageUsers({ onToast }) {
               <div className="form-group">
                 <label className="form-label">Role</label>
                 <select className="form-control" value={form.role} onChange={e=>set("role",e.target.value)}>
-                  <option value="staf">Staf</option>
-                  <option value="operator">Operator SIMgaji</option>
+                  <option value="staf">Staf Pengampu OPD</option>
+                  <option value="operator">Staf Loket</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
@@ -3084,8 +3084,8 @@ function PageUsers({ onToast }) {
               <div className="form-group">
                 <label className="form-label">Role</label>
                 <select className="form-control" value={editForm.role} onChange={e=>setEditForm(f=>({...f,role:e.target.value}))}>
-                  <option value="staf">Staf</option>
-                  <option value="operator">Operator SIMgaji</option>
+                  <option value="staf">Staf Pengampu OPD</option>
+                  <option value="operator">Staf Loket</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
@@ -3470,7 +3470,7 @@ export default function App() {
                         </div>
                         <div>
                           <div className="profile-popup-name">{user?.nama||"Pengguna"}</div>
-                          <div className="profile-popup-role">{user?.role==="admin"?"Administrator":user?.role==="operator"?"Staf Loket":"Staf Pengampuh OPD"}</div>
+                          <div className="profile-popup-role">{user?.role==="admin"?"Administrator":user?.role==="operator"?"Staf Loket":"Staf Pengampu OPD"}</div>
                         </div>
                       </div>
                       <div className="profile-popup-opd">
