@@ -684,15 +684,15 @@ const S = `
   }
   /* Profile popup */
   .profile-popup {
-    position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
+    position: fixed;
+    top: 52px;
+    right: 12px;
     width: 220px;
     background: var(--surface-container-lowest);
     border: 1px solid var(--outline-variant);
     border-radius: var(--r);
     box-shadow: var(--shadow-2);
-    z-index: 1000;
+    z-index: 9999;
     overflow: hidden;
   }
   .profile-popup-header {
@@ -735,15 +735,15 @@ const S = `
   }
   .profile-popup-opd strong { display: block; color: var(--on-surface); font-size: 11px; font-weight: 600; margin-bottom: 1px; }
   .notif-popup {
-    position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
+    position: fixed;
+    top: 52px;
+    right: 55px;
     width: 300px;
     background: var(--surface-container-lowest);
     border: 1px solid var(--outline-variant);
     border-radius: var(--r);
     box-shadow: var(--shadow-2);
-    z-index: 1000;
+    z-index: 9999;
     overflow: hidden;
   }
   .notif-popup-header {
