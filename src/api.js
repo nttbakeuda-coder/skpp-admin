@@ -52,6 +52,13 @@ export async function tambahAkun({ username, password, nama, role }) {
   return ok({ pesan: `Akun "${username}" berhasil ditambahkan.` });
 }
 
+export async function editAkun({ username, nama, role }) {
+  const { error } = await supabase
+    .from("Akun").update({ nama, role }).eq("username", username);
+  if (error) return err("Gagal memperbarui akun: " + error.message);
+  return ok({ pesan: `Akun "${username}" berhasil diperbarui.` });
+}
+
 export async function hapusAkun({ username }) {
   const { error } = await supabase.from("Akun").delete().eq("username", username);
   if (error) return err("Gagal menghapus akun: " + error.message);

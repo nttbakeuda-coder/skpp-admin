@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  login, daftarAkun, tambahAkun, hapusAkun, resetPassword,
+  login, daftarAkun, tambahAkun, editAkun, hapusAkun, resetPassword,
   profil, updateProfil, gantiPassword,
   daftarSemua, detail, inputBaru, inputBulk, updateTahap, setSelesai,
 } from "./api";
@@ -2913,6 +2913,22 @@ function PageUsers({ onToast }) {
     setSavingAdd(false);
   };
 
+  // ── Edit akun ──
+  const [editTarget, setEditTarget] = useState(null);
+  const [editForm, setEditForm] = useState({ nama:"", role:"staf" });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const bukaEdit = (u) => { setEditTarget(u); setEditForm({ nama: u.nama, role: u.role }); };
+  const simpanEdit = async () => {
+    if (!editForm.nama.trim()) return onToast("Nama tidak boleh kosong.");
+    setSavingEdit(true);
+    try {
+      const res = await editAkun({ username: editTarget.username, nama: editForm.nama.trim(), role: editForm.role });
+      if (res && res.ok) { onToast(res.pesan || "Akun diperbarui."); setEditTarget(null); muat(); }
+      else onToast((res && res.pesan) || "Gagal memperbarui akun.");
+    } catch { onToast("Gagal terhubung ke server."); }
+    setSavingEdit(false);
+  };
+
   // ── Hapus akun ──
   const hapus = async (u) => {
     if (!confirm(`Hapus akun "${u.username}"? Tindakan ini permanen.`)) return;
@@ -2974,6 +2990,7 @@ function PageUsers({ onToast }) {
                 <td><span className={`badge ${u.role==="admin"?"role-admin badge-purple":u.role==="operator"?"role-operator badge-gold":"role-staf badge-blue"}`}>{u.role}</span></td>
                 <td>
                   <div style={{display:"flex",gap:6,justifyContent:"flex-end"}}>
+                    <button className="btn btn-secondary btn-sm" onClick={()=>bukaEdit(u)}>Edit</button>
                     <button className="btn btn-secondary btn-sm" onClick={()=>bukaReset(u)}>Reset Password</button>
                     <button className="btn btn-danger btn-sm" onClick={()=>hapus(u)} disabled={u.role==="admin"&&jmlAdmin<=1}>Hapus</button>
                   </div>
@@ -3042,6 +3059,40 @@ function PageUsers({ onToast }) {
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={()=>setResetTarget(null)}>Batal</button>
               <button className="btn btn-primary" onClick={simpanReset} disabled={savingRp}>{savingRp?"Menyimpan…":"Reset Kata Sandi"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Edit Akun */}
+      {editTarget && (
+        <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setEditTarget(null);}}>
+          <div className="modal" style={{maxWidth:440}}>
+            <div className="modal-header">
+              <div style={{fontWeight:800,fontSize:14,color:"var(--primary)",letterSpacing:"-0.4px"}}>Edit Akun</div>
+              <button className="modal-close" onClick={()=>setEditTarget(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">Username</label>
+                <input className="form-control" value={editTarget.username} disabled style={{opacity:0.6}}/>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Nama Lengkap *</label>
+                <input className="form-control" value={editForm.nama} onChange={e=>setEditForm(f=>({...f,nama:e.target.value}))}/>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Role</label>
+                <select className="form-control" value={editForm.role} onChange={e=>setEditForm(f=>({...f,role:e.target.value}))}>
+                  <option value="staf">Staf</option>
+                  <option value="operator">Operator SIMgaji</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={()=>setEditTarget(null)}>Batal</button>
+              <button className="btn btn-primary" onClick={simpanEdit} disabled={savingEdit}>{savingEdit?"Menyimpan…":"Simpan Perubahan"}</button>
             </div>
           </div>
         </div>
