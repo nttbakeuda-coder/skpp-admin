@@ -1,4 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  login, daftarAkun, tambahAkun, hapusAkun, resetPassword,
+  profil, updateProfil, gantiPassword,
+  daftarSemua, detail, inputBaru, inputBulk, updateTahap, setSelesai,
+} from "./api";
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 const DAFTAR_OPD = [
@@ -74,7 +79,6 @@ function generateTemplateNomor(nomorUrut, kasubid, alasan) {
 
 // Akun staf kini dikelola langsung dari sheet "Akun" via action daftarAkun/tambahAkun/hapusAkun/resetPassword.
 
-const API_URL = "https://script.google.com/macros/s/AKfycbxdSGg9F6P4FpNJsr3jhVklVKTqxFjepQbs4mHblDDv2ySMXD8nkZfrhMcEgz8IcPOoeA/exec";
 const TANDA_TERIMA_URL = "/tanda_terima_SKPP.html";
 
 function cetakTandaTerima(p) {
@@ -122,17 +126,6 @@ const cekIzinProses = (userRole, pelaksanaTahapan) => {
   return false;
 };
 
-// ─── API ──────────────────────────────────────────────────────────────────────
-async function apiGet(params) {
-  const url = new URL(API_URL);
-  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k,v));
-  const res = await fetch(url.toString());
-  return res.json();
-}
-async function apiPost(body) {
-  const res = await fetch(API_URL, { method:"POST", body: JSON.stringify(body) });
-  return res.json();
-}
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const norm = p => ({
@@ -1549,7 +1542,7 @@ function Login({ onLogin }) {
     if (!user.trim() || !pass) { setErr("Username dan password wajib diisi."); return; }
     setIsLoggingIn(true); setErr("");
     try {
-      const res = await apiPost({ action:"login", username:user.trim(), password:pass });
+      const res = await login({ username: user.trim(), password: pass });
       if (res && res.ok) {
         localStorage.setItem("isLoggedIn","true");
         localStorage.setItem("namaStaf", res.nama);
@@ -2890,7 +2883,7 @@ function PageUsers({ onToast }) {
   const muat = useCallback(async () => {
     setLoading(true); setErrLoad("");
     try {
-      const res = await apiGet({ action:"daftarAkun" });
+      const res = await daftarAkun();
       if (res && res.ok) setUsers(res.data || []);
       else setErrLoad((res && res.pesan) || "Gagal memuat daftar akun.");
     } catch { setErrLoad("Gagal terhubung ke server."); }
@@ -2910,7 +2903,7 @@ function PageUsers({ onToast }) {
     if (form.password.length < 6 || !/[A-Z]/.test(form.password)) return onToast("Password minimal 6 karakter & 1 huruf kapital.");
     setSavingAdd(true);
     try {
-      const res = await apiPost({ action:"tambahAkun", username:form.username.trim(), password:form.password, nama:form.nama.trim(), role:form.role, opd:form.opd.trim() });
+      const res = await tambahAkun({ username: form.username.trim(), password: form.password, nama: form.nama.trim(), role: form.role, opd: form.opd.trim() });
       if (res && res.ok) {
         onToast(res.pesan || "Akun berhasil ditambahkan.");
         setForm({username:"",password:"",nama:"",role:"staf",opd:""});
@@ -2925,7 +2918,7 @@ function PageUsers({ onToast }) {
   const hapus = async (u) => {
     if (!confirm(`Hapus akun "${u.username}"? Tindakan ini permanen.`)) return;
     try {
-      const res = await apiPost({ action:"hapusAkun", username:u.username });
+      const res = await hapusAkun({ username: u.username });
       if (res && res.ok) { onToast(res.pesan || "Akun dihapus."); muat(); }
       else onToast((res && res.pesan) || "Gagal menghapus akun.");
     } catch { onToast("Gagal terhubung ke server."); }
@@ -2943,7 +2936,7 @@ function PageUsers({ onToast }) {
     if (rp.baru !== rp.konfirmasi) return onToast("Konfirmasi kata sandi tidak cocok.");
     setSavingRp(true);
     try {
-      const res = await apiPost({ action:"resetPassword", username:resetTarget.username, passwordBaru:rp.baru });
+      const res = await resetPassword({ username: resetTarget.username, passwordBaru: rp.baru });
       if (res && res.ok) { onToast(res.pesan || "Kata sandi berhasil direset."); setResetTarget(null); }
       else onToast((res && res.pesan) || "Gagal mereset kata sandi.");
     } catch { onToast("Gagal terhubung ke server."); }
@@ -3092,7 +3085,7 @@ function PageProfil({ user, onToast, onUpdateUser }) {
     let aktif = true;
     (async () => {
       try {
-        const res = await apiGet({ action:"profil", username:user?.username });
+        const res = await profil({ username: user?.username });
         if (aktif && res && res.ok && res.data) {
           const d = res.data;
           setForm(f => ({
@@ -3118,7 +3111,7 @@ function PageProfil({ user, onToast, onUpdateUser }) {
       // Sinkron ke backend; bila action belum tersedia, data tetap aman di perangkat
       let serverOk = false;
       try {
-        const res = await apiPost({ action:"updateProfil", username:user?.username, data:form });
+        const res = await updateProfil({ username: user?.username, data: form });
         serverOk = !!(res && res.ok);
       } catch {}
       onToast(serverOk
@@ -3136,12 +3129,7 @@ function PageProfil({ user, onToast, onUpdateUser }) {
     if (pwd.baru !== pwd.konfirmasi) { onToast("Konfirmasi kata sandi tidak cocok."); return; }
     setSavingPwd(true);
     try {
-      const res = await apiPost({
-        action:"gantiPassword",
-        username:user?.username,
-        passwordLama:pwd.lama,
-        passwordBaru:pwd.baru,
-      });
+      const res = await gantiPassword({ username: user?.username, passwordLama: pwd.lama, passwordBaru: pwd.baru });
       if (res && res.ok) {
         setPwd({ lama:"", baru:"", konfirmasi:"" });
         onToast("Kata sandi berhasil diperbarui.");
@@ -3275,7 +3263,7 @@ export default function App() {
   const load = useCallback(async () => {
     setLoading(true); setErrLoad("");
     try {
-      const res = await apiGet({ action:"daftarSemua" });
+      const res = await daftarSemua();
       if(res.ok) setData(res.data.map(norm));
       else setErrLoad(res.pesan||"Gagal memuat data.");
     } catch { setErrLoad("Gagal terhubung ke server."); }
@@ -3287,7 +3275,7 @@ export default function App() {
   const handleInputBaru = async (formData) => {
     setSaving(true);
     try {
-      const res = await apiPost({ action:"inputBaru", data:formData });
+      const res = await inputBaru({ data: formData });
       if(res.ok) {
         showToast(`✓ ${res.id} berhasil disimpan`);
         setShowInput(false);
@@ -3306,7 +3294,7 @@ export default function App() {
   const handleInputBulk = async (bulkData) => {
     setSaving(true);
     try {
-      const res = await apiPost({ action:"inputBulk", data:bulkData });
+      const res = await inputBulk({ data: bulkData });
       if(res.ok) {
         showToast(`✓ ${res.jumlah} pengajuan bulk berhasil disimpan`);
         setShowInput(false);
@@ -3325,18 +3313,18 @@ export default function App() {
   const handleUpdate = async (updateData) => {
     setSaving(true);
     try {
-      const res = await apiPost({ action:"updateTahap", data:updateData });
+      const res = await updateTahap({ data: updateData });
       if(res.ok) {
         showToast(updateData.isKembali?"↩ Berkas dikembalikan":updateData.isResume?"✅ Proses berhasil dilanjutkan kembali":"✓ Tahap berhasil diperbarui");
         await load();
         if(updateData.nextStepId==="") {
           try {
             const tanggalSelesai = new Date().toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"});
-            const mark = await apiPost({ action:"setSelesai", id:updateData.pengajuanId, tanggalSelesai });
+            const mark = await setSelesai({ id: updateData.pengajuanId, tanggalSelesai });
             if(mark.ok) { showToast("✓ Pengajuan ditandai Selesai pada server"); await load(); }
           } catch(e) { console.warn("Gagal menandai selesai:",e); }
         }
-        const refreshed = await apiGet({ action:"detail", id:updateData.pengajuanId });
+        const refreshed = await detail({ id: updateData.pengajuanId });
         if(refreshed.ok) setSelected(norm(refreshed.data));
       } else alert("Gagal: "+res.pesan);
     } catch { alert("Gagal terhubung ke server."); }
