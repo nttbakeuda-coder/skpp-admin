@@ -178,6 +178,12 @@ const IcoDownload = () => <Ico><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-
 const IcoCheck = () => <Ico><polyline points="20 6 9 17 4 12"/></Ico>;
 const IcoAlert = () => <Ico><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></Ico>;
 const IcoBell = () => <Ico><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></Ico>;
+const IcoBellFilled = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" fill="#f97316" stroke="#f97316" strokeWidth="1.5"/>
+    <path d="M13.73 21a2 2 0 0 1-3.46 0" fill="none" stroke="#f97316" strokeWidth="2"/>
+  </svg>
+);
 const IcoArrowBack = () => <Ico><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></Ico>;
 const IcoPrint = () => <Ico><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></Ico>;
 
@@ -784,6 +790,17 @@ const S = `
     position: absolute; left: 10px; color: var(--outline);
     display: flex; align-items: center;
   }
+  @keyframes bell-shake {
+    0%,100% { transform: rotate(0deg); }
+    10%      { transform: rotate(-14deg); }
+    20%      { transform: rotate(12deg); }
+    30%      { transform: rotate(-10deg); }
+    40%      { transform: rotate(8deg); }
+    50%      { transform: rotate(-6deg); }
+    60%      { transform: rotate(4deg); }
+    70%      { transform: rotate(-2deg); }
+    80%      { transform: rotate(1deg); }
+  }
   .notif-btn {
     position: relative;
     width: 32px; height: 32px;
@@ -794,6 +811,10 @@ const S = `
     transition: all .15s;
   }
   .notif-btn.has-notif { color: #f97316; }
+  .notif-btn.has-notif svg {
+    animation: bell-shake 2.5s ease-in-out infinite;
+    transform-origin: top center;
+  }
   .notif-btn:hover { background: var(--surface-container); color: #f97316; }
   .notif-dot {
     position: absolute; top: 5px; right: 5px;
@@ -3437,7 +3458,7 @@ export default function App() {
                 return (
                   <div style={{position:"relative"}} ref={notifRef}>
                     <button className={`notif-btn${notifUser.length>0?" has-notif":""}`} onClick={()=>{setShowNotif(v=>!v);setShowProfile(false);}}>
-                      <IcoBell size={16}/>
+                      {notifUser.length>0 ? <IcoBellFilled/> : <IcoBell/>}
                       {notifUser.length>0 && <span className="notif-dot"/>}
                     </button>
                     {showNotif && (
