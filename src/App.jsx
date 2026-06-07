@@ -793,11 +793,13 @@ const S = `
     border-radius: 50%;
     transition: all .15s;
   }
-  .notif-btn:hover { background: var(--surface-container); color: var(--primary); }
+  .notif-btn.has-notif { color: #f97316; }
+  .notif-btn:hover { background: var(--surface-container); color: #f97316; }
   .notif-dot {
-    position: absolute; top: 6px; right: 6px;
-    width: 6px; height: 6px;
-    background: var(--primary);
+    position: absolute; top: 5px; right: 5px;
+    width: 7px; height: 7px;
+    background: #ef4444;
+    border: 1.5px solid white;
     border-radius: 50%;
     border: 2px solid var(--surface-container-lowest);
   }
@@ -3424,27 +3426,39 @@ export default function App() {
               {/* Ticker motivasi — menyatu dengan topbar, tanpa badge */}
               <TickerMotivasi/>
               {/* Notifikasi lonceng */}
-              <div style={{position:"relative"}} ref={notifRef}>
-                <button className="notif-btn" onClick={()=>{setShowNotif(v=>!v);setShowProfile(false);}}>
-                  <IcoBell size={16}/>
-                  {data.filter(d=>d.status==="proses").length>0 && <span className="notif-dot"/>}
-                </button>
-                {showNotif && (
-                  <>
-                    <div className="notif-popup">
-                      <div className="notif-popup-header">🔔 Notifikasi Progres</div>
-                      {data.filter(d=>d.status==="proses").length===0 ? (
-                        <div className="notif-empty">Tidak ada notifikasi saat ini</div>
-                      ) : data.filter(d=>d.status==="proses").slice(0,5).map(d=>(
-                        <div key={d.id} className="notif-item" onClick={()=>{setSelected(d);setShowNotif(false);}}>
-                          <div className="notif-item-title">{d.nama}</div>
-                          <div className="notif-item-sub">{d.id} · Menunggu tindakan</div>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
+              {(()=>{
+                const SEMUA_TAHAPAN = [...TAHAPAN_A, ...TAHAPAN_B];
+                const notifUser = data.filter(d => {
+                  if (d.status !== "proses") return false;
+                  const step = SEMUA_TAHAPAN.find(t => t.id === d.tahapAktif);
+                  if (!step) return false;
+                  return cekIzinProses(user.role, step.pelaksana);
+                });
+                return (
+                  <div style={{position:"relative"}} ref={notifRef}>
+                    <button className={`notif-btn${notifUser.length>0?" has-notif":""}`} onClick={()=>{setShowNotif(v=>!v);setShowProfile(false);}}>
+                      <IcoBell size={16}/>
+                      {notifUser.length>0 && <span className="notif-dot"/>}
+                    </button>
+                    {showNotif && (
+                      <div className="notif-popup">
+                        <div className="notif-popup-header">🔔 Notifikasi Progres</div>
+                        {notifUser.length===0 ? (
+                          <div className="notif-empty">Tidak ada notifikasi untukmu saat ini</div>
+                        ) : notifUser.slice(0,8).map(d=>{
+                          const step = SEMUA_TAHAPAN.find(t => t.id === d.tahapAktif);
+                          return (
+                            <div key={d.id} className="notif-item" onClick={()=>{setSelected(d);setShowNotif(false);}}>
+                              <div className="notif-item-title">{d.nama}</div>
+                              <div className="notif-item-sub">{d.id} · {step?.label || "Menunggu tindakan"}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               {/* Logo Pemprov NTT + popup profil */}
               <div style={{position:"relative"}} ref={profileRef}>
                 <div
