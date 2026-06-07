@@ -5,7 +5,7 @@ const ok  = (extra = {}) => ({ ok: true,  ...extra });
 const err = (pesan)       => ({ ok: false, pesan });
 
 function kodeAksesRandom() {
-  return Math.random().toString(36).slice(2, 7).toUpperCase();
+  return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
 // ── ID generator via tabel Counter ───────────────────────────────────────────
