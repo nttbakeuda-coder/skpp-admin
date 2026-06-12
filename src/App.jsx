@@ -200,7 +200,7 @@ function cetakTandaTerimaBulk({ namaOPD, kode, grupId, items = [], daftarId = []
       <div>
         <div class="ins">Pemerintah Provinsi Nusa Tenggara Timur</div>
         <div class="nm">Badan Keuangan Daerah Provinsi Nusa Tenggara Timur</div>
-        <div class="un">Bidang Perbendaharaan – Subbidang Pengelolaan Gaji</div>
+        <div class="un">Bidang Perbendaharaan</div>
       </div>
     </div>
     <div class="titlebar">
@@ -233,7 +233,7 @@ function cetakTandaTerimaBulk({ namaOPD, kode, grupId, items = [], daftarId = []
       </table>
       <div class="instructions">
         <div class="inst-title">📱 Cara Melacak Status Pengajuan SKPP Secara Daring</div>
-        <div class="inst-item"><div class="inst-num">1</div><span>Buka portal: <strong>skpp-admin.vercel.app</strong> dari HP atau komputer</span></div>
+        <div class="inst-item"><div class="inst-num">1</div><span>Buka portal: <strong>sipasti.my.id</strong> dari HP atau komputer</span></div>
         <div class="inst-item"><div class="inst-num">2</div><span>Masukkan <strong>Nomor Pengajuan</strong> dan <strong>Kode Akses Bersama</strong> di atas</span></div>
         <div class="inst-item"><div class="inst-num">3</div><span>Satu kode akses ini dapat memantau status <strong>seluruh ${items.length} SKPP</strong> sekaligus</span></div>
       </div>
