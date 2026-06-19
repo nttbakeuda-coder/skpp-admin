@@ -2,11 +2,17 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   login, logout, sesiSaatIni,
   daftarAkun, tambahAkun, editAkun, hapusAkun, resetPassword,
+  ajukanResetPassword, daftarPermintaanReset, tandaiResetSelesai, hapusPermintaanReset,
   profil, updateProfil, gantiPassword,
   daftarSemua, detail, inputBaru, inputBulk, updateTahap, setSelesai, hapusPengajuan,
 } from "./api";
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
+// Batas waktu sesi tanpa aktivitas: setelah IDLE_LIMIT_MINUTES idle, muncul
+// peringatan; jika tetap tidak ada aktivitas selama IDLE_WARNING_SECONDS, logout.
+const IDLE_LIMIT_MINUTES = 15;
+const IDLE_WARNING_SECONDS = 60;
+
 const DAFTAR_OPD = [
   "Dinas Pendidikan dan Kebudayaan Provinsi NTT",
   "Dinas Kesehatan Provinsi NTT",
@@ -90,6 +96,61 @@ const DAFTAR_TINDAKAN = [
   "Memperbarui dokumen yang sudah kedaluwarsa",
   "Melengkapi tanda tangan / stempel basah",
   "Melampirkan dokumen pendukung tambahan",
+];
+
+// ── Daftar Periksa Verifikasi Berkas (Lampiran 1) ──────────────────────────
+// Dokumen persyaratan dikelompokkan sesuai lampiran. {t}=teks, {ket}=catatan kolom.
+const DP_DOKUMEN_GRUP = [
+  { grup:"I. DOKUMEN UMUM (WAJIB UNTUK SEMUA JENIS SKPP)", items:[
+    { t:"Fotokopi KTP Pegawai yang Bersangkutan" },
+    { t:"Fotokopi Kartu Keluarga yang masih berlaku" },
+    { t:"Surat Pernyataan Bebas Hutang dari Bendahara Gaji OPD (bermaterai)" },
+    { t:"Pas foto terbaru ukuran 4×6 berlatar merah/biru sebanyak 3 (tiga) lembar" },
+  ]},
+  { grup:"II. DOKUMEN TAMBAHAN — PENSIUN (BUP / APS / CACAT / MENINGGAL)", items:[
+    { t:"SK Pensiun / Persetujuan Pensiun yang telah ditetapkan oleh BKN / Pejabat Pembina Kepegawaian" },
+    { t:"Fotokopi Surat Keputusan Kenaikan Pangkat Pengabdian (jika ada dan belum berlaku pada tanggal pensiun)", ket:"Jalur B" },
+    { t:"Fotokopi Kartu Taspen" },
+    { t:"Fotokopi Akta Perkawinan / Buku Nikah (jika ada tanggungan suami/istri)", ket:"Jika berlaku" },
+    { t:"Fotokopi Akta Kelahiran anak yang masih menjadi tanggungan (usia < 25 tahun / belum bekerja)", ket:"Jika berlaku" },
+  ]},
+  { grup:"III. DOKUMEN TAMBAHAN — PINDAH / MUTASI", items:[
+    { t:"SK Pindah / Mutasi dari instansi yang berwenang" },
+    { t:"Surat Pernyataan Melaksanakan Tugas (SPMT) di instansi tujuan" },
+    { t:"Surat Keterangan Bebas Temuan dari Inspektorat (jika dipersyaratkan)", ket:"Jika berlaku" },
+  ]},
+  { grup:"IV. DOKUMEN TAMBAHAN — BERHENTI ATAS PERMINTAAN SENDIRI (APS)", items:[
+    { t:"SK Pemberhentian yang telah ditetapkan oleh pejabat berwenang" },
+    { t:"Surat Pernyataan Tidak Menuntut Hak atas Pensiun (jika APS sebelum BUP)", ket:"Jika berlaku" },
+  ]},
+  { grup:"V. DOKUMEN TAMBAHAN — JANDA / DUDA", items:[
+    { t:"Akta Kematian Pegawai yang bersangkutan (asli atau dilegalisir)" },
+    { t:"Fotokopi Akta Perkawinan / Buku Nikah (dilegalisir)" },
+    { t:"Fotokopi KTP Janda/Duda yang masih berlaku" },
+  ]},
+];
+const DP_DOKUMEN_FLAT = DP_DOKUMEN_GRUP.flatMap(g => g.items);
+// Offset indeks awal tiap grup di dalam DP_DOKUMEN_FLAT (agar state tetap selaras
+// meski sebagian grup disembunyikan sesuai Jenis SKPP).
+const DP_GRUP_OFFSET = (() => { let o=0; return DP_DOKUMEN_GRUP.map(g => { const s=o; o+=g.items.length; return s; }); })();
+// Grup mana yang relevan untuk sebuah Jenis SKPP. Grup 0 (Umum) selalu tampil;
+// 1=Pensiun, 2=Pindah, 3=Berhenti/APS, 4=Janda/Duda.
+function dpGrupTampil(alasan) {
+  const al = alasan||"";
+  const isJD = al.includes("Janda")||al.includes("Duda")||al.includes("Meninggal");
+  const isBH = al.includes("Berhenti")||al.includes("Pemberhentian");
+  const isPD = al.includes("Pindah");
+  const isPS = al.includes("Pensiun")&&!isJD;
+  return [true, isPS, isPD, isBH, isJD];
+}
+const DP_HUTANG = [
+  "Kelebihan pembayaran gaji pokok",
+  "Kelebihan pembayaran tunjangan jabatan / tunjangan umum",
+  "Kelebihan pembayaran tunjangan kinerja / tambahan penghasilan",
+  "Kelebihan pembayaran honorarium atau penghasilan lainnya",
+  "Uang muka perjalanan dinas yang belum dipertanggungjawabkan",
+  "Pinjaman / talangan daerah yang belum dilunasi",
+  "Kewajiban finansial lain yang tercatat dalam sistem penggajian OPD",
 ];
 
 const KODE_KASUBID = {
@@ -257,8 +318,7 @@ function cetakTandaTerimaBulk({ namaOPD, kode, grupId, items = [], daftarId = []
 const TAHAPAN_A = [
   { id:"A1", label:"Berkas Diterima di Loket",      icon:"📥", pelaksana:"Staf Loket" },
   { id:"A2", label:"Verifikasi Kelengkapan Berkas", icon:"🔍", pelaksana:"Staf Pengampu OPD" },
-  { id:"A3", label:"Verifikasi Data PNS",           icon:"👤", pelaksana:"Staf Pengampu OPD" },
-  { id:"A4", label:"Pembuatan Draft SKPP",          icon:"📝", pelaksana:"Penyusun SKPP" },
+  { id:"A4", label:"Pembuatan Draft SKPP",          icon:"📝", pelaksana:"Staf Perbendaharaan" },
   { id:"A5", label:"Verifikasi & Proses Tanda Tangan Pimpinan", icon:"✅", pelaksana:"Staf Pengampu OPD → Kasubid → Kuasa BUD" },
   { id:"A6", label:"Penempelan Foto & Penomoran",   icon:"📸", pelaksana:"Staf Loket" },
   { id:"A7", label:"SKPP Siap Diserahkan",          icon:"🎉", pelaksana:"Staf Loket", final:true },
@@ -266,11 +326,10 @@ const TAHAPAN_A = [
 const TAHAPAN_B = [
   { id:"B1",  label:"Berkas Diterima di Loket",            icon:"📥", pelaksana:"Staf Loket" },
   { id:"B2",  label:"Verifikasi Kelengkapan Berkas",       icon:"🔍", pelaksana:"Staf Pengampu OPD" },
-  { id:"B3",  label:"Identifikasi Pangkat Pengabdian",     icon:"🏅", pelaksana:"Staf Pengampu OPD" },
   { id:"B4",  label:"Perhitungan Kekurangan (SIMgaji)",    icon:"🖥️", pelaksana:"Staf Pengampu OPD" },
-  { id:"B5",  label:"Rincian Kekurangan → Bendahara OPD", icon:"📤", pelaksana:"Staf Pengampu OPD" },
+  { id:"B5",  label:"Rincian Perhitungan Kekurangan Pembayaran Pangkat Pengabdian diserahkan ke Bendahara OPD", icon:"📤", pelaksana:"Staf Pengampu OPD" },
   { id:"B6",  label:"SPP-SPM Diterima dari OPD",          icon:"📋", pelaksana:"Staf Perbendaharaan" },
-  { id:"B7",  label:"Proses SP2D Kekurangan Pangkat",     icon:"💳", pelaksana:"Staf Perbendaharaan" },
+  { id:"B7",  label:"Proses SP2D Kekurangan Pembayaran Pangkat Pengabdian", icon:"💳", pelaksana:"Staf Perbendaharaan" },
   { id:"B8",  label:"Pembuatan Draft SKPP",               icon:"📝", pelaksana:"Staf Perbendaharaan" },
   { id:"B9",  label:"Verifikasi & Proses Tanda Tangan Pimpinan", icon:"✅", pelaksana:"Staf Pengampu OPD → Kasubid → Kuasa BUD" },
   { id:"B10", label:"Penempelan Foto & Penomoran",        icon:"📸", pelaksana:"Staf Loket" },
@@ -2060,7 +2119,7 @@ function SipLogo({ tone="light" }) {
   );
 }
 
-function SipTextField({ label, hint, error, leadingIcon=null, trailingSlot=null, required=false, type="text", style={}, ...rest }) {
+function SipTextField({ label, hint, error, leadingIcon=null, trailingSlot=null, required=false, type="text", style={}, onFocus, onBlur, ...rest }) {
   const [focused, setFocused] = useState(false);
   const hasError = Boolean(error);
   const borderColor = hasError ? "var(--danger-500)" : focused ? "var(--border-focus)" : "var(--field-border)";
@@ -2079,8 +2138,8 @@ function SipTextField({ label, hint, error, leadingIcon=null, trailingSlot=null,
           <span style={{display:"flex",alignItems:"center",paddingLeft:14,color:focused?"var(--blue-600)":"var(--grey-500)",flex:"none",transition:"color var(--dur-fast)"}}>{leadingIcon}</span>
         )}
         <input type={type} required={required} aria-invalid={hasError||undefined}
-          onFocus={e=>{setFocused(true);rest.onFocus&&rest.onFocus(e);}}
-          onBlur={e=>{setFocused(false);rest.onBlur&&rest.onBlur(e);}}
+          onFocus={e=>{setFocused(true);onFocus&&onFocus(e);}}
+          onBlur={e=>{setFocused(false);onBlur&&onBlur(e);}}
           style={{flex:1,minWidth:0,height:"100%",border:"none",outline:"none",background:"transparent",
             padding:leadingIcon?"0 12px 0 11px":"0 14px",font:"var(--font-body)",color:"var(--text-strong)",...style}}
           {...rest}/>
@@ -2193,6 +2252,100 @@ const LOGIN_PHOTOS = [
   { src:"/photo-team-6.jpeg", pos:"center center", size:"contain" },
 ];
 
+// Modal "Lupa Kata Sandi" — kirim permintaan reset ke administrator.
+function ForgotPasswordModal({ onClose, prefillUser = "" }) {
+  const [fpUser, setFpUser] = useState(prefillUser || "");
+  const [fpAlasan, setFpAlasan] = useState("");
+  const [sending, setSending] = useState(false);
+  const [err, setErr] = useState("");
+  const [done, setDone] = useState(false);
+
+  const kirim = async () => {
+    if (!fpUser.trim()) { setErr("NIP / Username wajib diisi."); return; }
+    setSending(true); setErr("");
+    try {
+      const res = await ajukanResetPassword({ username: fpUser, alasan: fpAlasan });
+      if (res && res.ok) setDone(true);
+      else setErr((res && res.pesan) || "Gagal mengirim permintaan.");
+    } catch { setErr("Gagal terhubung ke server."); }
+    setSending(false);
+  };
+
+  const overlay = { position:"fixed",inset:0,zIndex:60,display:"flex",alignItems:"center",justifyContent:"center",
+    padding:20,background:"rgba(8,18,36,0.55)",backdropFilter:"blur(3px)" };
+  const card = { width:"100%",maxWidth:440,background:"#fff",borderRadius:18,overflow:"hidden",
+    boxShadow:"0 24px 60px rgba(8,18,36,0.35)",fontFamily:"var(--font-sans, system-ui, sans-serif)" };
+  const head = { background:"linear-gradient(135deg,#0D2137 0%,#16345a 100%)",color:"#fff",padding:"20px 24px" };
+  const body = { padding:"22px 24px" };
+  const labelS = { display:"block",fontSize:12.5,fontWeight:700,color:"#1e2a3a",marginBottom:7 };
+  const inputS = { width:"100%",height:46,border:"1.5px solid #d6deea",borderRadius:11,padding:"0 14px",
+    fontSize:14,color:"#16243a",outline:"none",boxSizing:"border-box",background:"#f8fafc" };
+  const taS = { ...inputS,height:78,padding:"11px 14px",resize:"vertical",fontFamily:"inherit",lineHeight:1.45 };
+  const btnPri = { flex:1,height:48,border:"none",borderRadius:11,background:"#0D2137",color:"#fff",
+    fontSize:14.5,fontWeight:700,cursor:sending?"not-allowed":"pointer",opacity:sending?0.7:1 };
+  const btnSec = { height:48,padding:"0 20px",border:"1.5px solid #d6deea",borderRadius:11,background:"#fff",
+    color:"#3a495e",fontSize:14,fontWeight:600,cursor:"pointer" };
+
+  return (
+    <div style={overlay} onClick={e=>{ if(e.target===e.currentTarget) onClose(); }}>
+      <div style={card} onClick={e=>e.stopPropagation()}>
+        <div style={head}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:20}}>🔑</span>
+              <strong style={{fontSize:16,letterSpacing:"-0.3px"}}>Lupa Kata Sandi</strong>
+            </div>
+            <button onClick={onClose} aria-label="Tutup"
+              style={{border:"none",background:"transparent",color:"rgba(255,255,255,0.75)",fontSize:20,cursor:"pointer",lineHeight:1}}>×</button>
+          </div>
+          <p style={{margin:"8px 0 0",fontSize:12.5,lineHeight:1.5,color:"rgba(255,255,255,0.78)"}}>
+            Ajukan permintaan reset kata sandi. Administrator SI-PASTI akan memverifikasi
+            dan menetapkan kata sandi baru untuk Anda.
+          </p>
+        </div>
+
+        {done ? (
+          <div style={{...body,textAlign:"center"}}>
+            <div style={{width:58,height:58,margin:"6px auto 14px",borderRadius:"50%",background:"#e6f7ee",
+              display:"flex",alignItems:"center",justifyContent:"center",fontSize:28}}>✓</div>
+            <div style={{fontSize:15.5,fontWeight:800,color:"#16243a",marginBottom:6}}>Permintaan Terkirim</div>
+            <p style={{fontSize:13,lineHeight:1.55,color:"#5a6b80",margin:"0 0 20px"}}>
+              Permintaan reset kata sandi untuk <strong style={{color:"#16243a"}}>{fpUser.trim()}</strong> telah
+              dikirim. Silakan hubungi administrator untuk konfirmasi kata sandi baru Anda.
+            </p>
+            <button onClick={onClose} style={{...btnPri,width:"100%"}}>Selesai</button>
+          </div>
+        ) : (
+          <div style={body}>
+            {err && (
+              <div style={{display:"flex",gap:9,alignItems:"flex-start",padding:"10px 12px",marginBottom:14,
+                background:"#fdecec",border:"1px solid #f3b4b4",borderRadius:10,color:"#a11212",fontSize:12.5}}>
+                <span>⚠</span><span>{err}</span>
+              </div>
+            )}
+            <div style={{marginBottom:16}}>
+              <label style={labelS}>NIP / Username <span style={{color:"#d33"}}>*</span></label>
+              <input style={inputS} value={fpUser} onChange={e=>setFpUser(e.target.value)}
+                placeholder="Masukkan NIP atau username Anda" autoFocus/>
+            </div>
+            <div style={{marginBottom:20}}>
+              <label style={labelS}>Keterangan <span style={{fontWeight:400,color:"#90a0b5"}}>(opsional)</span></label>
+              <textarea style={taS} value={fpAlasan} onChange={e=>setFpAlasan(e.target.value)}
+                placeholder="Mis. lupa kata sandi, akun terkunci, dll."/>
+            </div>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={onClose} style={btnSec} disabled={sending}>Batal</button>
+              <button onClick={kirim} style={btnPri} disabled={sending}>
+                {sending ? "Mengirim…" : "Kirim Permintaan"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Login({ onLogin }) {
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
@@ -2200,6 +2353,14 @@ function Login({ onLogin }) {
   const [err, setErr] = useState("");
   const [fieldErr, setFieldErr] = useState({});
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  // Trik anti-autofill: field dibuat read-only saat halaman dibuka sehingga
+  // browser tidak mengisinya otomatis. Saat kolom diklik (focus), read-only
+  // dilepas → pengguna bisa mengetik DAN browser tetap menawarkan kredensial
+  // tersimpan lewat dropdown bawaan.
+  const [userRO, setUserRO] = useState(true);
+  const [passRO, setPassRO] = useState(true);
+  // Lupa kata sandi → kirim permintaan reset ke administrator.
+  const [showForgot, setShowForgot] = useState(false);
   // Foto latar bergantian setiap 6 detik (cross-fade)
   const [photoIdx, setPhotoIdx] = useState(0);
   useEffect(() => {
@@ -2280,9 +2441,12 @@ function Login({ onLogin }) {
 
           <SipTextField
             label="NIP / Username"
+            name="username"
             leadingIcon={<SipUserIcon/>}
             placeholder="Masukkan NIP atau username"
             autoComplete="username"
+            readOnly={userRO}
+            onFocus={()=>setUserRO(false)}
             value={user}
             onChange={e=>setUser(e.target.value)}
             error={fieldErr.user}
@@ -2292,8 +2456,11 @@ function Login({ onLogin }) {
 
           <SipPasswordField
             label="Kata Sandi"
+            name="password"
             placeholder="Masukkan kata sandi"
             autoComplete="current-password"
+            readOnly={passRO}
+            onFocus={()=>setPassRO(false)}
             value={pass}
             onChange={e=>setPass(e.target.value)}
             error={fieldErr.pass}
@@ -2303,7 +2470,7 @@ function Login({ onLogin }) {
 
           <div className="login-row">
             <SipCheckbox label="Ingat saya" checked={remember} onChange={e=>setRemember(e.target.checked)}/>
-            <a href="#" className="login-forgot" onClick={e=>e.preventDefault()}>Lupa Kata Sandi?</a>
+            <a href="#" className="login-forgot" onClick={e=>{e.preventDefault();setShowForgot(true);}}>Lupa Kata Sandi?</a>
           </div>
 
           <SipButton loading={isLoggingIn} trailingIcon={<SipArrow/>}>
@@ -2315,6 +2482,8 @@ function Login({ onLogin }) {
           </p>
         </form>
       </main>
+
+      {showForgot && <ForgotPasswordModal prefillUser={user} onClose={()=>setShowForgot(false)}/>}
     </div>
   );
 }
@@ -2486,7 +2655,7 @@ function Timeline({ p }) {
 }
 
 // ─── CETAK FORMULIR PENGEMBALIAN ──────────────────────────────────────────────
-function cetakFormulirKembali({ p, fkData, stafLoketNama, nomorFormulir, tanggalKembali }) {
+function cetakFormulirKembali({ p, fkData, stafLoketNama, stafLoketNIP, nomorFormulir, tanggalKembali }) {
   const al = p.alasan||"";
   const isJD = al.includes("Janda")||al.includes("Duda")||al.includes("Meninggal");
   const isBH = al.includes("Berhenti")||al.includes("Pemberhentian");
@@ -2584,7 +2753,7 @@ function cetakFormulirKembali({ p, fkData, stafLoketNama, nomorFormulir, tanggal
   </table>
   <p style="text-align:right;margin:4px 0">Kupang, ${tanggalKembali}</p>
   <div class="fg">
-    <div><b>Staf Loket,</b><div class="sp"></div><p>Nama : ${stafLoketNama||"___________________"}</p></div>
+    <div><b>Staf Loket,</b><div class="sp"></div><p>Nama : ${stafLoketNama||"___________________"}<br/>NIP &nbsp;&nbsp;: ${stafLoketNIP||"___________________"}</p></div>
     <div><b>Pengampu OPD,</b><div class="sp"></div><p>Nama : ${fkData.pengampuNama||"___________________"}<br/>NIP &nbsp;&nbsp;: ${fkData.pengampuNIP||"___________________"}</p></div>
     <div><b>Pemohon / Bendahara OPD,</b><div class="sp"></div><p>Nama : ${fkData.pemohonNama||"___________________"}<br/>NIP &nbsp;&nbsp;: ${fkData.pemohonNIP||"___________________"}</p></div>
   </div>
@@ -2593,6 +2762,131 @@ function cetakFormulirKembali({ p, fkData, stafLoketNama, nomorFormulir, tanggal
   <script>window.onload=function(){window.print()}</script>
   </body></html>`;
   const win = window.open("","_blank","width=820,height=720");
+  win.document.write(html);
+  win.document.close();
+}
+
+// Cetak "Daftar Periksa Verifikasi Berkas" (Lampiran 1) — logo Pemprov di kanan atas.
+function cetakDaftarPeriksa({ p, dpData }) {
+  const al = p.alasan||"";
+  const isJD = al.includes("Janda")||al.includes("Duda")||al.includes("Meninggal");
+  const isBH = al.includes("Berhenti")||al.includes("Pemberhentian");
+  const isPD = al.includes("Pindah");
+  const isPS = al.includes("Pensiun")&&!isJD;
+  const cb = v => v?"☑":"☐";
+  const logoSrc = `${window.location.origin}/logo-ntt.png`;
+  const td = "padding:5px 7px;border:1px solid #999";
+  const tc = "text-align:center;width:62px";
+  const tgl = dpData.tanggal ? fmtTglSingkat(dpData.tanggal) : "";
+
+  // Bagian A — checklist dokumen, hanya grup yang relevan dengan Jenis SKPP.
+  const tampil = dpGrupTampil(al);
+  let no = 0;
+  const barisDok = DP_DOKUMEN_GRUP.map((g,gi) => {
+    if (!tampil[gi]) return "";
+    const head = `<tr class="gh"><td colspan="5">${g.grup}</td></tr>`;
+    const rows = g.items.map((it,j) => {
+      const gIndex = DP_GRUP_OFFSET[gi] + j;   // indeks state
+      const num = ++no;                        // nomor cetak berurutan
+      const st = dpData.dok[gIndex] || {};
+      const ketCetak = st.ket || it.ket || "";
+      return `<tr>
+        <td style="text-align:center;${td}">${num}</td>
+        <td style="${td}">${it.t}</td>
+        <td style="${tc};${td}">${cb(st.status==="ada")}</td>
+        <td style="${tc};${td}">${cb(st.status==="tidak")}</td>
+        <td style="${td};font-style:${st.ket?'normal':'italic'}">${ketCetak}</td>
+      </tr>`;
+    }).join("");
+    return head + rows;
+  }).join("");
+
+  // Bagian B — pengecekan hutang.
+  const barisHutang = DP_HUTANG.map((h,i)=>{
+    const st = dpData.hutang[i] || {};
+    return `<tr>
+      <td style="text-align:center;${td}">${i+1}</td>
+      <td style="${td}">${h}</td>
+      <td style="${tc};${td}">${cb(st.status==="ada")}</td>
+      <td style="${tc};${td}">${cb(st.status==="tidak")}</td>
+      <td style="${td}">${st.ket||""}</td>
+    </tr>`;
+  }).join("");
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+  <title>Daftar Periksa Verifikasi Berkas — ${p.nama}</title>
+  <style>
+    *{box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:10pt;margin:0;padding:18px 22px;color:#000}
+    .hd{display:flex;align-items:center;gap:14px;margin-bottom:8px}
+    .hd-sp{width:74px;flex-shrink:0}
+    .hd-logo{width:74px;height:74px;object-fit:contain;flex-shrink:0}
+    .hd-txt{flex:1;text-align:center}.hd b{font-size:13pt}.hd p{margin:2px 0;font-size:9pt}
+    hr{border:none;border-top:1.5px solid #000;margin:3px 0}
+    table{width:100%;border-collapse:collapse;margin-bottom:6px}
+    td,th{border:1px solid #999;padding:5px 7px;font-size:9.5pt;vertical-align:top}
+    th{background:#e5e7eb;text-align:center;font-weight:bold}
+    .sh td{font-weight:bold;font-size:10pt;text-align:center;background:#d1d5db;color:#000}
+    .gh td{font-weight:bold;font-size:9.5pt;background:#f0f0f0;font-style:italic}
+    .lr td:first-child{font-weight:bold;background:#f6f6f6;width:32%}
+    .nb{border:none!important;background:transparent!important}
+    .sign td{vertical-align:top;height:96px}
+    @media print{body{margin:0;padding:14px 18px}.pgbreak{page-break-before:always}}
+  </style></head><body>
+  <div class="hd">
+    <img class="hd-logo" src="${logoSrc}" alt="Logo Provinsi NTT"/>
+    <div class="hd-txt">
+      <b>PEMERINTAH PROVINSI NUSA TENGGARA TIMUR</b><br/>
+      <b style="font-size:14pt">BADAN KEUANGAN DAERAH</b>
+      <p>Jalan Raya El Tari Nomor 52 Kupang</p>
+      <p>Laman : https://bakeuda.nttprov.go.id, Email : badankeuanganprovntt@gmail.com</p>
+    </div>
+    <div class="hd-sp"></div>
+  </div>
+  <hr/><hr style="margin-top:2px"/>
+  <table style="border:none;margin:6px 0 8px">
+    <tr><td class="nb" colspan="3" style="text-align:center;font-weight:bold;font-size:11pt">DAFTAR PERIKSA VERIFIKASI BERKAS</td></tr>
+    <tr><td class="nb" colspan="3" style="text-align:center;font-size:9.5pt">PERMOHONAN PENERBITAN SURAT KETERANGAN PENGHENTIAN PEMBAYARAN (SKPP)</td></tr>
+  </table>
+  <table>
+    <tr class="lr"><td>Nama Pegawai</td><td style="width:4%">:</td><td>${p.nama||"—"}</td></tr>
+    <tr class="lr"><td>NIP</td><td>:</td><td>${p.nip||"—"}</td></tr>
+    <tr class="lr"><td>Pangkat / Golongan</td><td>:</td><td>${p.pangkat||"—"}</td></tr>
+    <tr class="lr"><td>Jabatan</td><td>:</td><td>${p.jabatan||"—"}</td></tr>
+    <tr class="lr"><td>OPD</td><td>:</td><td>${p.opd||"—"}</td></tr>
+    <tr class="lr"><td>Jenis SKPP</td><td>:</td><td>${cb(isPS)} Pensiun &nbsp;&nbsp; ${cb(isPD)} Pindah &nbsp;&nbsp; ${cb(isBH)} Berhenti &nbsp;&nbsp; ${cb(isJD)} Janda/Duda</td></tr>
+    <tr class="lr"><td>Nomor Register</td><td>:</td><td>${p.id||"—"}</td></tr>
+    <tr class="lr"><td>Tanggal Pengajuan</td><td>:</td><td>${p.tanggalMasuk||"—"}</td></tr>
+  </table>
+  <table>
+    <tr class="sh"><td colspan="5">A. KELENGKAPAN DOKUMEN PERSYARATAN</td></tr>
+    <tr><th style="width:34px">No.</th><th>Dokumen Persyaratan</th><th style="width:62px">Ada</th><th style="width:62px">Tidak Ada</th><th style="width:150px">Keterangan</th></tr>
+    ${barisDok}
+  </table>
+  <table>
+    <tr class="sh"><td colspan="5">B. PENGECEKAN HUTANG / KEWAJIBAN FINANSIAL PEGAWAI KEPADA NEGARA / DAERAH</td></tr>
+    <tr><th style="width:34px">No.</th><th>Jenis Kewajiban / Hutang</th><th style="width:62px">Ada</th><th style="width:62px">Tidak Ada</th><th style="width:150px">Keterangan / Jumlah (Rp)</th></tr>
+    ${barisHutang}
+    <tr><td colspan="2" style="${td};font-weight:bold;text-align:center;vertical-align:middle">KESIMPULAN PENGECEKAN HUTANG</td>
+      <td colspan="3" style="${td}">${cb(dpData.kesimpulanHutang==="bebas")} Bebas Hutang / Tidak Ada Kewajiban &nbsp;&nbsp;&nbsp; ${cb(dpData.kesimpulanHutang==="hutang")} Terdapat Hutang (lihat keterangan)</td></tr>
+  </table>
+  <table>
+    <tr class="sh"><td>C. KESIMPULAN VERIFIKASI DAN TINDAK LANJUT</td></tr>
+    <tr><td>${cb(dpData.kesimpulan==="lengkap")} BERKAS LENGKAP DAN BEBAS HUTANG — Dapat diproses lebih lanjut</td></tr>
+    <tr><td>${cb(dpData.kesimpulan==="kembali")} BERKAS TIDAK LENGKAP / TERDAPAT HUTANG — Dikembalikan kepada Pemohon</td></tr>
+    <tr><td style="height:54px"><b>Catatan:</b> ${dpData.catatan||""}</td></tr>
+  </table>
+  <p style="text-align:right;margin:4px 0">${dpData.tempat||"Kupang"}, ${tgl||"_____ / _____ / _______"}</p>
+  <table>
+    <tr><th style="width:50%">Diterima oleh / Staf Loket</th><th>Diverifikasi oleh / Pengampu OPD</th></tr>
+    <tr class="sign">
+      <td><div style="margin-top:70px">Nama : ${dpData.stafLoketNama||"___________________"}<br/>NIP &nbsp;&nbsp;: ${dpData.stafLoketNIP||"___________________"}</div></td>
+      <td><div style="margin-top:70px">Nama : ${dpData.pengampuNama||"___________________"}<br/>NIP &nbsp;&nbsp;: ${dpData.pengampuNIP||"___________________"}</div></td>
+    </tr>
+  </table>
+  <p style="font-size:8.5pt;font-style:italic;margin-top:4px">Keterangan: ☑ = Centang pada kolom yang sesuai | Jalur B hanya berlaku jika SK Pangkat Pengabdian BELUM berlaku pada tanggal pensiun.</p>
+  <script>window.onload=function(){window.print()}</script>
+  </body></html>`;
+  const win = window.open("","_blank","width=860,height=760");
   win.document.write(html);
   win.document.close();
 }
@@ -2615,7 +2909,20 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
   });
   const [stafLoketList, setStafLoketList] = useState([]);
   const [pengampuList, setPengampuList] = useState([]);
+  // Daftar Periksa Verifikasi (tahap A2/B2).
+  const [showDaftarPeriksa, setShowDaftarPeriksa] = useState(false);
+  const hariIni = (() => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
+  const [dpData, setDpData] = useState({
+    dok: DP_DOKUMEN_FLAT.map(()=>({status:"",ket:""})),
+    hutang: DP_HUTANG.map(()=>({status:"",ket:""})),
+    kesimpulanHutang:"", kesimpulan:"", catatan:"",
+    tempat:"Kupang", tanggal:hariIni,
+    stafLoketNama:"", stafLoketNIP:"", stafLoketUser:"",
+    // Pengampu OPD otomatis dari akun yang sedang login (NIP = username).
+    pengampuUser:user?.username||"", pengampuNama:user?.nama||"", pengampuNIP:user?.username||"",
+  });
   const isPenomoran = (stepId) => stepId === "A6" || stepId === "B10";
+  const isVerifikasi = (stepId) => stepId === "A2" || stepId === "B2";
   const tahapan = p.jalur==="A" ? TAHAPAN_A : TAHAPAN_B;
   // Tahap aktif = tahap yang ditunjuk tahapAktif dan belum selesai.
   // Fallback: jika tahapAktif kosong/sudah selesai (mis. data lama yang
@@ -2745,6 +3052,24 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
                     <span>ℹ️</span>
                     <div><strong>Tahap aktif: {stepAktif.icon} {stepAktif.label}</strong><br/><span style={{fontSize:12}}>Pelaksana: {stepAktif.pelaksana}</span></div>
                   </div>
+                  {isVerifikasi(stepAktif.id) ? (
+                    <div style={{background:"#f0fdfa",border:"1.5px solid #99f6e4",borderRadius:12,padding:"16px 18px"}}>
+                      <div style={{fontWeight:800,fontSize:13.5,color:"#0E5A59",marginBottom:6}}>📋 Verifikasi Berkas dengan Daftar Periksa</div>
+                      <div style={{fontSize:12.5,color:"#0f766e",lineHeight:1.6,marginBottom:14}}>
+                        Periksa kelengkapan dokumen persyaratan dan kewajiban finansial pemohon sesuai Lampiran 1.
+                        Identitas pegawai terisi otomatis. Setelah selesai, <strong>Daftar Periksa langsung dicetak</strong> dan tahap verifikasi ditandai selesai.
+                      </div>
+                      <button className="btn btn-primary" style={{width:"100%",justifyContent:"center",fontWeight:700,
+                        opacity:!cekIzinProses(user?.role, stepAktif.pelaksana)?0.6:1}}
+                        disabled={!cekIzinProses(user?.role, stepAktif.pelaksana)}
+                        onClick={()=>{
+                          if (stafLoketList.length===0 || pengampuList.length===0) daftarAkun().then(res=>{ if(res.ok){ setStafLoketList(res.data.filter(a=>a.role==="operator")); setPengampuList(res.data.filter(a=>a.role==="staf")); } });
+                          setShowDaftarPeriksa(true);
+                        }}>
+                        {!cekIzinProses(user?.role, stepAktif.pelaksana) ? `🔒 Khusus: ${stepAktif.pelaksana}` : "📋 Buka Daftar Periksa Verifikasi"}
+                      </button>
+                    </div>
+                  ) : (<>
                   {isPenomoran(stepAktif.id) && (
                     <div style={{background:"#f0f9ff",border:"1.5px solid #bae6fd",borderRadius:12,padding:"14px 16px",marginBottom:14}}>
                       <div style={{fontWeight:700,fontSize:13,color:"#0369a1",marginBottom:10}}>📋 Input Nomor SKPP</div>
@@ -2815,6 +3140,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
                      !cekIzinProses(user?.role, stepAktif.pelaksana) ? `🔒 Khusus: ${stepAktif.pelaksana}` :
                      isKembali ? "↩ Kembalikan Berkas" : "✔ Tandai Tahap Ini Selesai"}
                   </button>
+                  </>)}
                 </div>
               ) : (
                 <div className="alert alert-amber"><span>⚠️</span><span>Tidak ada tahap aktif yang bisa diupdate saat ini.</span></div>
@@ -2869,6 +3195,28 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
         }}
       />
     )}
+    {showDaftarPeriksa && stepAktif && (
+      <DaftarPeriksaModal
+        p={p} dpData={dpData} setDpData={setDpData} stafLoketList={stafLoketList} pengampuList={pengampuList} saving={saving}
+        onClose={()=>setShowDaftarPeriksa(false)}
+        onCetak={()=>cetakDaftarPeriksa({p, dpData})}
+        onSelesai={()=>{
+          cetakDaftarPeriksa({p, dpData});
+          const idx = tahapan.findIndex(t=>t.id===stepAktif.id);
+          const nextStepId = idx < tahapan.length-1 ? tahapan[idx+1].id : "";
+          const catatanStr = `Verifikasi berkas: berkas lengkap & bebas hutang. Daftar Periksa dicetak.${dpData.catatan?` — ${dpData.catatan}`:""}`;
+          onUpdate({pengajuanId:p.id, stepId:stepAktif.id, nextStepId, isKembali:false, catatan:catatanStr, isFinal:false});
+          setShowDaftarPeriksa(false);
+        }}
+        onKembalikan={()=>{
+          cetakDaftarPeriksa({p, dpData});
+          // Pindah ke alur Formulir Pengembalian untuk merinci pengembalian berkas.
+          setShowDaftarPeriksa(false);
+          if (stafLoketList.length===0 || pengampuList.length===0) daftarAkun().then(res=>{ if(res.ok){ setStafLoketList(res.data.filter(a=>a.role==="operator")); setPengampuList(res.data.filter(a=>a.role==="staf")); } });
+          setShowFormKembali(true);
+        }}
+      />
+    )}
     </>
   );
 }
@@ -2887,9 +3235,9 @@ function FormulirKembaliModal({ p, user, fkData, setFkData, stafLoketList, penga
   const updRincianMulti = (i,patch) => setFkData(d=>({...d,rincian:d.rincian.map((r,ix)=>ix===i?{...r,...patch}:r)}));
   const updHutang = (i,f,v) => setFkData(d=>({...d,rincianHutang:d.rincianHutang.map((r,ix)=>ix===i?{...r,[f]:v}:r)}));
   const stafNama = stafLoketList.find(s=>s.username===fkData.stafLoket)?.nama||"";
-  const canSubmit = (fkData.alasanDokumen||fkData.alasanHutang) && fkData.stafLoket;
+  const canSubmit = (fkData.alasanDokumen||fkData.alasanHutang) && fkData.stafLoket && fkData.pengampuNIP;
 
-  const handleCetak = () => cetakFormulirKembali({p, fkData, stafLoketNama:stafNama, nomorFormulir, tanggalKembali});
+  const handleCetak = () => cetakFormulirKembali({p, fkData, stafLoketNama:stafNama, stafLoketNIP:fkData.stafLoket, nomorFormulir, tanggalKembali});
 
   const cellInput = {width:"100%",border:"none",outline:"none",background:"transparent",fontSize:12,padding:"4px 2px"};
   // Sel dropdown dengan opsi "Lainnya" untuk input manual. Dikembalikan sebagai elemen (bukan komponen)
@@ -2915,7 +3263,7 @@ function FormulirKembaliModal({ p, user, fkData, setFkData, stafLoketList, penga
 
   const SectionTitle = ({children}) => (
     <div style={{fontWeight:800,fontSize:11.5,color:"white",textTransform:"uppercase",letterSpacing:"0.07em",
-      marginBottom:10,padding:"7px 14px",background:"#1a4b9b",borderRadius:8}}>
+      marginBottom:10,padding:"8px 16px",background:"#1a4b9b",borderRadius:12}}>
       {children}
     </div>
   );
@@ -2924,7 +3272,7 @@ function FormulirKembaliModal({ p, user, fkData, setFkData, stafLoketList, penga
     <div style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 14px",cursor:"pointer",
       background:fkData[field]?"#EEF2FF":"var(--surface-container-low)",
       border:`1.5px solid ${fkData[field]?"#4F6BCD":"var(--outline-variant)"}`,
-      borderRadius:10,marginBottom:8}}
+      borderRadius:12,marginBottom:8}}
       onClick={()=>setFkData(d=>({...d,[field]:!d[field]}))}>
       <input type="checkbox" checked={fkData[field]} readOnly style={{width:16,height:16,marginTop:1,accentColor:"#4F6BCD",flexShrink:0}}/>
       <span style={{fontSize:13,fontWeight:fkData[field]?600:400,lineHeight:1.5}}>{label}</span>
@@ -2933,7 +3281,7 @@ function FormulirKembaliModal({ p, user, fkData, setFkData, stafLoketList, penga
 
   return (
     <div className="modal-overlay" style={{zIndex:10000}}>
-      <div className="modal" style={{maxWidth:820,maxHeight:"92vh",display:"flex",flexDirection:"column"}}>
+      <div className="modal" style={{maxWidth:820,maxHeight:"92vh",display:"flex",flexDirection:"column",borderRadius:18,overflow:"hidden"}}>
         {/* Header */}
         <div className="modal-header" style={{background:"#1a4b9b",flexShrink:0}}>
           <div>
@@ -2950,7 +3298,7 @@ function FormulirKembaliModal({ p, user, fkData, setFkData, stafLoketList, penga
           {/* A. Identitas (auto-filled) */}
           <div style={{marginBottom:16}}>
             <SectionTitle>A. Identitas Pemohon (Otomatis)</SectionTitle>
-            <div style={{background:"var(--surface-container-low)",borderRadius:12,padding:"12px 16px",border:"1px solid var(--outline-variant)"}}>
+            <div style={{background:"var(--surface-container-low)",borderRadius:14,padding:"13px 16px",border:"1px solid var(--outline-variant)"}}>
               <div className="grid-2" style={{gap:8}}>
                 {[["Nama Pegawai",p.nama],["NIP",p.nip],["Pangkat / Golongan",p.pangkat],["Jabatan",p.jabatan],["OPD / Instansi",p.opd],["Nomor Register SKPP",p.id]].map(([l,v])=>(
                   <div key={l} className="info-row"><span className="info-lbl">{l}</span><span className="info-val">{v||"—"}</span></div>
@@ -2985,7 +3333,7 @@ function FormulirKembaliModal({ p, user, fkData, setFkData, stafLoketList, penga
           {fkData.alasanDokumen && (
             <div style={{marginBottom:16}}>
               <SectionTitle>C. Rincian Dokumen Kurang yang Harus Dilengkapi</SectionTitle>
-              <div style={{overflowX:"auto",borderRadius:10,border:"1px solid var(--outline-variant)"}}>
+              <div style={{overflow:"hidden",borderRadius:14,border:"1px solid var(--outline-variant)"}}>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,minWidth:600}}>
                   <thead>
                     <tr style={{background:"var(--surface-container-low)"}}>
@@ -3015,7 +3363,7 @@ function FormulirKembaliModal({ p, user, fkData, setFkData, stafLoketList, penga
           {fkData.alasanHutang && (
             <div style={{marginBottom:16}}>
               <SectionTitle>{fkData.alasanDokumen?"D":"C"}. Rincian Jenis Hutang / Kewajiban yang Harus Diselesaikan</SectionTitle>
-              <div style={{overflowX:"auto",borderRadius:10,border:"1px solid var(--outline-variant)"}}>
+              <div style={{overflow:"hidden",borderRadius:14,border:"1px solid var(--outline-variant)"}}>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,minWidth:480}}>
                   <thead>
                     <tr style={{background:"var(--surface-container-low)"}}>
@@ -3066,23 +3414,27 @@ function FormulirKembaliModal({ p, user, fkData, setFkData, stafLoketList, penga
             <SectionTitle>Penandatangan Formulir</SectionTitle>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14}}>
               {/* Staf Loket */}
-              <div style={{background:"var(--surface-container-low)",borderRadius:12,padding:"12px 14px",border:"1px solid var(--outline-variant)"}}>
+              <div style={{background:"var(--surface-container-low)",borderRadius:14,padding:"13px 15px",border:"1px solid var(--outline-variant)"}}>
                 <div style={{fontWeight:700,fontSize:12,marginBottom:10,color:"var(--on-surface)",display:"flex",alignItems:"center",gap:6}}>
                   <span style={{width:6,height:6,borderRadius:"50%",background:"#4F6BCD",display:"inline-block"}}/>Staf Loket *
                 </div>
-                <div className="form-group" style={{marginBottom:0}}>
+                <div className="form-group" style={{marginBottom:8}}>
                   <label className="form-label">Pilih Staf Loket</label>
                   <select className="form-control" style={{margin:0}} value={fkData.stafLoket} onChange={e=>setFkData(d=>({...d,stafLoket:e.target.value}))}>
                     <option value="">-- Pilih --</option>
                     {stafLoketList.map(s=><option key={s.username} value={s.username}>{s.nama}</option>)}
                   </select>
                 </div>
+                <div className="form-group" style={{marginBottom:0}}>
+                  <label className="form-label">NIP</label>
+                  <input className="form-control" style={{margin:0,background:"var(--surface-container)"}} value={fkData.stafLoket} readOnly/>
+                </div>
                 {!fkData.stafLoket&&<div style={{fontSize:11,color:"#dc2626",marginTop:4}}>* Wajib dipilih</div>}
               </div>
               {/* Pengampu OPD */}
-              <div style={{background:"var(--surface-container-low)",borderRadius:12,padding:"12px 14px",border:"1px solid var(--outline-variant)"}}>
+              <div style={{background:"var(--surface-container-low)",borderRadius:14,padding:"13px 15px",border:"1px solid var(--outline-variant)"}}>
                 <div style={{fontWeight:700,fontSize:12,marginBottom:10,color:"var(--on-surface)",display:"flex",alignItems:"center",gap:6}}>
-                  <span style={{width:6,height:6,borderRadius:"50%",background:"#10B981",display:"inline-block"}}/>Pengampu OPD
+                  <span style={{width:6,height:6,borderRadius:"50%",background:"#10B981",display:"inline-block"}}/>Pengampu OPD *
                 </div>
                 <div className="form-group" style={{marginBottom:8}}>
                   <label className="form-label">Nama</label>
@@ -3091,18 +3443,19 @@ function FormulirKembaliModal({ p, user, fkData, setFkData, stafLoketList, penga
                       const acc = pengampuList.find(a=>a.username===e.target.value);
                       setFkData(d=>({...d,pengampuNIP:e.target.value,pengampuNama:acc?.nama||""}));
                     }}>
-                    <option value="">-- Pilih Pengampu OPD --</option>
+                    <option value="">-- Pilih --</option>
                     {pengampuList.map(a=><option key={a.username} value={a.username}>{a.nama}</option>)}
                   </select>
                 </div>
                 <div className="form-group" style={{marginBottom:0}}>
-                  <label className="form-label">NIP (otomatis)</label>
+                  <label className="form-label">NIP</label>
                   <input className="form-control" style={{margin:0,background:"var(--surface-container)"}} value={fkData.pengampuNIP}
-                    readOnly placeholder="Terisi otomatis dari nama"/>
+                    readOnly/>
                 </div>
+                {!fkData.pengampuNIP&&<div style={{fontSize:11,color:"#dc2626",marginTop:4}}>* Wajib dipilih</div>}
               </div>
               {/* Pemohon */}
-              <div style={{background:"var(--surface-container-low)",borderRadius:12,padding:"12px 14px",border:"1px solid var(--outline-variant)"}}>
+              <div style={{background:"var(--surface-container-low)",borderRadius:14,padding:"13px 15px",border:"1px solid var(--outline-variant)"}}>
                 <div style={{fontWeight:700,fontSize:12,marginBottom:10,color:"var(--on-surface)",display:"flex",alignItems:"center",gap:6}}>
                   <span style={{width:6,height:6,borderRadius:"50%",background:"#f97316",display:"inline-block"}}/>Pemohon / Bendahara OPD
                 </div>
@@ -3213,6 +3566,194 @@ function SearchableSelect({ label, value, onChange, options, placeholder="-- Pil
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── DAFTAR PERIKSA VERIFIKASI MODAL ──────────────────────────────────────────
+function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuList=[], saving, onClose, onCetak, onSelesai, onKembalikan }) {
+  const al = p.alasan||"";
+  const isJD = al.includes("Janda")||al.includes("Duda")||al.includes("Meninggal");
+  const isBH = al.includes("Berhenti")||al.includes("Pemberhentian");
+  const isPD = al.includes("Pindah");
+  const isPS = al.includes("Pensiun")&&!isJD;
+  const jenisStr = [isPS&&"Pensiun",isPD&&"Pindah",isBH&&"Berhenti",isJD&&"Janda/Duda"].filter(Boolean).join(" · ")||"—";
+
+  const setDok = (i,patch) => setDpData(d=>({...d,dok:d.dok.map((x,ix)=>ix===i?{...x,...patch}:x)}));
+  const setHut = (i,patch) => setDpData(d=>({...d,hutang:d.hutang.map((x,ix)=>ix===i?{...x,...patch}:x)}));
+  const set = (k,v) => setDpData(d=>({...d,[k]:v}));
+
+  const pill = (active,color) => ({
+    flex:"none",padding:"3px 10px",borderRadius:7,fontSize:11,fontWeight:700,cursor:"pointer",
+    border:`1.5px solid ${active?color:"var(--outline-variant,#d6deea)"}`,
+    background:active?color:"#fff",color:active?"#fff":"var(--on-surface-variant,#64748b)",
+  });
+  const StatusToggle = ({ val, onSet }) => (
+    <div style={{display:"flex",gap:5}}>
+      <button type="button" style={pill(val==="ada","#0E7C7B")} onClick={()=>onSet(val==="ada"?"":"ada")}>Ada</button>
+      <button type="button" style={pill(val==="tidak","#dc2626")} onClick={()=>onSet(val==="tidak"?"":"tidak")}>Tidak Ada</button>
+    </div>
+  );
+  const ketInput = { width:"100%",border:"1px solid var(--outline-variant,#d6deea)",borderRadius:7,
+    padding:"4px 8px",fontSize:11.5,outline:"none",background:"#fff",boxSizing:"border-box" };
+
+  const tampilGrup = dpGrupTampil(al);
+  let no = 0;
+  const canSelesai = dpData.kesimpulan === "lengkap";
+  const canKembali = dpData.kesimpulan === "kembali";
+
+  return (
+    <div className="modal-overlay" style={{zIndex:10000}}>
+      <div className="modal" style={{maxWidth:820}}>
+        <div className="modal-header">
+          <div>
+            <div style={{fontWeight:800,fontSize:14,color:"var(--primary)",letterSpacing:"-0.3px"}}>📋 Daftar Periksa Verifikasi Berkas</div>
+            <div style={{fontSize:11,color:"var(--on-surface-variant)",marginTop:2}}>Verifikasi oleh Staf Pengampu OPD</div>
+          </div>
+          <button className="modal-close" onClick={onClose} disabled={saving}>✕</button>
+        </div>
+
+        <div className="modal-body">
+          {/* Identitas otomatis dari data pengajuan */}
+          <div style={{background:"var(--surface-container-low,#f6f8fc)",border:"1px solid var(--outline-variant,#e2e8f0)",borderRadius:10,padding:"12px 14px",marginBottom:16}}>
+            <div className="grid-2" style={{gap:"4px 14px"}}>
+              {[
+                ["Nama Pegawai",p.nama],["NIP",p.nip],["Pangkat / Gol.",p.pangkat],["Jabatan",p.jabatan],
+                ["OPD",p.opd],["Jenis SKPP",jenisStr],["Nomor Register",p.id],["Tanggal Pengajuan",p.tanggalMasuk],
+              ].map(([l,v])=>(
+                <div key={l} style={{display:"flex",gap:8,fontSize:12,padding:"2px 0"}}>
+                  <span style={{minWidth:108,color:"var(--on-surface-variant)",fontWeight:600}}>{l}</span>
+                  <span style={{fontWeight:700,color:"var(--on-surface)"}}>{v||"—"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* A. Kelengkapan dokumen */}
+          <div style={{fontWeight:800,fontSize:12.5,color:"var(--on-surface)",margin:"4px 0 8px"}}>A. Kelengkapan Dokumen Persyaratan</div>
+          {DP_DOKUMEN_GRUP.map((g,gi)=> tampilGrup[gi] && (
+            <div key={g.grup} style={{marginBottom:10}}>
+              <div style={{fontSize:11,fontWeight:700,color:"var(--primary)",background:"var(--surface-container-low,#eef2fa)",padding:"5px 9px",borderRadius:6,fontStyle:"italic"}}>{g.grup}</div>
+              {g.items.map((it,j)=>{
+                const gIndex = DP_GRUP_OFFSET[gi] + j; const num = ++no; const st = dpData.dok[gIndex]||{};
+                return (
+                  <div key={gIndex} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"7px 4px",borderBottom:"1px solid var(--outline-variant,#eef2f7)"}}>
+                    <span style={{minWidth:18,fontSize:11.5,color:"var(--on-surface-variant)",fontWeight:700,marginTop:3}}>{num}.</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:12,lineHeight:1.4,color:"var(--on-surface)"}}>
+                        {it.t} {it.ket && <span style={{fontSize:10,color:"#b45309",fontStyle:"italic"}}>({it.ket})</span>}
+                      </div>
+                      <input style={{...ketInput,marginTop:5}} placeholder="Keterangan (opsional)"
+                        value={st.ket||""} onChange={e=>setDok(gIndex,{ket:e.target.value})}/>
+                    </div>
+                    <div style={{marginTop:2}}><StatusToggle val={st.status} onSet={v=>setDok(gIndex,{status:v})}/></div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+
+          {/* B. Pengecekan hutang */}
+          <div style={{fontWeight:800,fontSize:12.5,color:"var(--on-surface)",margin:"14px 0 8px"}}>B. Pengecekan Hutang / Kewajiban Finansial</div>
+          {DP_HUTANG.map((h,i)=>{
+            const st = dpData.hutang[i]||{};
+            return (
+              <div key={i} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"7px 4px",borderBottom:"1px solid var(--outline-variant,#eef2f7)"}}>
+                <span style={{minWidth:18,fontSize:11.5,color:"var(--on-surface-variant)",fontWeight:700,marginTop:3}}>{i+1}.</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,lineHeight:1.4,color:"var(--on-surface)"}}>{h}</div>
+                  <input style={{...ketInput,marginTop:5}} placeholder="Keterangan / Jumlah (Rp)"
+                    value={st.ket||""} onChange={e=>setHut(i,{ket:e.target.value})}/>
+                </div>
+                <div style={{marginTop:2}}><StatusToggle val={st.status} onSet={v=>setHut(i,{status:v})}/></div>
+              </div>
+            );
+          })}
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10,padding:"10px 12px",background:"var(--surface-container-low,#f6f8fc)",borderRadius:8}}>
+            <span style={{fontSize:11.5,fontWeight:700,color:"var(--on-surface-variant)",alignSelf:"center"}}>Kesimpulan Hutang:</span>
+            <button type="button" style={pill(dpData.kesimpulanHutang==="bebas","#0E7C7B")} onClick={()=>set("kesimpulanHutang","bebas")}>Bebas Hutang</button>
+            <button type="button" style={pill(dpData.kesimpulanHutang==="hutang","#dc2626")} onClick={()=>set("kesimpulanHutang","hutang")}>Terdapat Hutang</button>
+          </div>
+
+          {/* C. Kesimpulan verifikasi */}
+          <div style={{fontWeight:800,fontSize:12.5,color:"var(--on-surface)",margin:"16px 0 8px"}}>C. Kesimpulan Verifikasi & Tindak Lanjut</div>
+          <div
+            onClick={()=>set("kesimpulan","lengkap")}
+            style={{display:"flex",gap:10,alignItems:"flex-start",padding:"11px 13px",marginBottom:8,cursor:"pointer",borderRadius:10,
+              border:`1.5px solid ${dpData.kesimpulan==="lengkap"?"#0E7C7B":"var(--outline-variant,#d6deea)"}`,
+              background:dpData.kesimpulan==="lengkap"?"rgba(14,124,123,0.07)":"#fff"}}>
+            <input type="radio" checked={dpData.kesimpulan==="lengkap"} readOnly style={{marginTop:2}}/>
+            <div><div style={{fontWeight:700,fontSize:12.5,color:"#0E5A59"}}>Berkas Lengkap & Bebas Hutang</div>
+              <div style={{fontSize:11,color:"var(--on-surface-variant)"}}>Dapat diproses lebih lanjut — verifikasi diselesaikan, lanjut ke tahap berikutnya.</div></div>
+          </div>
+          <div
+            onClick={()=>set("kesimpulan","kembali")}
+            style={{display:"flex",gap:10,alignItems:"flex-start",padding:"11px 13px",marginBottom:10,cursor:"pointer",borderRadius:10,
+              border:`1.5px solid ${dpData.kesimpulan==="kembali"?"#dc2626":"var(--outline-variant,#d6deea)"}`,
+              background:dpData.kesimpulan==="kembali"?"rgba(220,38,38,0.06)":"#fff"}}>
+            <input type="radio" checked={dpData.kesimpulan==="kembali"} readOnly style={{marginTop:2}}/>
+            <div><div style={{fontWeight:700,fontSize:12.5,color:"#b91c1c"}}>Berkas Tidak Lengkap / Terdapat Hutang</div>
+              <div style={{fontSize:11,color:"var(--on-surface-variant)"}}>Dikembalikan kepada pemohon — lanjut mengisi Formulir Pengembalian.</div></div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Catatan</label>
+            <textarea className="form-control" value={dpData.catatan} onChange={e=>set("catatan",e.target.value)} placeholder="Catatan verifikasi (opsional)"/>
+          </div>
+
+          {/* Tanda tangan */}
+          <div className="grid-2" style={{gap:14,marginTop:8}}>
+            <div style={{border:"1px solid var(--outline-variant,#e2e8f0)",borderRadius:10,padding:"12px 14px"}}>
+              <div style={{fontWeight:700,fontSize:11.5,color:"var(--on-surface-variant)",marginBottom:8}}>Diterima oleh / Staf Loket</div>
+              <div className="form-group" style={{marginBottom:8}}><label className="form-label">Nama</label>
+                <select className="form-control" value={dpData.stafLoketUser||""}
+                  onChange={e=>{
+                    const u = stafLoketList.find(s=>s.username===e.target.value);
+                    setDpData(d=>({...d, stafLoketUser:e.target.value, stafLoketNama:u?.nama||"", stafLoketNIP:u?.username||""}));
+                  }}>
+                  <option value="">— Pilih staf loket —</option>
+                  {stafLoketList.map(s=> <option key={s.username} value={s.username}>{s.nama}</option>)}
+                </select></div>
+              <div className="form-group" style={{marginBottom:0}}><label className="form-label">NIP</label>
+                <input className="form-control" value={dpData.stafLoketNIP} readOnly style={{background:"var(--surface-container-low,#f6f8fc)"}}/></div>
+            </div>
+            <div style={{border:"1px solid var(--outline-variant,#e2e8f0)",borderRadius:10,padding:"12px 14px"}}>
+              <div style={{fontWeight:700,fontSize:11.5,color:"var(--on-surface-variant)",marginBottom:8}}>Diverifikasi oleh / Pengampu OPD</div>
+              <div className="form-group" style={{marginBottom:8}}><label className="form-label">Nama</label>
+                <select className="form-control" value={dpData.pengampuUser||""}
+                  onChange={e=>{
+                    const u = pengampuList.find(s=>s.username===e.target.value);
+                    setDpData(d=>({...d, pengampuUser:e.target.value, pengampuNama:u?.nama||"", pengampuNIP:u?.username||""}));
+                  }}>
+                  {!pengampuList.some(s=>s.username===dpData.pengampuUser) && dpData.pengampuNama && (
+                    <option value={dpData.pengampuUser||""}>{dpData.pengampuNama}</option>
+                  )}
+                  {pengampuList.map(s=> <option key={s.username} value={s.username}>{s.nama}</option>)}
+                </select></div>
+              <div className="form-group" style={{marginBottom:0}}><label className="form-label">NIP</label>
+                <input className="form-control" value={dpData.pengampuNIP} readOnly style={{background:"var(--surface-container-low,#f6f8fc)"}}/></div>
+            </div>
+          </div>
+          <div className="grid-2" style={{gap:14,marginTop:10}}>
+            <div className="form-group" style={{marginBottom:0}}><label className="form-label">Tempat</label>
+              <input className="form-control" value={dpData.tempat} onChange={e=>set("tempat",e.target.value)}/></div>
+            <div className="form-group" style={{marginBottom:0}}><label className="form-label">Tanggal</label>
+              <input className="form-control" type="date" value={dpData.tanggal} onChange={e=>set("tanggal",e.target.value)}/></div>
+          </div>
+        </div>
+
+        <div className="modal-footer" style={{flexWrap:"wrap",gap:8}}>
+          <button className="btn btn-secondary" onClick={onCetak}>🖨 Cetak Daftar Periksa</button>
+          {canKembali ? (
+            <button className="btn" style={{background:"var(--error)",color:"#fff"}} disabled={saving} onClick={onKembalikan}>
+              {saving?"⏳ Memproses…":"↩ Cetak & Kembalikan Berkas"}
+            </button>
+          ) : (
+            <button className="btn btn-primary" disabled={saving||!canSelesai} onClick={onSelesai}>
+              {saving?"⏳ Menyimpan…":!dpData.kesimpulan?"Pilih kesimpulan dahulu":"✔ Selesai Verifikasi & Cetak"}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -3435,7 +3976,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
 
     {showPindahPopup && (
       <div className="modal-overlay" style={{zIndex:11000}}>
-        <div className="modal" style={{maxWidth:440}}>
+        <div className="modal" style={{maxWidth:440,borderRadius:"22px",overflow:"hidden"}}>
           <div className="modal-header" style={{background:"#fffbeb",borderBottom:"1px solid #fde68a"}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
               <span style={{fontSize:22}}>⚠️</span>
@@ -3460,7 +4001,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
 
     {showBulkPindahPopup && (
       <div className="modal-overlay" style={{zIndex:11000}}>
-        <div className="modal" style={{maxWidth:480}}>
+        <div className="modal" style={{maxWidth:480,borderRadius:"22px",overflow:"hidden"}}>
           <div className="modal-header" style={{background:"#fffbeb",borderBottom:"1px solid #fde68a"}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
               <span style={{fontSize:22}}>⚠️</span>
@@ -3549,6 +4090,7 @@ const D2ICONS = {
   check: <><path d="M20 6 9 17l-5-5"/></>,
   returned: <><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 5 5v2"/></>,
   eye: <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></>,
+  report: <><path d="M3 3v18h18"/><path d="M7 16v-5M12 16V8M17 16v-3"/></>,
 };
 
 /* ── d2 mini charts (pure SVG) ── */
@@ -3944,6 +4486,257 @@ function PagePengajuan({ data, loading, onRefresh, onDetail, onInputBaru, onExpo
   );
 }
 
+// ─── LAPORAN ──────────────────────────────────────────────────────────────────
+const LAPORAN_JENIS = {
+  selesai: { label:"Selesai",      judul:"LAPORAN SKPP SELESAI",        warna:"#16a34a", icon:"✅" },
+  proses:  { label:"Dalam Proses", judul:"LAPORAN SKPP DALAM PROSES",   warna:"#2563eb", icon:"⏳" },
+  kembali: { label:"Dikembalikan", judul:"LAPORAN SKPP DIKEMBALIKAN",   warna:"#d97706", icon:"↩" },
+};
+
+function cetakLaporan({ jenis, items }) {
+  const meta = LAPORAN_JENIS[jenis] || LAPORAN_JENIS.selesai;
+  const logoSrc = `${window.location.origin}/logo-ntt.png`;
+  const tglCetak = new Date().toLocaleString("id-ID",{weekday:"long",day:"2-digit",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"}) + " WITA";
+  const ket = (p) => {
+    if (jenis==="selesai") return p.tanggalSelesai || "—";
+    if (jenis==="kembali") return "Dikembalikan ke pemohon";
+    const tahapan = p.jalur==="A" ? TAHAPAN_A : TAHAPAN_B;
+    const step = tahapan.find(t=>t.id===p.tahapAktif);
+    return `${getProgress(p)}% — ${step?step.label:"—"}`;
+  };
+  const ketHead = jenis==="selesai" ? "Tanggal Selesai" : jenis==="kembali" ? "Keterangan" : "Tahap Berjalan";
+  const rows = items.map((p,i)=>`<tr>
+    <td style="text-align:center">${i+1}</td>
+    <td class="mono">${p.id||"—"}</td>
+    <td>${p.nama||"—"}</td>
+    <td class="mono">${p.nip||"—"}</td>
+    <td>${p.opd||"—"}</td>
+    <td>${p.alasan||"—"}</td>
+    <td style="text-align:center">${p.jalur||"—"}</td>
+    <td>${p.tanggalMasuk||"—"}</td>
+    <td>${ket(p)}</td>
+  </tr>`).join("");
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+  <title>${meta.judul}</title>
+  <style>
+    @page{size:A4 landscape;margin:14mm}
+    *{box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:10pt;margin:0;padding:18px 22px;color:#000}
+    .hd{display:flex;align-items:center;gap:14px;margin-bottom:8px}
+    .hd-logo{width:70px;height:70px;object-fit:contain;flex-shrink:0}
+    .hd-txt{flex:1;text-align:center}.hd b{font-size:13pt}.hd p{margin:2px 0;font-size:9pt}
+    .hd-sp{width:70px;flex-shrink:0}
+    hr{border:none;border-top:1.5px solid #000;margin:3px 0}
+    .title{text-align:center;font-weight:bold;font-size:12pt;margin:10px 0 2px}
+    .sub{text-align:center;font-size:9.5pt;margin-bottom:10px}
+    table{width:100%;border-collapse:collapse;margin-top:6px}
+    th,td{border:1px solid #999;padding:5px 7px;font-size:9pt;vertical-align:top}
+    th{background:#e5e7eb;text-align:center;font-weight:bold}
+    .mono{font-family:'Courier New',monospace;font-size:8.5pt}
+    tbody tr:nth-child(even) td{background:#f6f6f6}
+    .ft{margin-top:14px;display:flex;justify-content:space-between;font-size:9pt}
+    .sign{margin-top:10px;text-align:right}.sign .sp{height:60px}
+    @media print{body{margin:0;padding:0}}
+  </style></head><body>
+  <div class="hd">
+    <img class="hd-logo" src="${logoSrc}" alt="Logo Provinsi NTT"/>
+    <div class="hd-txt">
+      <b>PEMERINTAH PROVINSI NUSA TENGGARA TIMUR</b><br/>
+      <b style="font-size:14pt">BADAN KEUANGAN DAERAH</b>
+      <p>Jalan Raya El Tari Nomor 52 Kupang</p>
+      <p>Laman : https://bakeuda.nttprov.go.id, Email : badankeuanganprovntt@gmail.com</p>
+    </div>
+    <div class="hd-sp"></div>
+  </div>
+  <hr/><hr style="margin-top:2px"/>
+  <div class="title">${meta.judul}</div>
+  <div class="sub">Surat Keterangan Penghentian Pembayaran (SKPP) — Total ${items.length} pengajuan</div>
+  <table>
+    <thead><tr>
+      <th style="width:34px">No.</th><th style="width:110px">No. Pengajuan</th><th>Nama Pegawai</th>
+      <th style="width:110px">NIP</th><th>OPD</th><th>Keperluan</th><th style="width:42px">Jalur</th>
+      <th style="width:90px">Tgl Masuk</th><th style="width:170px">${ketHead}</th>
+    </tr></thead>
+    <tbody>${rows || `<tr><td colspan="9" style="text-align:center;padding:18px">Tidak ada data</td></tr>`}</tbody>
+  </table>
+  <div class="ft"><div>Dicetak: ${tglCetak}</div><div>Jumlah: ${items.length} pengajuan</div></div>
+  <div class="sign">
+    <div>Kupang, ${new Date().toLocaleDateString("id-ID",{day:"2-digit",month:"long",year:"numeric"})}</div>
+    <div style="margin-top:2px">Mengetahui,</div>
+    <div class="sp"></div>
+    <div>_______________________________</div>
+  </div>
+  <script>window.onload=function(){window.print()}</script>
+  </body></html>`;
+  const win = window.open("","_blank","width=1000,height=720");
+  win.document.write(html);
+  win.document.close();
+}
+
+// Parse tanggal "DD Mon YYYY" (mis. "12 Jun 2026") menjadi Date untuk filter rentang.
+const BULAN_MAP = { jan:0,feb:1,mar:2,apr:3,mei:4,jun:5,jul:6,agu:7,agt:7,ags:7,sep:8,okt:9,nov:10,des:11 };
+function parseTglMasuk(s){
+  if(!s) return null;
+  const m = String(s).trim().match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);
+  if(!m){ const d=new Date(s); return isNaN(d)?null:d; }
+  const bln = BULAN_MAP[m[2].toLowerCase().slice(0,3)];
+  if(bln===undefined) return null;
+  return new Date(Number(m[3]), bln, Number(m[1]));
+}
+
+function PageLaporan({ data, loading, onDetail }) {
+  const [jenis, setJenis] = useState("selesai");
+  const [filterOPD, setFilterOPD] = useState("semua");
+  const [filterJalur, setFilterJalur] = useState("semua");
+  const [dari, setDari] = useState("");
+  const [sampai, setSampai] = useState("");
+
+  const isSelesai = p => p.status==="selesai"||getProgress(p)===100;
+  const kategori = p => isSelesai(p) ? "selesai" : p.status==="kembali" ? "kembali" : "proses";
+
+  // Daftar OPD unik untuk dropdown filter.
+  const daftarOPD = Array.from(new Set(data.map(p=>p.opd).filter(Boolean))).sort();
+
+  const dDari = dari ? new Date(dari+"T00:00:00") : null;
+  const dSampai = sampai ? new Date(sampai+"T23:59:59") : null;
+  const lolosFilter = p => {
+    if (filterOPD!=="semua" && p.opd!==filterOPD) return false;
+    if (filterJalur!=="semua" && p.jalur!==filterJalur) return false;
+    if (dDari || dSampai) {
+      const t = parseTglMasuk(p.tanggalMasuk);
+      if (!t) return false;
+      if (dDari && t < dDari) return false;
+      if (dSampai && t > dSampai) return false;
+    }
+    return true;
+  };
+  const base = data.filter(lolosFilter);
+
+  const cnt = { selesai:0, proses:0, kembali:0 };
+  base.forEach(p => { cnt[kategori(p)]++; });
+  const items = base.filter(p => kategori(p)===jenis);
+  const meta = LAPORAN_JENIS[jenis];
+  const adaFilter = filterOPD!=="semua" || filterJalur!=="semua" || dari || sampai;
+
+  return (
+    <div>
+      {/* Kartu ringkasan / pemilih jenis laporan */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:16}}>
+        {Object.entries(LAPORAN_JENIS).map(([k,m])=>{
+          const aktif = jenis===k;
+          return (
+            <button key={k} onClick={()=>setJenis(k)} style={{
+              textAlign:"left",cursor:"pointer",borderRadius:16,padding:"16px 18px",
+              border:`2px solid ${aktif?m.warna:"var(--outline-variant)"}`,
+              background:aktif?`${m.warna}12`:"var(--surface-container-lowest)",
+              transition:"all .15s",display:"flex",flexDirection:"column",gap:6}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                <span style={{fontSize:13,fontWeight:700,color:"var(--on-surface-variant)"}}>{m.icon} SKPP {m.label}</span>
+              </div>
+              <div style={{fontSize:30,fontWeight:800,fontFamily:"var(--mono)",color:m.warna,lineHeight:1}}>{cnt[k]}</div>
+              <div style={{fontSize:11.5,color:"var(--outline)"}}>pengajuan</div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div className="card-header-title">{meta.judul}</div>
+            <span className="chip chip-blue" style={{fontSize:11}}>{items.length} entri</span>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <button className="btn btn-ghost btn-sm" onClick={()=>exportCSV(items)} disabled={items.length===0} style={{gap:6}}>
+              <IcoDownload size={14}/> Export CSV
+            </button>
+            <button className="btn btn-primary btn-sm" onClick={()=>cetakLaporan({jenis,items})} disabled={items.length===0} style={{gap:6}}>
+              <IcoPrint size={14}/> Cetak Laporan
+            </button>
+          </div>
+        </div>
+
+        {/* Filter: OPD, Jalur, rentang tanggal masuk */}
+        <div style={{padding:"12px 20px",borderBottom:"1px solid var(--outline-variant)",display:"flex",gap:10,flexWrap:"wrap",alignItems:"flex-end"}}>
+          <div style={{display:"flex",flexDirection:"column",gap:4,minWidth:200}}>
+            <label style={{fontSize:11,fontWeight:700,color:"var(--on-surface-variant)"}}>OPD / Instansi</label>
+            <select className="form-control" style={{width:"auto",fontSize:13}} value={filterOPD} onChange={e=>setFilterOPD(e.target.value)}>
+              <option value="semua">Semua OPD</option>
+              {daftarOPD.map(o=><option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+            <label style={{fontSize:11,fontWeight:700,color:"var(--on-surface-variant)"}}>Jalur</label>
+            <select className="form-control" style={{width:"auto",fontSize:13}} value={filterJalur} onChange={e=>setFilterJalur(e.target.value)}>
+              <option value="semua">Semua Jalur</option>
+              <option value="A">Jalur A</option>
+              <option value="B">Jalur B</option>
+            </select>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+            <label style={{fontSize:11,fontWeight:700,color:"var(--on-surface-variant)"}}>Tgl Masuk — Dari</label>
+            <input type="date" className="form-control" style={{width:"auto",fontSize:13}} value={dari} onChange={e=>setDari(e.target.value)}/>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+            <label style={{fontSize:11,fontWeight:700,color:"var(--on-surface-variant)"}}>Sampai</label>
+            <input type="date" className="form-control" style={{width:"auto",fontSize:13}} value={sampai} onChange={e=>setSampai(e.target.value)}/>
+          </div>
+          {adaFilter && (
+            <button className="btn btn-ghost btn-sm" onClick={()=>{setFilterOPD("semua");setFilterJalur("semua");setDari("");setSampai("");}}>
+              ✕ Reset Filter
+            </button>
+          )}
+        </div>
+
+        {loading ? (
+          <div className="loading-box"><div className="spinner"/><span>Memuat data...</span></div>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style={{width:40}}>No.</th><th>No. Pengajuan</th><th>Nama Pegawai</th><th>NIP</th><th>OPD</th>
+                  <th>Keperluan</th><th>Jalur</th>
+                  <th>{jenis==="selesai"?"Tgl Selesai":jenis==="kembali"?"Status":"Tahap Berjalan"}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((p,i)=>{
+                  const tahapan = p.jalur==="A" ? TAHAPAN_A : TAHAPAN_B;
+                  const step = tahapan.find(t=>t.id===p.tahapAktif);
+                  return (
+                    <tr key={p.id} className="tr-clickable" onClick={()=>onDetail(p)}>
+                      <td style={{textAlign:"center",color:"var(--outline)",fontFamily:"var(--mono)"}}>{i+1}</td>
+                      <td style={{fontFamily:"var(--mono)",fontSize:13,fontWeight:700,color:"var(--primary)"}}>{p.id}</td>
+                      <td style={{fontWeight:600,fontSize:14,maxWidth:180}}>{p.nama}</td>
+                      <td style={{fontFamily:"var(--mono)",fontSize:12.5,color:"var(--outline)"}}>{p.nip}</td>
+                      <td style={{fontSize:13.5,maxWidth:160,color:"var(--on-surface-variant)"}}>{p.opd}</td>
+                      <td><span className="chip" style={{fontSize:12.5}}>{p.alasan}</span></td>
+                      <td><span style={{fontSize:12.5,fontWeight:700,padding:"4px 11px",borderRadius:999,whiteSpace:"nowrap",background:p.jalur==="A"?"var(--primary-fixed)":"#f5f3ff",color:p.jalur==="A"?"var(--primary)":"#5b21b6"}}>Jalur {p.jalur}</span></td>
+                      <td style={{fontSize:13,color:"var(--on-surface-variant)"}}>
+                        {jenis==="selesai" ? <span style={{color:"var(--success)",fontWeight:700}}>{fmtDate(p.tanggalSelesai)}</span>
+                          : jenis==="kembali" ? <SBadge p={p}/>
+                          : <span style={{fontSize:12.5}}>{getProgress(p)}% · {step?step.label:"—"}</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {items.length===0 && (
+                  <tr><td colSpan={8}>
+                    <div className="empty-box">
+                      <div className="empty-icon">{meta.icon}</div>
+                      <div className="empty-text">Belum ada SKPP {meta.label.toLowerCase()}</div>
+                    </div>
+                  </td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── PAGE RIWAYAT ─────────────────────────────────────────────────────────────
 function PageRiwayat({ data, loading, onDetail }) {
   const selesai = data.filter(d => d.status==="selesai"||getProgress(d)===100);
@@ -4027,6 +4820,37 @@ function PageUsers({ onToast }) {
   }, []);
   useEffect(() => { muat(); }, [muat]);
 
+  // ── Permintaan reset kata sandi (dari halaman login) ──
+  const [resetReqs, setResetReqs] = useState([]);
+  const [loadingReq, setLoadingReq] = useState(true);
+  const [reqResolving, setReqResolving] = useState(null); // id permintaan yang sedang ditindaklanjuti via reset
+  const muatReq = useCallback(async () => {
+    setLoadingReq(true);
+    try {
+      const res = await daftarPermintaanReset();
+      if (res && res.ok) setResetReqs(res.data || []);
+    } catch { /* abaikan */ }
+    setLoadingReq(false);
+  }, []);
+  useEffect(() => { muatReq(); }, [muatReq]);
+  const reqPending = resetReqs.filter(r=>r.status==="pending");
+
+  const tandaiSelesaiReq = async (r) => {
+    try {
+      const res = await tandaiResetSelesai({ id: r.id });
+      if (res && res.ok) { onToast("Permintaan ditandai selesai."); muatReq(); }
+      else onToast((res && res.pesan) || "Gagal memperbarui permintaan.");
+    } catch { onToast("Gagal terhubung ke server."); }
+  };
+  const hapusReq = async (r) => {
+    if (!confirm(`Hapus permintaan reset dari "${r.username}"?`)) return;
+    try {
+      const res = await hapusPermintaanReset({ id: r.id });
+      if (res && res.ok) { onToast("Permintaan dihapus."); muatReq(); }
+      else onToast((res && res.pesan) || "Gagal menghapus permintaan.");
+    } catch { onToast("Gagal terhubung ke server."); }
+  };
+
   const jmlAdmin = users.filter(u=>u.role==="admin").length;
 
   // ── Tambah akun ──
@@ -4081,7 +4905,12 @@ function PageUsers({ onToast }) {
   const [rp, setRp] = useState({ baru:"", konfirmasi:"" });
   const [showRp, setShowRp] = useState(false);
   const [savingRp, setSavingRp] = useState(false);
-  const bukaReset = (u) => { setResetTarget(u); setRp({baru:"",konfirmasi:""}); setShowRp(false); };
+  const bukaReset = (u) => { setReqResolving(null); setResetTarget(u); setRp({baru:"",konfirmasi:""}); setShowRp(false); };
+  // Buka modal reset dari sebuah permintaan: cari nama dari daftar akun bila ada.
+  const bukaResetDariReq = (r) => {
+    const u = users.find(x=>x.username===r.username) || { username:r.username, nama:r.username };
+    setReqResolving(r.id); setResetTarget(u); setRp({baru:"",konfirmasi:""}); setShowRp(false);
+  };
   const simpanReset = async () => {
     if (!rp.baru) return onToast("Kata sandi baru wajib diisi.");
     if (rp.baru.length < 6 || !/[A-Z]/.test(rp.baru)) return onToast("Kata sandi minimal 6 karakter & 1 huruf kapital.");
@@ -4089,13 +4918,66 @@ function PageUsers({ onToast }) {
     setSavingRp(true);
     try {
       const res = await resetPassword({ username: resetTarget.username, passwordBaru: rp.baru });
-      if (res && res.ok) { onToast(res.pesan || "Kata sandi berhasil direset."); setResetTarget(null); }
+      if (res && res.ok) {
+        // Bila reset ini menindaklanjuti sebuah permintaan, tandai selesai.
+        if (reqResolving) { await tandaiResetSelesai({ id: reqResolving }); muatReq(); }
+        onToast(res.pesan || "Kata sandi berhasil direset.");
+        setResetTarget(null); setReqResolving(null);
+      }
       else onToast((res && res.pesan) || "Gagal mereset kata sandi.");
     } catch { onToast("Gagal terhubung ke server."); }
     setSavingRp(false);
   };
 
   return (
+    <>
+    {/* ── Permintaan Reset Kata Sandi ── */}
+    <div className="card" style={{marginBottom:18}}>
+      <div className="card-header">
+        <div className="card-header-title" style={{display:"flex",alignItems:"center",gap:9}}>
+          🔑 Permintaan Reset Kata Sandi
+          {reqPending.length>0 && (
+            <span className="badge badge-gold" style={{fontSize:11}}>{reqPending.length} menunggu</span>
+          )}
+        </div>
+        <button className="btn btn-secondary btn-sm" onClick={muatReq} disabled={loadingReq}>↻ Muat Ulang</button>
+      </div>
+      <div className="table-wrap" style={{padding:"0 0 16px"}}>
+        <table>
+          <thead><tr><th>NIP / Username</th><th>Keterangan</th><th>Waktu</th><th>Status</th><th style={{textAlign:"right"}}>Aksi</th></tr></thead>
+          <tbody>
+            {loadingReq ? (
+              <tr><td colSpan={5}><div className="empty-box"><div className="empty-text">Memuat permintaan…</div></div></td></tr>
+            ) : resetReqs.length===0 ? (
+              <tr><td colSpan={5}><div className="empty-box"><div className="empty-icon">✅</div><div className="empty-text">Tidak ada permintaan reset</div></div></td></tr>
+            ) : resetReqs.map((r)=>(
+              <tr key={r.id} style={r.status==="pending"?{background:"rgba(201,168,76,0.07)"}:{opacity:0.7}}>
+                <td style={{fontFamily:"var(--mono)",fontSize:12,fontWeight:600}}>{r.username}</td>
+                <td style={{fontSize:12.5,color:"var(--text-body, #3a495e)"}}>{r.alasan||<span style={{opacity:0.5}}>—</span>}</td>
+                <td style={{fontSize:11.5,whiteSpace:"nowrap"}}>{r.waktu||""}</td>
+                <td>
+                  {r.status==="pending"
+                    ? <span className="badge badge-gold">Menunggu</span>
+                    : <span className="badge badge-blue">Selesai</span>}
+                </td>
+                <td>
+                  <div style={{display:"flex",gap:6,justifyContent:"flex-end"}}>
+                    {r.status==="pending" && (
+                      <>
+                        <button className="btn btn-primary btn-sm" onClick={()=>bukaResetDariReq(r)}>Reset Sandi</button>
+                        <button className="btn btn-secondary btn-sm" onClick={()=>tandaiSelesaiReq(r)}>Tandai Selesai</button>
+                      </>
+                    )}
+                    <button className="btn btn-danger btn-sm" onClick={()=>hapusReq(r)}>Hapus</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <div className="card">
       <div className="card-header">
         <div className="card-header-title">Manajemen Akun Staf</div>
@@ -4235,6 +5117,7 @@ function PageUsers({ onToast }) {
         </div>
       )}
     </div>
+    </>
   );
 }
 
@@ -4472,6 +5355,7 @@ function D2Sidebar({ user, active, onChange, counts, onLogout }) {
     // Input Pengajuan Baru tidak ditampilkan untuk role Staf Pengampu OPD.
     ...(user?.role==="staf" ? [] : [{ key:"input", label:"Input Pengajuan Baru", ic:"plus" }]),
     { key:"riwayat",   label:"Riwayat & Arsip",      ic:"archive" },
+    { key:"laporan",   label:"Laporan",              ic:"report" },
   ];
   return (
     <aside className="d2-side">
@@ -4542,6 +5426,49 @@ export default function App() {
   const [showNotif, setShowNotif] = useState(false);
   const profileRef = useRef(null);
   const notifRef = useRef(null);
+
+  // ── Batas waktu sesi (idle timeout) ──
+  const [idleWarn, setIdleWarn] = useState(false);
+  const [idleCountdown, setIdleCountdown] = useState(IDLE_WARNING_SECONDS);
+  const idleResetRef = useRef(() => {});
+  useEffect(() => {
+    if (!user) return;
+    const IDLE_MS = IDLE_LIMIT_MINUTES * 60 * 1000;
+    let idleTimer = null, countdownTimer = null, lastAct = Date.now();
+    const clearAll = () => { clearTimeout(idleTimer); clearInterval(countdownTimer); };
+    const endSession = () => {
+      clearAll();
+      setIdleWarn(false);
+      localStorage.removeItem("isLoggedIn");
+      setUser(null);
+    };
+    const beginWarning = () => {
+      let remaining = IDLE_WARNING_SECONDS;
+      setIdleCountdown(remaining);
+      setIdleWarn(true);
+      countdownTimer = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) endSession();
+        else setIdleCountdown(remaining);
+      }, 1000);
+    };
+    const reset = () => {
+      clearAll();
+      setIdleWarn(false);
+      idleTimer = setTimeout(beginWarning, IDLE_MS);
+    };
+    idleResetRef.current = reset;
+    const onActivity = () => {
+      const now = Date.now();
+      if (now - lastAct < 1500) return; // throttle
+      lastAct = now;
+      reset();
+    };
+    const events = ["mousemove", "mousedown", "keydown", "scroll", "touchstart", "click"];
+    events.forEach(e => window.addEventListener(e, onActivity, { passive: true }));
+    reset();
+    return () => { clearAll(); events.forEach(e => window.removeEventListener(e, onActivity)); };
+  }, [user]);
 
   // Tutup popup notif / profil saat klik di luar areanya
   useEffect(() => {
@@ -4808,6 +5735,7 @@ export default function App() {
             {page==="pengajuan" && <PagePengajuan data={data} loading={loading} onRefresh={load} onDetail={setSelected} onInputBaru={()=>setShowInput(true)} onExport={exportCSV} user={user}/>}
             {page==="input"     && <div className="card card-body"><PagePengajuan data={[]} loading={false} onRefresh={()=>{}} onDetail={()=>{}} onInputBaru={()=>setShowInput(true)} onExport={()=>{}} user={user}/></div>}
             {page==="riwayat"   && <PageRiwayat data={data} loading={loading} onDetail={setSelected}/>}
+            {page==="laporan"   && <PageLaporan data={data} loading={loading} onDetail={setSelected}/>}
             {page==="profil"    && <PageProfil user={user} onToast={setToast} onUpdateUser={u=>setUser(prev=>({...prev,...u}))}/>}
             {page==="users"     && user.role==="admin" && <PageUsers onToast={showToast}/>}
             {page==="users"     && user.role!=="admin" && (
@@ -4899,6 +5827,32 @@ export default function App() {
                   <IcoPrint size={14}/> Cetak Tanda Terima
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Peringatan sesi akan berakhir karena tidak ada aktivitas */}
+      {idleWarn && (
+        <div className="modal-overlay" style={{zIndex:12000}}>
+          <div className="modal" style={{maxWidth:420,borderRadius:"22px",overflow:"hidden"}}>
+            <div className="modal-header" style={{background:"#fffbeb",borderBottom:"1px solid #fde68a"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:22}}>⏰</span>
+                <div style={{fontWeight:800,fontSize:14,color:"#92400e"}}>Sesi Akan Berakhir</div>
+              </div>
+            </div>
+            <div className="modal-body" style={{fontSize:13,lineHeight:1.6,color:"var(--on-surface)",textAlign:"center"}}>
+              Anda tidak aktif selama beberapa waktu. Demi keamanan, sesi akan
+              berakhir otomatis dalam:
+              <div style={{margin:"14px 0",fontFamily:"var(--mono)",fontSize:40,fontWeight:800,color:idleCountdown<=10?"var(--error)":"var(--primary)"}}>
+                {idleCountdown}<span style={{fontSize:16,fontWeight:500,marginLeft:6}}>detik</span>
+              </div>
+              Klik <strong>Tetap Masuk</strong> untuk melanjutkan, atau biarkan untuk keluar.
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={()=>{ setIdleWarn(false); localStorage.removeItem("isLoggedIn"); setUser(null); }}>Keluar Sekarang</button>
+              <button className="btn btn-primary" onClick={()=>idleResetRef.current()}>Tetap Masuk</button>
             </div>
           </div>
         </div>
