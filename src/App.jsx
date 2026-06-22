@@ -2436,7 +2436,7 @@ function Login({ onLogin }) {
             <ul className="login-features">
               <SipFeatureRow>Pelacakan alur berkas SKPP secara real-time</SipFeatureRow>
               <SipFeatureRow>Verifikasi berjenjang yang akuntabel</SipFeatureRow>
-              <SipFeatureRow>Data kepegawaian terpusat &amp; aman</SipFeatureRow>
+              <SipFeatureRow>Penerbitan SKPP lebih cepat &amp; transparan</SipFeatureRow>
             </ul>
           </div>
 
