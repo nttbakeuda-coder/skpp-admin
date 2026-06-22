@@ -4576,23 +4576,30 @@ function PagePengajuan({ data, loading, onRefresh, onDetail, onInputBaru, onExpo
 
 // ─── LAPORAN ──────────────────────────────────────────────────────────────────
 const LAPORAN_JENIS = {
-  selesai: { label:"Selesai",      judul:"LAPORAN SKPP SELESAI",        warna:"#16a34a", icon:"✅" },
-  proses:  { label:"Dalam Proses", judul:"LAPORAN SKPP DALAM PROSES",   warna:"#2563eb", icon:"⏳" },
-  kembali: { label:"Dikembalikan", judul:"LAPORAN SKPP DIKEMBALIKAN",   warna:"#d97706", icon:"↩" },
+  selesai: { label:"Selesai",      judul:"LAPORAN SKPP SELESAI",                 warna:"#16a34a", icon:"✅" },
+  proses:  { label:"Dalam Proses", judul:"LAPORAN SKPP DALAM PROSES",            warna:"#2563eb", icon:"⏳" },
+  kembali: { label:"Dikembalikan", judul:"LAPORAN SKPP DIKEMBALIKAN",            warna:"#d97706", icon:"↩" },
+  semua:   { label:"Semua Status", judul:"LAPORAN GABUNGAN SEMUA STATUS SKPP",   warna:"#475569", icon:"📋" },
 };
 
 function cetakLaporan({ jenis, items }) {
   const meta = LAPORAN_JENIS[jenis] || LAPORAN_JENIS.selesai;
   const logoSrc = `${window.location.origin}/logo-ntt.png`;
   const tglCetak = new Date().toLocaleString("id-ID",{weekday:"long",day:"2-digit",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"}) + " WITA";
+  const statusLabel = (p) => {
+    if (p.status==="selesai"||getProgress(p)===100) return "Selesai";
+    if (p.status==="kembali") return "Dikembalikan";
+    return `Diproses (${getProgress(p)}%)`;
+  };
   const ket = (p) => {
+    if (jenis==="semua") return statusLabel(p);
     if (jenis==="selesai") return p.tanggalSelesai || "—";
     if (jenis==="kembali") return "Dikembalikan ke pemohon";
     const tahapan = p.jalur==="A" ? TAHAPAN_A : TAHAPAN_B;
     const step = tahapan.find(t=>t.id===p.tahapAktif);
     return `${getProgress(p)}% — ${step?step.label:"—"}`;
   };
-  const ketHead = jenis==="selesai" ? "Tanggal Selesai" : jenis==="kembali" ? "Keterangan" : "Tahap Berjalan";
+  const ketHead = jenis==="selesai" ? "Tanggal Selesai" : jenis==="kembali" ? "Keterangan" : jenis==="semua" ? "Status" : "Tahap Berjalan";
   const rows = items.map((p,i)=>`<tr>
     <td style="text-align:center">${i+1}</td>
     <td class="mono">${p.id||"—"}</td>
@@ -4701,14 +4708,15 @@ function PageLaporan({ data, loading, onDetail }) {
 
   const cnt = { selesai:0, proses:0, kembali:0 };
   base.forEach(p => { cnt[kategori(p)]++; });
-  const items = base.filter(p => kategori(p)===jenis);
+  cnt.semua = base.length;
+  const items = jenis==="semua" ? base : base.filter(p => kategori(p)===jenis);
   const meta = LAPORAN_JENIS[jenis];
   const adaFilter = filterOPD!=="semua" || filterJalur!=="semua" || dari || sampai;
 
   return (
     <div>
       {/* Kartu ringkasan / pemilih jenis laporan */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:16}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:16}}>
         {Object.entries(LAPORAN_JENIS).map(([k,m])=>{
           const aktif = jenis===k;
           return (
@@ -4784,7 +4792,7 @@ function PageLaporan({ data, loading, onDetail }) {
                 <tr>
                   <th style={{width:40}}>No.</th><th>No. Pengajuan</th><th>Nama Pegawai</th><th>NIP</th><th>OPD</th>
                   <th>Keperluan</th><th>Jalur</th>
-                  <th>{jenis==="selesai"?"Tgl Selesai":jenis==="kembali"?"Status":"Tahap Berjalan"}</th>
+                  <th>{jenis==="selesai"?"Tgl Selesai":jenis==="kembali"||jenis==="semua"?"Status":"Tahap Berjalan"}</th>
                 </tr>
               </thead>
               <tbody>
@@ -4802,7 +4810,7 @@ function PageLaporan({ data, loading, onDetail }) {
                       <td><span style={{fontSize:12.5,fontWeight:700,padding:"4px 11px",borderRadius:999,whiteSpace:"nowrap",background:p.jalur==="A"?"var(--primary-fixed)":"#f5f3ff",color:p.jalur==="A"?"var(--primary)":"#5b21b6"}}>Jalur {p.jalur}</span></td>
                       <td style={{fontSize:13,color:"var(--on-surface-variant)"}}>
                         {jenis==="selesai" ? <span style={{color:"var(--success)",fontWeight:700}}>{fmtDate(p.tanggalSelesai)}</span>
-                          : jenis==="kembali" ? <SBadge p={p}/>
+                          : jenis==="kembali"||jenis==="semua" ? <SBadge p={p}/>
                           : <span style={{fontSize:12.5}}>{getProgress(p)}% · {step?step.label:"—"}</span>}
                       </td>
                     </tr>
@@ -4812,7 +4820,7 @@ function PageLaporan({ data, loading, onDetail }) {
                   <tr><td colSpan={8}>
                     <div className="empty-box">
                       <div className="empty-icon">{meta.icon}</div>
-                      <div className="empty-text">Belum ada SKPP {meta.label.toLowerCase()}</div>
+                      <div className="empty-text">{jenis==="semua"?"Belum ada data SKPP":`Belum ada SKPP ${meta.label.toLowerCase()}`}</div>
                     </div>
                   </td></tr>
                 )}
