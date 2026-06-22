@@ -5110,7 +5110,7 @@ function PageUsers({ onToast }) {
 
       {/* Modal Tambah Akun */}
       {showForm && (
-        <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setShowForm(false);}}>
+        <div className="modal-overlay">
           <div className="modal" style={{maxWidth:500}}>
             <div className="modal-header">
               <div style={{fontWeight:800,fontSize:14,color:"var(--primary)",letterSpacing:"-0.4px"}}>Tambah Akun Staf Baru</div>
