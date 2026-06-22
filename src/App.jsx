@@ -552,16 +552,16 @@ const S = `
   .sidebar-header {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     margin-bottom: 10px;
-    min-height: 34px;
+    min-height: 48px;
     flex-shrink: 0;
   }
 
   /* Logo / tombol expand — selalu terlihat, lebar tetap */
   .sidebar-logo {
-    width: 32px; height: 32px;
-    min-width: 32px;
+    width: 46px; height: 46px;
+    min-width: 46px;
     background: transparent;
     border-radius: 9px;
     overflow: hidden;
@@ -2108,7 +2108,7 @@ function SipLogo({ tone="light" }) {
   const wordColor = tone==="light" ? "#fff" : "var(--navy-800)";
   return (
     <div style={{display:"inline-flex",alignItems:"center",gap:16}}>
-      <img src="/logo-sipasti-white.png" alt="" aria-hidden="true" style={{height:54,width:"auto",display:"block",flex:"none"}}
+      <img src="/logo-sipasti-white.png" alt="" aria-hidden="true" style={{height:88,width:"auto",display:"block",flex:"none"}}
         onError={e=>{e.target.style.display="none";}}/>
       <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",lineHeight:1}}>
         <span style={{font:"var(--fw-extrabold) 36px/1 var(--font-display)",letterSpacing:"-0.01em",color:wordColor}}>
