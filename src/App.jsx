@@ -2114,6 +2114,9 @@ function SipLogo({ tone="light" }) {
         <span style={{font:"var(--fw-extrabold) 36px/1 var(--font-display)",letterSpacing:"-0.01em",color:wordColor}}>
           SI<span style={{color:"var(--gold-500)"}}>-</span>PASTI
         </span>
+        <span style={{marginTop:6,fontSize:12.5,fontWeight:500,letterSpacing:"0.02em",color:tone==="light"?"rgba(255,255,255,0.8)":"var(--on-surface-variant)"}}>
+          Sistem Pemantauan Alur SKPP Terintegrasi
+        </span>
       </div>
     </div>
   );
