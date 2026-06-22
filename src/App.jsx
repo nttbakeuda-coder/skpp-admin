@@ -552,16 +552,16 @@ const S = `
   .sidebar-header {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     margin-bottom: 10px;
-    min-height: 48px;
+    min-height: 58px;
     flex-shrink: 0;
   }
 
   /* Logo / tombol expand — selalu terlihat, lebar tetap */
   .sidebar-logo {
-    width: 46px; height: 46px;
-    min-width: 46px;
+    width: 56px; height: 56px;
+    min-width: 56px;
     background: transparent;
     border-radius: 9px;
     overflow: hidden;
