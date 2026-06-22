@@ -5522,40 +5522,58 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
     const IDLE_MS = IDLE_LIMIT_MINUTES * 60 * 1000;
-    let idleTimer = null, countdownTimer = null, lastAct = Date.now();
-    const clearAll = () => { clearTimeout(idleTimer); clearInterval(countdownTimer); };
+    const WARN_MS = IDLE_WARNING_SECONDS * 1000;
+    // Pakai waktu nyata (timestamp), bukan akumulasi timer, supaya tetap akurat
+    // walau tab di-background (browser menahan setTimeout/setInterval saat idle).
+    let lastAct = Date.now();
+    let warning = false;        // true saat popup peringatan sedang tampil
+    let ticker = null;
+
     const endSession = () => {
-      clearAll();
+      if (ticker) clearInterval(ticker);
       setIdleWarn(false);
       localStorage.removeItem("isLoggedIn");
       setUser(null);
     };
-    const beginWarning = () => {
-      let remaining = IDLE_WARNING_SECONDS;
-      setIdleCountdown(remaining);
-      setIdleWarn(true);
-      countdownTimer = setInterval(() => {
-        remaining -= 1;
-        if (remaining <= 0) endSession();
-        else setIdleCountdown(remaining);
-      }, 1000);
-    };
+
+    // Dipanggil tombol "Tetap Masuk": mulai ulang hitungan dari sekarang.
     const reset = () => {
-      clearAll();
+      lastAct = Date.now();
+      warning = false;
       setIdleWarn(false);
-      idleTimer = setTimeout(beginWarning, IDLE_MS);
+      setIdleCountdown(IDLE_WARNING_SECONDS);
     };
     idleResetRef.current = reset;
-    const onActivity = () => {
-      const now = Date.now();
-      if (now - lastAct < 1500) return; // throttle
-      lastAct = now;
-      reset();
+
+    // Evaluasi status idle berdasarkan selisih waktu nyata sejak aktivitas terakhir.
+    const tick = () => {
+      const idleFor = Date.now() - lastAct;
+      if (idleFor >= IDLE_MS + WARN_MS) { endSession(); return; } // total 15 mnt + 60 dtk -> logout
+      if (idleFor >= IDLE_MS) {
+        warning = true;
+        setIdleWarn(true);
+        setIdleCountdown(Math.max(1, Math.ceil((IDLE_MS + WARN_MS - idleFor) / 1000)));
+      }
     };
+
+    // Aktivitas hanya menunda peringatan SEBELUM muncul. Saat peringatan sudah
+    // tampil, aktivitas diabaikan — peringatan hanya hilang lewat tombol.
+    const onActivity = () => { if (!warning) lastAct = Date.now(); };
+    // Saat tab kembali aktif, langsung evaluasi (atasi penundaan timer di background).
+    const onVisible = () => { if (!document.hidden) tick(); };
+
     const events = ["mousemove", "mousedown", "keydown", "scroll", "touchstart", "click"];
     events.forEach(e => window.addEventListener(e, onActivity, { passive: true }));
-    reset();
-    return () => { clearAll(); events.forEach(e => window.removeEventListener(e, onActivity)); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+
+    ticker = setInterval(tick, 1000);
+    return () => {
+      if (ticker) clearInterval(ticker);
+      events.forEach(e => window.removeEventListener(e, onActivity));
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
   }, [user]);
 
   // Tutup popup notif / profil saat klik di luar areanya
