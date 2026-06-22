@@ -2107,7 +2107,7 @@ const SipEyeOff = () => (
 function SipLogo({ tone="light" }) {
   const wordColor = tone==="light" ? "#fff" : "var(--navy-800)";
   return (
-    <div style={{display:"inline-flex",alignItems:"center",gap:16}}>
+    <div style={{display:"inline-flex",alignItems:"center",gap:10}}>
       <img src="/logo-sipasti-white.png" alt="" aria-hidden="true" style={{height:88,width:"auto",display:"block",flex:"none"}}
         onError={e=>{e.target.style.display="none";}}/>
       <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",lineHeight:1}}>
