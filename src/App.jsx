@@ -2242,6 +2242,19 @@ function SipFeatureRow({ children }) {
   );
 }
 
+// Kontak WhatsApp administrator (untuk tombol "Hubungi administrator").
+// Nomor 081338077908 → format internasional 6281338077908.
+const ADMIN_WA = "6281338077908";
+const ADMIN_WA_TEXT =
+  "Halo Administrator SI-PASTI,\n\n" +
+  "Saya membutuhkan bantuan terkait akun login dashboard SKPP (SI-PASTI). Mohon dibantu.\n\n" +
+  "Nama Lengkap : \n" +
+  "NIP / Username : \n" +
+  "OPD / Instansi : \n" +
+  "Kendala : \n\n" +
+  "Terima kasih.";
+const ADMIN_WA_URL = `https://web.whatsapp.com/send?phone=${ADMIN_WA}&text=${encodeURIComponent(ADMIN_WA_TEXT)}`;
+
 // pos = background-position tiap foto (atur agar orang/objek penting pas terlihat)
 const LOGIN_PHOTOS = [
   { src:"/photo-team-1.jpeg", pos:"center 28%", size:"cover" },
@@ -2478,7 +2491,7 @@ function Login({ onLogin }) {
           </SipButton>
 
           <p className="login-help">
-            Belum memiliki akses? <a href="#" onClick={e=>e.preventDefault()}>Hubungi administrator</a> instansi Anda.
+            Belum memiliki akses? <a href={ADMIN_WA_URL} target="_blank" rel="noopener noreferrer">Hubungi administrator</a> instansi Anda.
           </p>
         </form>
       </main>
@@ -2611,6 +2624,68 @@ function SBadge({ s, p }) {
   return <span className="badge badge-blue">⟳ Diproses</span>;
 }
 
+// Tampilan rapi untuk catatan Formulir Pengembalian (menggantikan dump JSON mentah).
+function CatatanKembali({ data }) {
+  const al = data.alasan || {};
+  const rincian = (data.rincian || []).filter(r=>r.dokumen);
+  const hutang  = (data.rincianHutang || []).filter(r=>r.jenis);
+  const mek = data.mekanisme || {};
+  const mekList = [mek.potong&&"Pemotongan hak keuangan", mek.setor&&"Penyetoran tunai (RKUD)", mek.cicilan&&"Cicilan sesuai kesepakatan"].filter(Boolean);
+  const wrap = { background:"#fffbeb", border:"1px solid #fde68a", borderRadius:10, padding:"10px 12px", marginTop:6, color:"#7c2d12" };
+  const hLabel = { fontSize:10, fontWeight:800, letterSpacing:"0.04em", textTransform:"uppercase", color:"#b45309", margin:"8px 0 3px" };
+  const chip = { display:"inline-block", fontSize:10.5, fontWeight:700, padding:"2px 8px", borderRadius:999, background:"#fef3c7", color:"#92400e", marginRight:5, marginTop:3 };
+  return (
+    <div style={wrap}>
+      <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>
+        <span style={{fontWeight:800,fontSize:12.5,color:"#92400e"}}>↩ Formulir Pengembalian Berkas</span>
+        {data.nomorFormulir && <span style={{fontSize:10.5,fontFamily:"var(--mono)",color:"#b45309"}}>{data.nomorFormulir}</span>}
+      </div>
+      {data.tanggalKembali && <div style={{fontSize:11,color:"#b45309",marginTop:1}}>Tanggal pengembalian: {data.tanggalKembali}</div>}
+
+      <div style={{marginTop:6}}>
+        {al.dokumen && <span style={chip}>Dokumen kurang</span>}
+        {al.hutang && <span style={chip}>Terdapat hutang</span>}
+      </div>
+
+      {rincian.length>0 && (<>
+        <div style={hLabel}>Dokumen yang harus dilengkapi</div>
+        <ol style={{margin:0,paddingLeft:18,fontSize:11.5,lineHeight:1.5}}>
+          {rincian.map((r,i)=>(
+            <li key={i}>
+              <strong>{r.dokumen}</strong>
+              {r.tindakan ? ` — ${r.tindakan}` : ""}
+              {r.batas ? <span style={{color:"#b45309"}}> (s/d {fmtTglSingkat(r.batas)})</span> : ""}
+            </li>
+          ))}
+        </ol>
+      </>)}
+
+      {hutang.length>0 && (<>
+        <div style={hLabel}>Jenis hutang / kewajiban</div>
+        <ol style={{margin:0,paddingLeft:18,fontSize:11.5,lineHeight:1.5}}>
+          {hutang.map((r,i)=>(
+            <li key={i}><strong>{r.jenis}</strong>{r.batas ? <span style={{color:"#b45309"}}> (s/d {fmtTglSingkat(r.batas)})</span> : ""}</li>
+          ))}
+        </ol>
+      </>)}
+
+      {(mekList.length>0 || mek.jumlah) && (<>
+        <div style={hLabel}>Mekanisme penyelesaian hutang</div>
+        <div style={{fontSize:11.5,lineHeight:1.5}}>
+          {mekList.join(" · ")}
+          {mek.jumlah ? <div style={{marginTop:2}}>Jumlah: <strong>Rp {fmtRibuan(mek.jumlah)}</strong></div> : null}
+        </div>
+      </>)}
+
+      <div style={{display:"flex",gap:16,flexWrap:"wrap",marginTop:8,paddingTop:7,borderTop:"1px dashed #fde68a",fontSize:10.5,color:"#92400e"}}>
+        {data.stafLoket && <div><span style={{color:"#b45309"}}>Staf Loket:</span> <strong>{data.stafLoket}</strong></div>}
+        {data.pengampu?.nama && <div><span style={{color:"#b45309"}}>Pengampu OPD:</span> <strong>{data.pengampu.nama}</strong></div>}
+        {data.pemohon?.nama && <div><span style={{color:"#b45309"}}>Pemohon:</span> <strong>{data.pemohon.nama}</strong></div>}
+      </div>
+    </div>
+  );
+}
+
 // ─── TIMELINE ────────────────────────────────────────────────────────────────
 function Timeline({ p }) {
   const tahapan = p.jalur==="A" ? TAHAPAN_A : TAHAPAN_B;
@@ -2622,30 +2697,40 @@ function Timeline({ p }) {
         const done  = selesai.includes(step.id);
         const aktif = p.tahapAktif === step.id;
         const isLast = idx === tahapan.length - 1;
-        const log = riwayat.find(r => r.tahap === step.id);
-        const isRet = log?.isKembali===true || log?.isKembali==="TRUE";
-        let dot = "pending"; if(done) dot=isRet?"ret":"done"; else if(aktif) dot="active";
+        const logs = riwayat.filter(r => r.tahap === step.id);
+        const log = logs.find(r => r.isKembali===true || r.isKembali==="TRUE") || logs[0];
+        const pernahRet = logs.some(r => r.isKembali===true || r.isKembali==="TRUE");
+        // "Dikembalikan" hanya ditampilkan selama tahap belum selesai. Begitu tahap
+        // selesai (sudah dilengkapi & diproses lanjut), tampilkan sebagai selesai.
+        const retNow = pernahRet && !done;
+        let dot = "pending"; if(done) dot="done"; else if(retNow) dot="ret"; else if(aktif) dot="active";
         return (
           <div key={step.id} className="timeline-item">
             <div className="timeline-left">
-              <div className={`t-dot ${dot}`}>{done&&!isRet?"✓":isRet?"↩":step.icon}</div>
-              {!isLast && <div className={`t-line ${done&&!isRet?"done":""}`} />}
+              <div className={`t-dot ${dot}`}>{done?"✓":retNow?"↩":step.icon}</div>
+              {!isLast && <div className={`t-line ${done?"done":""}`} />}
             </div>
             <div className="timeline-content" style={{paddingBottom:isLast?0:20}}>
               <div style={{fontWeight:700,fontSize:13,color:!done&&!aktif?"var(--outline)":"var(--on-surface)",marginBottom:2}}>{step.label}</div>
               <div style={{fontSize:11.5,color:"var(--on-surface-variant)",marginBottom:4}}>{step.pelaksana}</div>
               {aktif&&!done && <span className="badge badge-blue" style={{marginBottom:4,fontSize:11}}>Sedang diproses</span>}
+              {done&&pernahRet && <span className="badge badge-green" style={{marginBottom:4,fontSize:11}}>✓ Telah dilengkapi &amp; selesai</span>}
               {log && <div style={{fontSize:11,color:"var(--outline)",fontFamily:"var(--mono)"}}>{log.waktu}</div>}
-              {log?.catatan && (
-                <div style={{
-                  background: isRet?"#fffbeb":"var(--surface-container-low)",
-                  border: `1px solid ${isRet?"#fde68a":"var(--outline-variant)"}`,
-                  borderRadius:8, padding:"7px 11px", fontSize:12,
-                  color: isRet?"#92400e":"var(--on-surface-variant)", marginTop:6
-                }}>
-                  {isRet?"⚠️ ":""}{log.catatan}
-                </div>
-              )}
+              {log?.catatan && (() => {
+                let parsed = null;
+                try { parsed = JSON.parse(log.catatan); } catch { /* bukan JSON */ }
+                if (parsed && parsed._type === "FORMULIR_KEMBALI") return <CatatanKembali data={parsed}/>;
+                return (
+                  <div style={{
+                    background: isRet?"#fffbeb":"var(--surface-container-low)",
+                    border: `1px solid ${isRet?"#fde68a":"var(--outline-variant)"}`,
+                    borderRadius:8, padding:"7px 11px", fontSize:12,
+                    color: isRet?"#92400e":"var(--on-surface-variant)", marginTop:6
+                  }}>
+                    {isRet?"⚠️ ":""}{log.catatan}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         );

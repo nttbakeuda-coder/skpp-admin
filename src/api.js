@@ -91,6 +91,46 @@ export async function resetPassword({ username, passwordBaru }) {
   return await adminAkun({ action: "resetPassword", username, passwordBaru });
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// LUPA KATA SANDI — permintaan reset dari halaman login (tanpa perlu login)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Dipanggil dari halaman login oleh pengunjung yang belum masuk (anon).
+export async function ajukanResetPassword({ username, alasan }) {
+  const u = (username || "").trim();
+  if (!u) return err("NIP / Username wajib diisi.");
+  const { error } = await supabase.from("ResetRequest").insert({
+    username: u,
+    alasan: (alasan || "").trim() || null,
+    status: "pending",
+    waktu: new Date().toLocaleString("id-ID"),
+  });
+  if (error) return err("Gagal mengirim permintaan: " + error.message);
+  return ok({ pesan: "Permintaan reset kata sandi terkirim. Administrator akan menindaklanjuti." });
+}
+
+// Admin: daftar semua permintaan reset (terbaru di atas).
+export async function daftarPermintaanReset() {
+  const { data, error } = await supabase
+    .from("ResetRequest").select("*").order("created_at", { ascending: false });
+  if (error) return err("Gagal memuat permintaan reset.");
+  return ok({ data: data || [] });
+}
+
+// Admin: tandai sebuah permintaan sudah ditindaklanjuti.
+export async function tandaiResetSelesai({ id }) {
+  const { error } = await supabase.from("ResetRequest").update({ status: "selesai" }).eq("id", id);
+  if (error) return err("Gagal memperbarui status permintaan.");
+  return ok();
+}
+
+// Admin: hapus sebuah permintaan reset.
+export async function hapusPermintaanReset({ id }) {
+  const { error } = await supabase.from("ResetRequest").delete().eq("id", id);
+  if (error) return err("Gagal menghapus permintaan.");
+  return ok();
+}
+
 // ── Profil & kata sandi sendiri (pakai sesi yang sedang login) ──
 export async function profil() {
   const { data: { user } } = await supabase.auth.getUser();
@@ -155,16 +195,19 @@ export async function inputBaru({ data: formData }) {
   const tanggalMasuk = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
   const est = new Date(); est.setDate(est.getDate() + 7);
   const estimasiSelesai = est.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
-  const tahapAktif = formData.jalur === "A" ? "A1" : "B1";
+  // Saat input oleh loket, tahap "Berkas Diterima di Loket" (A1/B1) langsung selesai,
+  // tahap aktif berpindah ke tahap berikutnya (A2/B2).
+  const firstStep = formData.jalur === "A" ? "A1" : "B1";
+  const nextStep  = formData.jalur === "A" ? "A2" : "B2";
 
   const { error } = await supabase.from("Pengajuan").insert({
     id, ...formData, kodeAkses, tanggalMasuk, estimasiSelesai,
-    tahapAktif, tahapSelesai: "", status: "proses",
+    tahapAktif: nextStep, tahapSelesai: firstStep, status: "proses",
   });
   if (error) return err("Gagal menyimpan pengajuan: " + error.message);
 
   await supabase.from("Riwayat").insert({
-    pengajuanId: id, tahap: tahapAktif,
+    pengajuanId: id, tahap: firstStep,
     waktu: new Date().toLocaleString("id-ID"),
     catatan: "Berkas diterima di loket", isKembali: false,
   });
@@ -183,16 +226,18 @@ export async function inputBulk({ data: bulkData }) {
     const id = await nextId();
     daftarId.push(id);
     const est = new Date(); est.setDate(est.getDate() + 7);
-    const tahapAktif = item.jalur === "A" ? "A1" : "B1";
+    // Tahap "Berkas Diterima di Loket" langsung selesai saat diinput loket.
+    const firstStep = item.jalur === "A" ? "A1" : "B1";
+    const nextStep  = item.jalur === "A" ? "A2" : "B2";
 
     await supabase.from("Pengajuan").insert({
       id, ...item, opd: namaOPD, kasubid: item.kasubid,
       kodeAkses, tanggalMasuk,
       estimasiSelesai: est.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }),
-      tahapAktif, tahapSelesai: "", status: "proses",
+      tahapAktif: nextStep, tahapSelesai: firstStep, status: "proses",
     });
     await supabase.from("Riwayat").insert({
-      pengajuanId: id, tahap: tahapAktif,
+      pengajuanId: id, tahap: firstStep,
       waktu: new Date().toLocaleString("id-ID"),
       catatan: "Berkas diterima di loket (bulk)", isKembali: false,
     });

@@ -8,5 +8,9 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     persistSession: true,
     autoRefreshToken: true,
     storageKey: "skpp-admin-auth",
+    // Simpan sesi di sessionStorage (bukan localStorage) agar login diminta
+    // setiap kali aplikasi dibuka dari tab/jendela baru atau browser ditutup,
+    // namun tetap bertahan saat halaman di-refresh dalam tab yang sama.
+    storage: typeof window !== "undefined" ? window.sessionStorage : undefined,
   },
 });
