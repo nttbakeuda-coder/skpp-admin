@@ -1814,7 +1814,20 @@ const S = `
   .d2-logout:hover { background: var(--danger-50); }
 
   /* ── Sidebar collapsible: rail ikon statis, transisi halus ── */
-  .d2-side { width: 264px; overflow-x: hidden; transition: width .28s cubic-bezier(.4,0,.2,1), padding .28s cubic-bezier(.4,0,.2,1); }
+  .d2-side { width: 264px; z-index: 30; transition: width .28s cubic-bezier(.4,0,.2,1), padding .28s cubic-bezier(.4,0,.2,1); }
+  /* Tooltip nama menu saat mode ciut (mengambang di kanan ikon) */
+  .d2-side.d2-rail .d2-navitem::after {
+    content: attr(data-tip);
+    position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%) scale(.96);
+    transform-origin: left center;
+    background: var(--navy-800); color: #fff;
+    padding: 6px 11px; border-radius: 9px;
+    font: var(--fw-semibold) 12.5px/1 var(--font-sans); white-space: nowrap; letter-spacing: .01em;
+    box-shadow: 0 6px 20px -6px rgba(15,23,42,.5);
+    opacity: 0; pointer-events: none; z-index: 9999;
+    transition: opacity .14s ease, transform .14s ease;
+  }
+  .d2-side.d2-rail .d2-navitem:hover::after { opacity: 1; transform: translateY(-50%) scale(1); }
   /* Ikon dikunci agar tidak pernah menyusut/menggeser saat sidebar menyempit */
   .d2-navic { flex: none; width: 19px; justify-content: flex-start; }
   .d2-admin-av { flex: none; }
@@ -5519,7 +5532,7 @@ function D2Sidebar({ user, active, onChange, counts, onLogout, collapsed, onTogg
       <div className="d2-navwrap">
         <div className="d2-navlabel">Menu Utama</div>
         {main.map(n=>(
-          <button key={n.key} className={"d2-navitem"+(active===n.key?" is-active":"")} onClick={()=>onChange(n.key)}>
+          <button key={n.key} data-tip={n.label} className={"d2-navitem"+(active===n.key?" is-active":"")} onClick={()=>onChange(n.key)}>
             <span className="d2-navic"><D2Ico d={D2ICONS[n.ic]} size={19}/></span>
             <span className="d2-navtxt">{n.label}</span>
             {n.badge>0 && <span className="d2-navbadge tnum">{n.badge}</span>}
@@ -5528,7 +5541,7 @@ function D2Sidebar({ user, active, onChange, counts, onLogout, collapsed, onTogg
         {user?.role==="admin" && (
           <>
             <div className="d2-navlabel" style={{marginTop:18}}>Administrasi</div>
-            <button className={"d2-navitem"+(active==="users"?" is-active":"")} onClick={()=>onChange("users")}>
+            <button data-tip="Manajemen Staf" className={"d2-navitem"+(active==="users"?" is-active":"")} onClick={()=>onChange("users")}>
               <span className="d2-navic"><D2Ico d={D2ICONS.staff} size={19}/></span>
               <span className="d2-navtxt">Manajemen Staf</span>
             </button>
