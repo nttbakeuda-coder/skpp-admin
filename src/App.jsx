@@ -1801,7 +1801,7 @@ const S = `
   .d2-admin-role { align-self: flex-start; font: var(--fw-bold) 9px/1 var(--font-sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--blue-700); background: var(--white); border: 1px solid var(--blue-200); padding: 3px 7px; border-radius: var(--radius-pill); }
   .d2-navwrap { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; flex: 1; }
   .d2-navlabel { font: var(--fw-bold) 10px/1 var(--font-sans); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--grey-400); padding: 8px 12px 6px; }
-  .d2-navitem { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: none; background: transparent; cursor: pointer; border-radius: var(--radius-md); color: var(--grey-600); font: var(--fw-semibold) var(--text-sm)/1 var(--font-sans); text-align: left; width: 100%; transition: background var(--dur-fast), color var(--dur-fast); }
+  .d2-navitem { display: flex; align-items: center; gap: 12px; min-height: 42px; padding: 10px 12px; border: none; background: transparent; cursor: pointer; border-radius: var(--radius-md); color: var(--grey-600); font: var(--fw-semibold) var(--text-sm)/1 var(--font-sans); text-align: left; width: 100%; transition: background var(--dur-fast), color var(--dur-fast); }
   .d2-navic { display: inline-flex; color: var(--grey-500); transition: color var(--dur-fast); }
   .d2-navtxt { flex: 1; }
   .d2-navitem:hover { background: var(--grey-100); color: var(--navy-800); }
@@ -1838,9 +1838,12 @@ const S = `
      bawahnya tidak naik (mencegah pergeseran vertikal). */
   .d2-side.d2-rail .d2-navlabel { opacity: 0; }
   .d2-side.d2-rail .d2-mark { display: none; }
-  /* Avatar tetap di tempat: chip dibersihkan TANPA mengubah box (border tetap,
-     hanya warnanya transparan) agar tidak bergeser 1px karena border-box. */
-  .d2-side.d2-rail .d2-admin { background: transparent; border-color: transparent; }
+  /* Avatar: chip dibersihkan (border tetap, warna transparan) + dipusatkan
+     horizontal di rail via padding tetap (anchor, bukan width-relative -> tak nge-slide).
+     Avatar 38px, rail 72px => left = (72-38)/2 = 17px = padding-left 2 (14 side +1 border). */
+  .d2-admin { transition: padding .28s cubic-bezier(.4,0,.2,1); }
+  .d2-side.d2-rail .d2-admin { background: transparent; border-color: transparent; padding-left: 2px; padding-right: 2px; }
+  .d2-side.d2-rail .d2-admin-txt { width: 0; overflow: hidden; }
   /* Badge jadi dot di pojok ikon */
   .d2-side.d2-rail .d2-navitem { position: relative; }
   .d2-side.d2-rail .d2-navbadge { position: absolute; top: 4px; left: 26px; min-width: 16px; height: 16px; padding: 0 4px; line-height: 16px; font-size: 9px; }
