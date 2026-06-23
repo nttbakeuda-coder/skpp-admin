@@ -1789,7 +1789,7 @@ const S = `
 
   /* Sidebar — tint biru sejuk, bukan putih polos */
   .d2-side { background: linear-gradient(184deg, #f1f5fb 0%, #e2e9f4 100%); border-right: 1px solid #d6dfee; display: flex; flex-direction: column; padding: 18px 14px; position: sticky; top: 0; height: calc(100vh / 0.75); }
-  .d2-brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; }
+  .d2-brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; height: 68px; overflow: hidden; }
   .d2-mark { height: 32px; width: auto; flex: none; }
   .d2-brand-txt { display: flex; flex-direction: column; line-height: 1.12; min-width: 0; }
   .d2-brand-txt b { font-family: var(--font-display); font-weight: 700; font-size: 15px; line-height: 1; color: var(--navy-800); letter-spacing: -0.01em; }
@@ -1834,10 +1834,13 @@ const S = `
   .d2-side.d2-rail .d2-brand-txt,
   .d2-side.d2-rail .d2-admin-txt,
   .d2-side.d2-rail .d2-navtxt { opacity: 0; pointer-events: none; }
-  .d2-side.d2-rail .d2-navlabel { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; }
+  /* Label seksi: HANYA teks memudar; tinggi/ruang DIPERTAHANKAN agar ikon di
+     bawahnya tidak naik (mencegah pergeseran vertikal). */
+  .d2-side.d2-rail .d2-navlabel { opacity: 0; }
   .d2-side.d2-rail .d2-mark { display: none; }
-  /* Avatar tetap di tempat (posisi & padding tidak berubah); hanya chip dibersihkan */
-  .d2-side.d2-rail .d2-admin { background: transparent; border: none; }
+  /* Avatar tetap di tempat: chip dibersihkan TANPA mengubah box (border tetap,
+     hanya warnanya transparan) agar tidak bergeser 1px karena border-box. */
+  .d2-side.d2-rail .d2-admin { background: transparent; border-color: transparent; }
   /* Badge jadi dot di pojok ikon */
   .d2-side.d2-rail .d2-navitem { position: relative; }
   .d2-side.d2-rail .d2-navbadge { position: absolute; top: 4px; left: 26px; min-width: 16px; height: 16px; padding: 0 4px; line-height: 16px; font-size: 9px; }
