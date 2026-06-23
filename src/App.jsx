@@ -1789,9 +1789,9 @@ const S = `
 
   /* Sidebar — tint biru sejuk, bukan putih polos */
   .d2-side { background: linear-gradient(184deg, #f1f5fb 0%, #e2e9f4 100%); border-right: 1px solid #d6dfee; display: flex; flex-direction: column; padding: 18px 14px; position: sticky; top: 0; height: calc(100vh / 0.75); }
-  .d2-brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; height: 68px; overflow: hidden; }
+  .d2-brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; height: 68px; overflow: visible; }
   .d2-mark { height: 32px; width: auto; flex: none; }
-  .d2-brand-txt { display: flex; flex-direction: column; line-height: 1.12; min-width: 0; }
+  .d2-brand-txt { display: flex; flex-direction: column; line-height: 1.12; min-width: 0; overflow: hidden; max-height: 48px; }
   .d2-brand-txt b { font-family: var(--font-display); font-weight: 700; font-size: 15px; line-height: 1; color: var(--navy-800); letter-spacing: -0.01em; }
   .d2-brand-txt span { font: var(--fw-medium) 10px/1.3 var(--font-sans); color: var(--text-subtle); margin-top: 3px; }
   .d2-admin { display: flex; align-items: center; gap: 11px; padding: 11px 12px; margin-bottom: 8px; background: var(--blue-50); border: 1px solid var(--blue-100); border-radius: var(--radius-md); }
@@ -1815,8 +1815,14 @@ const S = `
 
   /* ── Sidebar collapsible: rail ikon statis, transisi halus ── */
   .d2-side { width: 264px; z-index: 30; transition: width .28s cubic-bezier(.4,0,.2,1), padding .28s cubic-bezier(.4,0,.2,1); }
-  /* Tooltip nama menu saat mode ciut (mengambang di kanan ikon) */
-  .d2-side.d2-rail .d2-navitem::after {
+  /* Wrapper logo (jadi tombol perluas saat ciut) */
+  .d2-logo-btn { display: inline-flex; align-items: center; flex: none; }
+  .d2-side.d2-rail .d2-logo-btn { position: relative; cursor: pointer; }
+  .d2-collapse-btn { position: relative; }
+  /* Tooltip mengambang: nama menu (mode ciut) + buka/tutup panel (tombol & logo) */
+  .d2-side.d2-rail .d2-navitem::after,
+  .d2-side.d2-rail .d2-logo-btn::after,
+  .d2-collapse-btn::after {
     content: attr(data-tip);
     position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%) scale(.96);
     transform-origin: left center;
@@ -1827,7 +1833,9 @@ const S = `
     opacity: 0; pointer-events: none; z-index: 9999;
     transition: opacity .14s ease, transform .14s ease;
   }
-  .d2-side.d2-rail .d2-navitem:hover::after { opacity: 1; transform: translateY(-50%) scale(1); }
+  .d2-side.d2-rail .d2-navitem:hover::after,
+  .d2-side.d2-rail .d2-logo-btn:hover::after,
+  .d2-collapse-btn:hover::after { opacity: 1; transform: translateY(-50%) scale(1); }
   /* Ikon dikunci agar tidak pernah menyusut/menggeser saat sidebar menyempit */
   .d2-navic { flex: none; width: 19px; justify-content: flex-start; }
   .d2-admin-av { flex: none; }
@@ -5507,16 +5515,16 @@ function D2Sidebar({ user, active, onChange, counts, onLogout, collapsed, onTogg
   return (
     <aside className={"d2-side"+(rail?" d2-rail":"")}>
       <div className="d2-brand">
-        <img src="/logo-sipasti.png" alt="" className="d2-mark"
-          onClick={collapsed ? onToggleCollapse : undefined}
-          title={collapsed ? "Perluas menu" : undefined}
-          onError={e=>{e.target.style.display="none";}}/>
+        <span className="d2-logo-btn" data-tip="Buka panel samping"
+          onClick={collapsed ? onToggleCollapse : undefined}>
+          <img src="/logo-sipasti.png" alt="" className="d2-mark" onError={e=>{e.target.style.display="none";}}/>
+        </span>
         <div className="d2-brand-txt">
           <b>SI-PASTI</b>
           <span>Sistem Pemantauan Alur SKPP Terintegrasi</span>
         </div>
         <button className="d2-collapse-btn" onClick={onToggleCollapse}
-          title={collapsed?"Perluas menu":"Ciutkan menu"} aria-label={collapsed?"Perluas menu":"Ciutkan menu"}>
+          data-tip={collapsed?"Buka panel samping":"Tutup panel samping"} aria-label={collapsed?"Buka panel samping":"Tutup panel samping"}>
           <D2Ico d={<><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></>} size={18}/>
         </button>
       </div>
