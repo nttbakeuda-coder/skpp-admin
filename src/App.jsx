@@ -1814,7 +1814,10 @@ const S = `
   .d2-logout:hover { background: var(--danger-50); }
 
   /* ── Sidebar collapsible: rail ikon statis, transisi halus ── */
-  .d2-side { width: 264px; transition: width .28s cubic-bezier(.4,0,.2,1), padding .28s cubic-bezier(.4,0,.2,1); }
+  .d2-side { width: 264px; overflow-x: hidden; transition: width .28s cubic-bezier(.4,0,.2,1), padding .28s cubic-bezier(.4,0,.2,1); }
+  /* Ikon dikunci agar tidak pernah menyusut/menggeser saat sidebar menyempit */
+  .d2-navic { flex: none; width: 19px; justify-content: flex-start; }
+  .d2-admin-av { flex: none; }
   .d2-collapse-btn { flex: none; width: 32px; height: 32px; display: grid; place-content: center; border: none; background: transparent; border-radius: 8px; color: var(--grey-500); cursor: pointer; transition: background .15s, color .15s; }
   .d2-collapse-btn:hover { background: var(--grey-100); color: var(--navy-700); }
   /* Teks: fade halus (bukan hilang seketika) */
