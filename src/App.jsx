@@ -1818,8 +1818,10 @@ const S = `
   /* Ikon dikunci agar tidak pernah menyusut/menggeser saat sidebar menyempit */
   .d2-navic { flex: none; width: 19px; justify-content: flex-start; }
   .d2-admin-av { flex: none; }
-  .d2-collapse-btn { flex: none; width: 32px; height: 32px; display: grid; place-content: center; border: none; background: transparent; border-radius: 8px; color: var(--grey-500); cursor: pointer; transition: background .15s, color .15s; }
+  .d2-collapse-btn { margin-left: auto; flex: none; width: 32px; height: 32px; display: grid; place-content: center; border: none; background: transparent; border-radius: 8px; color: var(--grey-500); cursor: pointer; transition: background .15s, color .15s; }
   .d2-collapse-btn:hover { background: var(--grey-100); color: var(--navy-700); }
+  /* Saat ciut, tombol tetap di kiri (teks menyusut ke 0) */
+  .d2-side.d2-rail .d2-collapse-btn { margin-left: 0; }
   /* Teks: fade halus (bukan hilang seketika) */
   .d2-brand-txt, .d2-admin-txt, .d2-navtxt { transition: opacity .2s ease; }
   .d2-navtxt { min-width: 0; overflow: hidden; white-space: nowrap; }
@@ -5492,15 +5494,15 @@ function D2Sidebar({ user, active, onChange, counts, onLogout, collapsed, onTogg
   return (
     <aside className={"d2-side"+(rail?" d2-rail":"")}>
       <div className="d2-brand">
-        <button className="d2-collapse-btn" onClick={onToggleCollapse}
-          title={collapsed?"Perluas menu":"Ciutkan menu"} aria-label={collapsed?"Perluas menu":"Ciutkan menu"}>
-          <D2Ico d={<><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></>} size={18}/>
-        </button>
         <img src="/logo-sipasti.png" alt="" className="d2-mark" onError={e=>{e.target.style.display="none";}}/>
         <div className="d2-brand-txt">
           <b>SI-PASTI</b>
           <span>Sistem Pemantauan Alur SKPP Terintegrasi</span>
         </div>
+        <button className="d2-collapse-btn" onClick={onToggleCollapse}
+          title={collapsed?"Perluas menu":"Ciutkan menu"} aria-label={collapsed?"Perluas menu":"Ciutkan menu"}>
+          <D2Ico d={<><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></>} size={18}/>
+        </button>
       </div>
       <div className="d2-admin">
         <div className="d2-admin-av" style={user?.foto?{padding:0,overflow:"hidden"}:undefined}>
