@@ -1802,7 +1802,9 @@ const S = `
   .d2-navwrap { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; flex: 1; }
   .d2-navlabel { font: var(--fw-bold) 10px/1 var(--font-sans); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--grey-400); padding: 8px 12px 6px; }
   .d2-navitem { display: flex; align-items: center; gap: 12px; min-height: 42px; padding: 10px 12px; border: none; background: transparent; cursor: pointer; border-radius: var(--radius-md); color: var(--grey-600); font: var(--fw-semibold) var(--text-sm)/1 var(--font-sans); text-align: left; width: 100%; transition: background var(--dur-fast), color var(--dur-fast); }
-  .d2-navic { display: inline-flex; color: var(--grey-500); transition: color var(--dur-fast); }
+  .d2-navic { display: inline-flex; color: var(--grey-500); transition: color var(--dur-fast), transform .22s cubic-bezier(.34,1.56,.64,1); }
+  .d2-navitem:hover .d2-navic { transform: scale(1.18) translateY(-1px); }
+  .d2-navitem:active .d2-navic { transform: scale(.94); transition-duration: .08s; }
   .d2-navtxt { flex: 1; }
   .d2-navitem:hover { background: var(--grey-100); color: var(--navy-800); }
   .d2-navitem:hover .d2-navic { color: var(--navy-700); }
