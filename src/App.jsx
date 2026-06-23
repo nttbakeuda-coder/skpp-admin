@@ -1823,7 +1823,7 @@ const S = `
   /* Teks: fade halus (bukan hilang seketika) */
   .d2-brand-txt, .d2-admin-txt, .d2-navtxt { transition: opacity .2s ease; }
   .d2-navtxt { min-width: 0; overflow: hidden; white-space: nowrap; }
-  .d2-navlabel { overflow: hidden; max-height: 30px; transition: opacity .18s ease, max-height .26s cubic-bezier(.4,0,.2,1), padding .26s ease; }
+  .d2-navlabel { white-space: nowrap; overflow: hidden; max-height: 30px; transition: opacity .18s ease, max-height .26s cubic-bezier(.4,0,.2,1), padding .26s ease; }
 
   /* Saat diciutkan: grid & sidebar menyempit serempak (halus) */
   .d2-root { transition: grid-template-columns .28s cubic-bezier(.4,0,.2,1); }
