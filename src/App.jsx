@@ -1813,30 +1813,32 @@ const S = `
   .d2-logout { margin-top: auto; display: flex; align-items: center; gap: 12px; padding: 11px 12px; border: 1px solid var(--border-subtle); background: var(--white); cursor: pointer; border-radius: var(--radius-md); color: var(--danger-600); font: var(--fw-semibold) var(--text-sm)/1 var(--font-sans); transition: background var(--dur-fast); width: 100%; }
   .d2-logout:hover { background: var(--danger-50); }
 
-  /* ── Sidebar collapsible: rail ikon statis saat diciutkan (gaya Claude) ── */
-  .d2-side { width: 264px; transition: width .24s cubic-bezier(.4,0,.2,1), padding .24s cubic-bezier(.4,0,.2,1); }
-  .d2-collapse-btn { margin-left: auto; flex: none; width: 30px; height: 30px; display: grid; place-content: center; border: none; background: transparent; border-radius: 8px; color: var(--grey-500); cursor: pointer; transition: background .15s, color .15s; }
+  /* ── Sidebar collapsible: rail ikon statis, transisi halus ── */
+  .d2-side { width: 264px; transition: width .28s cubic-bezier(.4,0,.2,1), padding .28s cubic-bezier(.4,0,.2,1); }
+  .d2-collapse-btn { flex: none; width: 32px; height: 32px; display: grid; place-content: center; border: none; background: transparent; border-radius: 8px; color: var(--grey-500); cursor: pointer; transition: background .15s, color .15s; }
   .d2-collapse-btn:hover { background: var(--grey-100); color: var(--navy-700); }
+  /* Teks: fade halus (bukan hilang seketika) */
+  .d2-brand-txt, .d2-admin-txt, .d2-navtxt { transition: opacity .2s ease; }
+  .d2-navtxt { min-width: 0; overflow: hidden; white-space: nowrap; }
+  .d2-navlabel { overflow: hidden; max-height: 30px; transition: opacity .18s ease, max-height .26s cubic-bezier(.4,0,.2,1), padding .26s ease; }
 
-  /* Saat diciutkan: kolom grid menyempit -> konten memakai ruang lebih lebar */
-  .d2-root.side-collapsed { grid-template-columns: 68px 1fr; }
-  .d2-root.side-collapsed .d2-side { width: 68px; padding-left: 10px; padding-right: 10px; }
+  /* Saat diciutkan: grid & sidebar menyempit serempak (halus) */
+  .d2-root { transition: grid-template-columns .28s cubic-bezier(.4,0,.2,1); }
+  .d2-root.side-collapsed { grid-template-columns: 72px 1fr; }
+  .d2-root.side-collapsed .d2-side { width: 72px; }
 
-  /* Mode rail: sembunyikan teks, pusatkan ikon */
+  /* Mode rail: HANYA teks yang memudar; posisi & padding ikon tidak berubah */
   .d2-side.d2-rail .d2-brand-txt,
   .d2-side.d2-rail .d2-admin-txt,
-  .d2-side.d2-rail .d2-navlabel,
-  .d2-side.d2-rail .d2-navtxt { display: none; }
-  /* Atas: hanya tombol toggle, di tengah (logo disembunyikan) */
+  .d2-side.d2-rail .d2-navtxt { opacity: 0; pointer-events: none; }
+  .d2-side.d2-rail .d2-navlabel { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; }
   .d2-side.d2-rail .d2-mark { display: none; }
-  .d2-side.d2-rail .d2-brand { order: 1; justify-content: center; gap: 0; padding: 2px 0 12px; }
-  .d2-side.d2-rail .d2-collapse-btn { margin: 0 auto; width: 34px; height: 34px; }
-  /* Ikon menu terpusat */
-  .d2-side.d2-rail .d2-navwrap { order: 2; gap: 4px; }
-  .d2-side.d2-rail .d2-navitem { justify-content: center; gap: 0; padding: 11px 0; position: relative; border-radius: 12px; }
-  .d2-side.d2-rail .d2-navbadge { position: absolute; top: 3px; right: 10px; min-width: 16px; height: 16px; padding: 0 4px; line-height: 16px; font-size: 9px; }
-  /* Avatar pindah ke bawah, jadi lingkaran bersih tanpa chip */
-  .d2-side.d2-rail .d2-admin { order: 3; margin: 12px 0 2px; padding: 0; background: transparent; border: none; justify-content: center; }
+  /* Avatar pindah ke bawah jadi lingkaran bersih; x kiri tetap sama */
+  .d2-side.d2-rail .d2-navwrap { order: 2; }
+  .d2-side.d2-rail .d2-admin { order: 3; margin: 10px 0 2px; background: transparent; border: none; }
+  /* Badge jadi dot di pojok ikon */
+  .d2-side.d2-rail .d2-navitem { position: relative; }
+  .d2-side.d2-rail .d2-navbadge { position: absolute; top: 4px; left: 26px; min-width: 16px; height: 16px; padding: 0 4px; line-height: 16px; font-size: 9px; }
 
   /* Main */
   .d2-main { display: flex; flex-direction: column; min-width: 0; }
@@ -5482,15 +5484,15 @@ function D2Sidebar({ user, active, onChange, counts, onLogout, collapsed, onTogg
   return (
     <aside className={"d2-side"+(rail?" d2-rail":"")}>
       <div className="d2-brand">
+        <button className="d2-collapse-btn" onClick={onToggleCollapse}
+          title={collapsed?"Perluas menu":"Ciutkan menu"} aria-label={collapsed?"Perluas menu":"Ciutkan menu"}>
+          <D2Ico d={<><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></>} size={18}/>
+        </button>
         <img src="/logo-sipasti.png" alt="" className="d2-mark" onError={e=>{e.target.style.display="none";}}/>
         <div className="d2-brand-txt">
           <b>SI-PASTI</b>
           <span>Sistem Pemantauan Alur SKPP Terintegrasi</span>
         </div>
-        <button className="d2-collapse-btn" onClick={onToggleCollapse}
-          title={collapsed?"Perluas menu":"Ciutkan menu"} aria-label={collapsed?"Perluas menu":"Ciutkan menu"}>
-          <D2Ico d={<><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></>} size={18}/>
-        </button>
       </div>
       <div className="d2-admin">
         <div className="d2-admin-av" style={user?.foto?{padding:0,overflow:"hidden"}:undefined}>
