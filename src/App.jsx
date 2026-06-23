@@ -1820,8 +1820,8 @@ const S = `
   .d2-admin-av { flex: none; }
   .d2-collapse-btn { margin-left: auto; flex: none; width: 32px; height: 32px; display: grid; place-content: center; border: none; background: transparent; border-radius: 8px; color: var(--grey-500); cursor: pointer; transition: background .15s, color .15s; }
   .d2-collapse-btn:hover { background: var(--grey-100); color: var(--navy-700); }
-  /* Saat ciut, tombol tetap di kiri (teks menyusut ke 0) */
-  .d2-side.d2-rail .d2-collapse-btn { margin-left: 0; }
+  /* Saat ciut: tombol toggle diganti logo SI-PASTI (logo jadi tombol perluas) */
+  .d2-side.d2-rail .d2-collapse-btn { display: none; }
   /* Teks: fade halus (bukan hilang seketika) */
   .d2-brand-txt, .d2-admin-txt, .d2-navtxt { transition: opacity .2s ease; }
   .d2-navtxt { min-width: 0; overflow: hidden; white-space: nowrap; }
@@ -1839,7 +1839,7 @@ const S = `
   /* Label seksi: HANYA teks memudar; tinggi/ruang DIPERTAHANKAN agar ikon di
      bawahnya tidak naik (mencegah pergeseran vertikal). */
   .d2-side.d2-rail .d2-navlabel { opacity: 0; }
-  .d2-side.d2-rail .d2-mark { display: none; }
+  .d2-side.d2-rail .d2-mark { display: block; cursor: pointer; }
   /* Avatar: chip dibersihkan (border tetap, warna transparan) + dipusatkan
      horizontal di rail via padding tetap (anchor, bukan width-relative -> tak nge-slide).
      Avatar 38px, rail 72px => left = (72-38)/2 = 17px = padding-left 2 (14 side +1 border). */
@@ -5494,7 +5494,10 @@ function D2Sidebar({ user, active, onChange, counts, onLogout, collapsed, onTogg
   return (
     <aside className={"d2-side"+(rail?" d2-rail":"")}>
       <div className="d2-brand">
-        <img src="/logo-sipasti.png" alt="" className="d2-mark" onError={e=>{e.target.style.display="none";}}/>
+        <img src="/logo-sipasti.png" alt="" className="d2-mark"
+          onClick={collapsed ? onToggleCollapse : undefined}
+          title={collapsed ? "Perluas menu" : undefined}
+          onError={e=>{e.target.style.display="none";}}/>
         <div className="d2-brand-txt">
           <b>SI-PASTI</b>
           <span>Sistem Pemantauan Alur SKPP Terintegrasi</span>
