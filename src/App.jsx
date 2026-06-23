@@ -1798,7 +1798,7 @@ const S = `
   .d2-admin-av { width: 38px; height: 38px; border-radius: 50%; flex: none; background: var(--navy-600); color: #fff; display: grid; place-content: center; font: var(--fw-bold) var(--text-sm)/1 var(--font-sans); }
   .d2-admin-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .d2-admin-txt b { font: var(--fw-bold) var(--text-sm)/1.2 var(--font-sans); color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .d2-admin-role { align-self: flex-start; font: var(--fw-bold) 9px/1 var(--font-sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--blue-700); background: var(--white); border: 1px solid var(--blue-200); padding: 3px 7px; border-radius: var(--radius-pill); }
+  .d2-admin-role { align-self: flex-start; white-space: nowrap; font: var(--fw-bold) 9px/1 var(--font-sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--blue-700); background: var(--white); border: 1px solid var(--blue-200); padding: 3px 7px; border-radius: var(--radius-pill); }
   .d2-navwrap { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; flex: 1; }
   .d2-navlabel { font: var(--fw-bold) 10px/1 var(--font-sans); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--grey-400); padding: 8px 12px 6px; }
   .d2-navitem { display: flex; align-items: center; gap: 12px; min-height: 42px; padding: 10px 12px; border: none; background: transparent; cursor: pointer; border-radius: var(--radius-md); color: var(--grey-600); font: var(--fw-semibold) var(--text-sm)/1 var(--font-sans); text-align: left; width: 100%; transition: background var(--dur-fast), color var(--dur-fast); }
