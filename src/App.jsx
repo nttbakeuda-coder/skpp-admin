@@ -2778,6 +2778,7 @@ function Timeline({ p }) {
               {done&&pernahRet && <span className="badge badge-green" style={{marginBottom:4,fontSize:11}}>✓ Telah dilengkapi &amp; selesai</span>}
               {log && <div style={{fontSize:11,color:"var(--outline)",fontFamily:"var(--mono)"}}>{log.waktu}</div>}
               {log?.catatan && (() => {
+                const isRet = log.isKembali===true || log.isKembali==="TRUE";
                 let parsed = null;
                 try { parsed = JSON.parse(log.catatan); } catch { /* bukan JSON */ }
                 if (parsed && parsed._type === "FORMULIR_KEMBALI") return <CatatanKembali data={parsed}/>;
