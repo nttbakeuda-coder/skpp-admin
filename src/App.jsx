@@ -1813,6 +1813,32 @@ const S = `
   .d2-logout { margin-top: auto; display: flex; align-items: center; gap: 12px; padding: 11px 12px; border: 1px solid var(--border-subtle); background: var(--white); cursor: pointer; border-radius: var(--radius-md); color: var(--danger-600); font: var(--fw-semibold) var(--text-sm)/1 var(--font-sans); transition: background var(--dur-fast); width: 100%; }
   .d2-logout:hover { background: var(--danger-50); }
 
+  /* ── Sidebar collapsible (gaya Claude: rail tipis + flyout saat hover) ── */
+  .d2-side { width: 264px; transition: width .24s cubic-bezier(.4,0,.2,1), padding .24s cubic-bezier(.4,0,.2,1); }
+  .d2-collapse-btn { margin-left: auto; flex: none; width: 28px; height: 28px; display: grid; place-content: center; border: none; background: transparent; border-radius: 8px; color: var(--grey-500); cursor: pointer; transition: background .15s, color .15s; }
+  .d2-collapse-btn:hover { background: var(--grey-100); color: var(--navy-700); }
+
+  /* Saat dipinkan (collapsed): kolom grid menyempit -> konten memakai ruang lebih lebar */
+  .d2-root.side-collapsed { grid-template-columns: 64px 1fr; }
+  .d2-root.side-collapsed .d2-side { width: 64px; padding-left: 8px; padding-right: 8px; }
+  /* Flyout: hover saat collapsed -> mengembang sebagai overlay tanpa mendorong konten */
+  .d2-root.side-collapsed .d2-side.d2-flyout {
+    width: 264px; padding-left: 14px; padding-right: 14px;
+    z-index: 200; box-shadow: 14px 0 48px -12px rgba(15,23,42,.42);
+    border-right: 1px solid #cdd8ea;
+  }
+
+  /* Mode rail (ciut & tidak hover): sembunyikan teks, pusatkan ikon */
+  .d2-side.d2-rail .d2-brand-txt,
+  .d2-side.d2-rail .d2-admin-txt,
+  .d2-side.d2-rail .d2-navlabel,
+  .d2-side.d2-rail .d2-navtxt { display: none; }
+  .d2-side.d2-rail .d2-collapse-btn { display: none; }
+  .d2-side.d2-rail .d2-brand { justify-content: center; gap: 0; padding: 4px 0 16px; }
+  .d2-side.d2-rail .d2-admin { justify-content: center; gap: 0; padding: 9px 0; }
+  .d2-side.d2-rail .d2-navitem { justify-content: center; gap: 0; padding: 10px 0; position: relative; }
+  .d2-side.d2-rail .d2-navbadge { position: absolute; top: 3px; right: 9px; min-width: 16px; height: 16px; padding: 0 4px; line-height: 16px; font-size: 9px; }
+
   /* Main */
   .d2-main { display: flex; flex-direction: column; min-width: 0; }
   .d2-top { display: flex; align-items: center; gap: 18px; padding: 16px 28px; min-height: 64px; background: rgba(244,247,252,0.82); backdrop-filter: saturate(1.3) blur(8px); -webkit-backdrop-filter: saturate(1.3) blur(8px); border-bottom: 1px solid #dde4f0; position: sticky; top: 0; z-index: 10; }
@@ -1974,7 +2000,7 @@ const S = `
   }
   @media (max-width: 920px) {
     .d2-side { display: none; height: 100vh; }
-    .d2-root { grid-template-columns: 1fr; zoom: 1; min-height: 100vh; }
+    .d2-root, .d2-root.side-collapsed { grid-template-columns: 1fr; zoom: 1; min-height: 100vh; }
   }
 
   /* ════════════════════════════════════════════
@@ -5442,7 +5468,9 @@ function PageProfil({ user, onToast, onUpdateUser }) {
 }
 
 // ─── DASHBOARD SHELL (d2) — sidebar + motto ticker ───────────────────────────
-function D2Sidebar({ user, active, onChange, counts, onLogout }) {
+function D2Sidebar({ user, active, onChange, counts, onLogout, collapsed, onToggleCollapse }) {
+  const [hover, setHover] = useState(false);
+  const rail = collapsed && !hover; // tampil ikon saja (ciut & tidak di-hover)
   const initials = (user?.nama||"U").split(" ").map(w=>w[0]).filter(Boolean).slice(0,2).join("").toUpperCase();
   const roleLabel = user?.role==="admin" ? "Admin" : user?.role==="operator" ? "Staf Loket" : "Staf Pengampu OPD";
   const main = [
@@ -5454,13 +5482,21 @@ function D2Sidebar({ user, active, onChange, counts, onLogout }) {
     { key:"laporan",   label:"Laporan",              ic:"report" },
   ];
   return (
-    <aside className="d2-side">
+    <aside
+      className={"d2-side"+(rail?" d2-rail":"")+(collapsed&&hover?" d2-flyout":"")}
+      onMouseEnter={()=>setHover(true)}
+      onMouseLeave={()=>setHover(false)}
+    >
       <div className="d2-brand">
         <img src="/logo-sipasti.png" alt="" className="d2-mark" onError={e=>{e.target.style.display="none";}}/>
         <div className="d2-brand-txt">
           <b>SI-PASTI</b>
           <span>Sistem Pemantauan Alur SKPP Terintegrasi</span>
         </div>
+        <button className="d2-collapse-btn" onClick={onToggleCollapse}
+          title={collapsed?"Perluas menu":"Ciutkan menu"} aria-label={collapsed?"Perluas menu":"Ciutkan menu"}>
+          <D2Ico d={collapsed ? <path d="m9 18 6-6-6-6"/> : <path d="m15 18-6-6 6-6"/>} size={16}/>
+        </button>
       </div>
       <div className="d2-admin">
         <div className="d2-admin-av" style={user?.foto?{padding:0,overflow:"hidden"}:undefined}>
@@ -5510,6 +5546,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [booting, setBooting] = useState(true);
   const [page, setPage] = useState("dashboard");
+  const [sideCollapsed, setSideCollapsed] = useState(false);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errLoad, setErrLoad] = useState("");
@@ -5740,8 +5777,9 @@ export default function App() {
     <>
       <style>{S}</style>
       {toast && <Toast msg={toast} onDone={()=>setToast("")}/>}
-      <div className="d2-root">
-        <D2Sidebar user={user} active={page} onChange={setPage} counts={counts} onLogout={handleLogout}/>
+      <div className={"d2-root"+(sideCollapsed?" side-collapsed":"")}>
+        <D2Sidebar user={user} active={page} onChange={setPage} counts={counts} onLogout={handleLogout}
+          collapsed={sideCollapsed} onToggleCollapse={()=>setSideCollapsed(v=>!v)}/>
         <div className="d2-main">
           <header className="d2-top">
             <div className="d2-top-org">
