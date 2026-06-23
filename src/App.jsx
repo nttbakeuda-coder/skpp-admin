@@ -1833,9 +1833,8 @@ const S = `
   .d2-side.d2-rail .d2-navtxt { opacity: 0; pointer-events: none; }
   .d2-side.d2-rail .d2-navlabel { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; }
   .d2-side.d2-rail .d2-mark { display: none; }
-  /* Avatar pindah ke bawah jadi lingkaran bersih; x kiri tetap sama */
-  .d2-side.d2-rail .d2-navwrap { order: 2; }
-  .d2-side.d2-rail .d2-admin { order: 3; margin: 10px 0 2px; background: transparent; border: none; }
+  /* Avatar tetap di tempat (posisi & padding tidak berubah); hanya chip dibersihkan */
+  .d2-side.d2-rail .d2-admin { background: transparent; border: none; }
   /* Badge jadi dot di pojok ikon */
   .d2-side.d2-rail .d2-navitem { position: relative; }
   .d2-side.d2-rail .d2-navbadge { position: absolute; top: 4px; left: 26px; min-width: 16px; height: 16px; padding: 0 4px; line-height: 16px; font-size: 9px; }
