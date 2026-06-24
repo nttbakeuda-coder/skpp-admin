@@ -71,8 +71,14 @@ async function adminAkun(payload) {
 }
 
 export async function daftarAkun() {
-  const res = await adminAkun({ action: "list" });
-  return res?.ok ? ok({ data: res.data || [] }) : err(res?.pesan || "Gagal memuat daftar akun.");
+  // Baca langsung dari tabel profiles (bukan Edge Function admin) agar daftar
+  // nama bisa dimuat oleh semua user yang login — dibutuhkan form verifikasi
+  // untuk memilih nama staf loket / pengampu OPD. Akses diatur oleh RLS policy
+  // "profiles_select" (lihat supabase/04_profiles_directory.sql).
+  const { data, error } = await supabase
+    .from("profiles").select("username, nama, role").order("nama");
+  if (error) return err(error.message || "Gagal memuat daftar akun.");
+  return ok({ data: data || [] });
 }
 
 export async function tambahAkun({ username, password, nama, role }) {
