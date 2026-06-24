@@ -66,6 +66,10 @@ const DAFTAR_KEPERLUAN = [
   "Pemberhentian Tidak dengan Hormat","Meninggal Dunia","Lainnya"
 ];
 
+// Subjenis untuk keperluan "Meninggal Dunia" — menentukan kode penomoran
+// (Pensiun Janda -> PJ, Pensiun Duda -> PD), karena tidak ada kode "MD".
+const SUBJENIS_MD = ["Pensiun Janda","Pensiun Duda"];
+
 // Pilihan dokumen persyaratan SKPP untuk dropdown "Dokumen Kurang".
 const DAFTAR_DOKUMEN_SKPP = [
   "Surat Pengantar dari OPD",
@@ -164,11 +168,18 @@ const KODE_ALASAN = {
   "Pemberhentian Tidak dengan Hormat":"PTDH","Meninggal Dunia":"MD","Lainnya":"LN",
 };
 
-function generateTemplateNomor(nomorUrut, kasubid, alasan) {
+// Kode keperluan untuk penomoran. Khusus "Meninggal Dunia", penomoran TIDAK
+// memakai kode "MD" melainkan mengikuti jenis pensiun turunannya: Pensiun Janda
+// (PJ) atau Pensiun Duda (PD), sesuai pilihan subjenis saat input.
+function kodeAlasan(alasan, subjenis) {
+  if (alasan === "Meninggal Dunia" && KODE_ALASAN[subjenis]) return KODE_ALASAN[subjenis];
+  return KODE_ALASAN[alasan] || "XX";
+}
+
+function generateTemplateNomor(nomorUrut, kasubid, alasan, subjenis) {
   const tahun = new Date().getFullYear();
   const kodeKasubid = KODE_KASUBID[kasubid] || "BKUD3.X";
-  const kodeAlasan = KODE_ALASAN[alasan] || "XX";
-  return `900.1.3/${nomorUrut}/${kodeKasubid}/${kodeAlasan}/${tahun}`;
+  return `900.1.3/${nomorUrut}/${kodeKasubid}/${kodeAlasan(alasan, subjenis)}/${tahun}`;
 }
 
 // Format angka rupiah gaya akuntansi: hanya digit, dengan pemisah ribuan titik (mis. 1500000 -> "1.500.000").
@@ -3127,7 +3138,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
                     ["NIP",     p.nip,     true],
                     ["Jabatan", p.jabatan],
                     ["Pangkat", p.pangkat],
-                    ["Keperluan", p.alasan],
+                    ["Keperluan", p.alasan==="Meninggal Dunia"&&p.subjenis ? `${p.alasan} → ${p.subjenis} (${KODE_ALASAN[p.subjenis]})` : p.alasan],
                     ["Kasubid",   p.kasubid],
                     ["Tgl Masuk", fmtDate(p.tanggalMasuk)],
                     [p.status==="selesai"?"Tgl Selesai":"Est. Selesai", fmtDate(p.status==="selesai"?p.tanggalSelesai:p.estimasiSelesai)],
@@ -3245,7 +3256,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
                         <div style={{marginTop:6,padding:"10px 12px",background:"white",border:"1px solid #bae6fd",borderRadius:8}}>
                           <div style={{fontSize:10,color:"#64748b",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>Preview Nomor SKPP</div>
                           <div style={{fontFamily:"var(--mono)",fontWeight:700,fontSize:13,color:"#0369a1"}}>
-                            {generateTemplateNomor(nomorUrut, p.kasubid, p.alasan)}
+                            {generateTemplateNomor(nomorUrut, p.kasubid, p.alasan, p.subjenis)}
                           </div>
                         </div>
                       )}
@@ -3289,7 +3300,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
                         catatan: catatan,
                         isKembali: isKembali,
                         isFinal: stepAktif.final===true,
-                        nomorSKPP: isPenomoran(stepAktif.id) ? generateTemplateNomor(nomorUrut, p.kasubid, p.alasan) : undefined,
+                        nomorSKPP: isPenomoran(stepAktif.id) ? generateTemplateNomor(nomorUrut, p.kasubid, p.alasan, p.subjenis) : undefined,
                       });
                     }}
                   >
@@ -3918,7 +3929,7 @@ function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuLi
 // ─── INPUT BARU ───────────────────────────────────────────────────────────────
 function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
   const [mode, setMode] = useState("tunggal");
-  const [form, setForm] = useState({ nama:"", nip:"", opd:"", jabatan:"", pangkat:"", alasan:"Pensiun", jalur:"A", kasubid:DAFTAR_KASUBID[0] });
+  const [form, setForm] = useState({ nama:"", nip:"", opd:"", jabatan:"", pangkat:"", alasan:"Pensiun", subjenis:"", jalur:"A", kasubid:DAFTAR_KASUBID[0] });
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
   // TMT Pindah — hanya untuk peringatan kemungkinan kelebihan gaji (tidak ikut disimpan).
   const [tmtPindah, setTmtPindah] = useState("");
@@ -3931,13 +3942,13 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
   // Klik simpan: jika ada potensi kelebihan gaji (Pindah & TMT terlewati), tampilkan popup konfirmasi dulu.
   const handleSimpanTunggal = () => { if (pindahWarn) setShowPindahPopup(true); else onSave(form); };
   const [bulkOPD, setBulkOPD] = useState("");
-  const emptyItem = () => ({ nama:"", nip:"", jabatan:"", pangkat:"", kasubid:DAFTAR_KASUBID[0], alasan:"Pensiun", jalur:"A", tmt:"", _id:Date.now()+Math.random() });
+  const emptyItem = () => ({ nama:"", nip:"", jabatan:"", pangkat:"", kasubid:DAFTAR_KASUBID[0], alasan:"Pensiun", subjenis:"", jalur:"A", tmt:"", _id:Date.now()+Math.random() });
   const [items, setItems] = useState([emptyItem()]);
   const setItem = (idx,k,v) => setItems(prev=>prev.map((it,i)=>i===idx?{...it,[k]:v}:it));
   const addItem = () => setItems(prev=>[...prev,emptyItem()]);
   const removeItem = (idx) => setItems(prev=>prev.filter((_,i)=>i!==idx));
   const duplicateItem = (idx) => setItems(prev=>{ const clone={...prev[idx],_id:Date.now()+Math.random()}; const next=[...prev]; next.splice(idx+1,0,clone); return next; });
-  const bulkValid = bulkOPD && items.length>0 && items.every(it=>it.nama&&it.nip&&it.kasubid);
+  const bulkValid = bulkOPD && items.length>0 && items.every(it=>it.nama&&it.nip&&it.kasubid&&(it.alasan!=="Meninggal Dunia"||it.subjenis));
   // Pegawai Pindah yang TMT-nya sudah terlewati (potensi kelebihan gaji)
   const bulkPindahOffenders = items.filter(it => it.alasan==="Pindah" && it.tmt && !isNaN(new Date(it.tmt)) && new Date(it.tmt) < today0);
   const [showBulkPindahPopup, setShowBulkPindahPopup] = useState(false);
@@ -3994,10 +4005,21 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
             <div className="grid-2">
               <div className="form-group">
                 <label className="form-label">Keperluan SKPP</label>
-                <select className="form-control" value={form.alasan} onChange={e=>set("alasan",e.target.value)}>
+                <select className="form-control" value={form.alasan}
+                  onChange={e=>{ const v=e.target.value; setForm(f=>({...f, alasan:v, subjenis: v==="Meninggal Dunia"?f.subjenis:""})); }}>
                   {DAFTAR_KEPERLUAN.map(k=><option key={k}>{k}</option>)}
                 </select>
-                <div style={{marginTop:6,padding:"6px 10px",background:"var(--surface-container-low)",borderRadius:8,fontSize:11,color:"var(--on-surface-variant)",fontFamily:"var(--mono)"}}>Kode: {KODE_ALASAN[form.alasan]||"—"}</div>
+                {form.alasan==="Meninggal Dunia" && (
+                  <div style={{marginTop:8}}>
+                    <label className="form-label">Jenis Pensiun Turunan *</label>
+                    <select className="form-control" value={form.subjenis} onChange={e=>set("subjenis",e.target.value)}>
+                      <option value="">— Pilih jenis pensiun —</option>
+                      {SUBJENIS_MD.map(s=><option key={s} value={s}>{s} ({KODE_ALASAN[s]})</option>)}
+                    </select>
+                    {!form.subjenis && <div style={{fontSize:11,color:"#dc2626",marginTop:4}}>* Wajib dipilih — menentukan kode penomoran (PJ/PD)</div>}
+                  </div>
+                )}
+                <div style={{marginTop:6,padding:"6px 10px",background:"var(--surface-container-low)",borderRadius:8,fontSize:11,color:"var(--on-surface-variant)",fontFamily:"var(--mono)"}}>Kode: {form.alasan==="Meninggal Dunia"&&!form.subjenis ? "— (pilih jenis pensiun)" : kodeAlasan(form.alasan, form.subjenis)}</div>
               </div>
               <div className="form-group">
                 <label className="form-label">Jalur Proses</label>
@@ -4018,7 +4040,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
           </div>
           <div className="modal-footer">
             <button className="btn btn-secondary" onClick={onClose} disabled={saving}>Batal</button>
-            <button className="btn btn-primary" disabled={saving||!form.nama||!form.nip||!form.opd||!form.kasubid} onClick={handleSimpanTunggal}>
+            <button className="btn btn-primary" disabled={saving||!form.nama||!form.nip||!form.opd||!form.kasubid||(form.alasan==="Meninggal Dunia"&&!form.subjenis)} onClick={handleSimpanTunggal}>
               {saving?"⟳ Menyimpan...":"Simpan & Mulai Proses"}
             </button>
           </div>
@@ -4085,10 +4107,20 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
                     </div>
                     <div className="form-group" style={{marginBottom:0}}>
                       <label className="form-label">Keperluan SKPP</label>
-                      <select className="form-control" style={{marginBottom:0}} value={it.alasan} onChange={e=>setItem(idx,"alasan",e.target.value)}>
+                      <select className="form-control" style={{marginBottom:0}} value={it.alasan}
+                        onChange={e=>{ const v=e.target.value; setItems(prev=>prev.map((x,i)=>i===idx?{...x, alasan:v, subjenis: v==="Meninggal Dunia"?x.subjenis:""}:x)); }}>
                         {DAFTAR_KEPERLUAN.map(k=><option key={k} value={k}>{k}</option>)}
                       </select>
                     </div>
+                    {it.alasan==="Meninggal Dunia" && (
+                      <div className="form-group" style={{marginBottom:0}}>
+                        <label className="form-label">Jenis Pensiun Turunan *</label>
+                        <select className="form-control" style={{marginBottom:0}} value={it.subjenis} onChange={e=>setItem(idx,"subjenis",e.target.value)}>
+                          <option value="">— Pilih jenis pensiun —</option>
+                          {SUBJENIS_MD.map(s=><option key={s} value={s}>{s} ({KODE_ALASAN[s]})</option>)}
+                        </select>
+                      </div>
+                    )}
                     <div className="form-group" style={{marginBottom:0}}>
                       <label className="form-label">Jalur Proses</label>
                       <select className="form-control" style={{marginBottom:0}} value={it.jalur} onChange={e=>setItem(idx,"jalur",e.target.value)}>
