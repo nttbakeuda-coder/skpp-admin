@@ -4033,7 +4033,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
               <div className="form-group" style={{marginTop:2}}>
                 <label className="form-label">Tanggal TMT Pindah *</label>
                 <input type="date" className="form-control" value={tmtPindah} onChange={e=>setTmtPindah(e.target.value)} style={{maxWidth:240}}/>
-                <div style={{marginTop:6,fontSize:11,color:"var(--on-surface-variant)"}}>Tanggal mulai berlaku (TMT) pindah sesuai SK — dipakai untuk memeriksa kemungkinan kelebihan pembayaran gaji.</div>
+                <div style={{marginTop:6,fontSize:11,color:"var(--on-surface-variant)"}}>Tanggal mulai berlaku (TMT) pindah sesuai SK.</div>
               </div>
             )}
             {form.jalur==="B" && <div className="alert alert-amber"><span>ℹ️</span><span style={{fontSize:12}}>Jalur B memerlukan proses kekurangan pangkat via SIMgaji dan SP2D sebelum SKPP dibuat.</span></div>}
