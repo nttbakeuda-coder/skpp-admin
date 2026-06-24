@@ -2773,7 +2773,8 @@ function CatatanKembali({ data }) {
 }
 
 // ─── TIMELINE ────────────────────────────────────────────────────────────────
-function Timeline({ p }) {
+function Timeline({ p, user }) {
+  const isAdmin = user?.role === "admin";
   const tahapan = p.jalur==="A" ? TAHAPAN_A : TAHAPAN_B;
   const selesai = p.tahapSelesai || [];
   const riwayat = p.riwayat || [];
@@ -2802,6 +2803,11 @@ function Timeline({ p }) {
               {aktif&&!done && <span className="badge badge-blue" style={{marginBottom:4,fontSize:11}}>Sedang diproses</span>}
               {done&&pernahRet && <span className="badge badge-green" style={{marginBottom:4,fontSize:11}}>✓ Telah dilengkapi &amp; selesai</span>}
               {log && <div style={{fontSize:11,color:"var(--outline)",fontFamily:"var(--mono)"}}>{log.waktu}</div>}
+              {isAdmin && log && (log.olehNama || log.oleh) && (
+                <div style={{display:"inline-flex",alignItems:"center",gap:4,marginTop:4,padding:"2px 8px",borderRadius:999,background:"var(--surface-container-low)",border:"1px solid var(--outline-variant)",fontSize:11,color:"var(--on-surface-variant)"}}>
+                  <span>👤</span><span style={{fontWeight:600}}>{log.olehNama||log.oleh}</span>{log.olehNama&&log.oleh&&<span style={{fontFamily:"var(--mono)",opacity:0.7}}>· {log.oleh}</span>}
+                </div>
+              )}
               {log?.catatan && (() => {
                 const isRet = log.isKembali===true || log.isKembali==="TRUE";
                 let parsed = null;
@@ -3334,7 +3340,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
             </div>
           )}
 
-          {tab==="riwayat" && <Timeline p={p}/>}
+          {tab==="riwayat" && <Timeline p={p} user={user}/>}
         </div>
       </div>
     </div>

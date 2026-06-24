@@ -30,6 +30,17 @@ async function profilSesi(userId) {
   return data;
 }
 
+// Identitas pelaku aksi — untuk jejak audit pada Riwayat (siapa yang
+// memproses/menginput tiap tahap). Diambil dari sesi login yang aktif.
+async function aktorSekarang() {
+  const { data: { session } } = await supabase.auth.getSession();
+  const uid = session?.user?.id;
+  if (!uid) return { oleh: "", olehNama: "" };
+  const { data } = await supabase
+    .from("profiles").select("username, nama").eq("id", uid).maybeSingle();
+  return { oleh: data?.username || "", olehNama: data?.nama || "" };
+}
+
 export async function login({ username, password }) {
   const { data, error } = await supabase.auth.signInWithPassword({
     email: EMAIL(username), password,
@@ -212,10 +223,12 @@ export async function inputBaru({ data: formData }) {
   });
   if (error) return err("Gagal menyimpan pengajuan: " + error.message);
 
+  const aktor = await aktorSekarang();
   await supabase.from("Riwayat").insert({
     pengajuanId: id, tahap: firstStep,
     waktu: new Date().toLocaleString("id-ID"),
     catatan: "Berkas diterima di loket", isKembali: false,
+    oleh: aktor.oleh, olehNama: aktor.olehNama,
   });
 
   return ok({ id, kodeAkses, pesan: "Pengajuan berhasil disimpan." });
@@ -227,6 +240,7 @@ export async function inputBulk({ data: bulkData }) {
   const grupId = "GRUP-" + Date.now();
   const tanggalMasuk = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
   const daftarId = [];
+  const aktor = await aktorSekarang();
 
   for (const item of items) {
     const id = await nextId();
@@ -246,6 +260,7 @@ export async function inputBulk({ data: bulkData }) {
       pengajuanId: id, tahap: firstStep,
       waktu: new Date().toLocaleString("id-ID"),
       catatan: "Berkas diterima di loket (bulk)", isKembali: false,
+      oleh: aktor.oleh, olehNama: aktor.olehNama,
     });
   }
 
@@ -282,10 +297,12 @@ export async function updateTahap({ data: updateData }) {
   const { error } = await supabase.from("Pengajuan").update(updates).eq("id", pengajuanId);
   if (error) return err("Gagal update tahap: " + error.message);
 
+  const aktor = await aktorSekarang();
   await supabase.from("Riwayat").insert({
     pengajuanId, tahap: stepId,
     waktu: new Date().toLocaleString("id-ID"),
     catatan: catatan ?? "", isKembali: isKembali ?? false,
+    oleh: aktor.oleh, olehNama: aktor.olehNama,
   });
 
   return ok({ nextStepId });
@@ -297,10 +314,12 @@ export async function setSelesai({ id, tanggalSelesai }) {
   const { error } = await supabase
     .from("Pengajuan").update({ status: "selesai", tanggalSelesai: tgl }).eq("id", id);
   if (error) return err("Gagal menandai selesai: " + error.message);
+  const aktor = await aktorSekarang();
   await supabase.from("Riwayat").insert({
     pengajuanId: id, tahap: "SELESAI",
     waktu: new Date().toLocaleString("id-ID"),
     catatan: "SKPP selesai dan diserahkan kepada pemohon", isKembali: false,
+    oleh: aktor.oleh, olehNama: aktor.olehNama,
   });
   return ok({ id, tanggalSelesai: tgl });
 }
