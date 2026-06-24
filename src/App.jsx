@@ -168,18 +168,22 @@ const KODE_ALASAN = {
   "Pemberhentian Tidak dengan Hormat":"PTDH","Meninggal Dunia":"MD","Lainnya":"LN",
 };
 
-// Kode keperluan untuk penomoran. Khusus "Meninggal Dunia", penomoran TIDAK
-// memakai kode "MD" melainkan mengikuti jenis pensiun turunannya: Pensiun Janda
-// (PJ) atau Pensiun Duda (PD), sesuai pilihan subjenis saat input.
-function kodeAlasan(alasan, subjenis) {
+// Kode keperluan untuk penomoran (menerima objek {alasan, subjenis, kodeLain}):
+// - "Meninggal Dunia": pakai jenis pensiun turunannya (Pensiun Janda -> PJ,
+//   Pensiun Duda -> PD), bukan kode "MD".
+// - "Lainnya": kode diketik manual saat input (kodeLain).
+function kodeAlasan(p) {
+  const { alasan, subjenis, kodeLain } = p || {};
   if (alasan === "Meninggal Dunia" && KODE_ALASAN[subjenis]) return KODE_ALASAN[subjenis];
-  return KODE_ALASAN[alasan] || "XX";
+  if (alasan === "Lainnya") return (kodeLain || "").trim().toUpperCase() || "LN";
+  if (KODE_ALASAN[alasan]) return KODE_ALASAN[alasan];
+  return (kodeLain || "").trim().toUpperCase() || "XX";
 }
 
-function generateTemplateNomor(nomorUrut, kasubid, alasan, subjenis) {
+function generateTemplateNomor(nomorUrut, p) {
   const tahun = new Date().getFullYear();
-  const kodeKasubid = KODE_KASUBID[kasubid] || "BKUD3.X";
-  return `900.1.3/${nomorUrut}/${kodeKasubid}/${kodeAlasan(alasan, subjenis)}/${tahun}`;
+  const kodeKasubid = KODE_KASUBID[p?.kasubid] || "BKUD3.X";
+  return `900.1.3/${nomorUrut}/${kodeKasubid}/${kodeAlasan(p)}/${tahun}`;
 }
 
 // Format angka rupiah gaya akuntansi: hanya digit, dengan pemisah ribuan titik (mis. 1500000 -> "1.500.000").
@@ -3256,7 +3260,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
                         <div style={{marginTop:6,padding:"10px 12px",background:"white",border:"1px solid #bae6fd",borderRadius:8}}>
                           <div style={{fontSize:10,color:"#64748b",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>Preview Nomor SKPP</div>
                           <div style={{fontFamily:"var(--mono)",fontWeight:700,fontSize:13,color:"#0369a1"}}>
-                            {generateTemplateNomor(nomorUrut, p.kasubid, p.alasan, p.subjenis)}
+                            {generateTemplateNomor(nomorUrut, p)}
                           </div>
                         </div>
                       )}
@@ -3300,7 +3304,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
                         catatan: catatan,
                         isKembali: isKembali,
                         isFinal: stepAktif.final===true,
-                        nomorSKPP: isPenomoran(stepAktif.id) ? generateTemplateNomor(nomorUrut, p.kasubid, p.alasan, p.subjenis) : undefined,
+                        nomorSKPP: isPenomoran(stepAktif.id) ? generateTemplateNomor(nomorUrut, p) : undefined,
                       });
                     }}
                   >
@@ -3929,7 +3933,16 @@ function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuLi
 // ─── INPUT BARU ───────────────────────────────────────────────────────────────
 function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
   const [mode, setMode] = useState("tunggal");
-  const [form, setForm] = useState({ nama:"", nip:"", opd:"", jabatan:"", pangkat:"", alasan:"Pensiun", subjenis:"", jalur:"", kasubid:"" });
+  const [form, setForm] = useState({ nama:"", nip:"", opd:"", jabatan:"", pangkat:"", alasan:"Pensiun", subjenis:"", alasanLain:"", kodeLain:"", jalur:"", kasubid:"" });
+  // Untuk keperluan "Lainnya": ketik manual jadi `alasan`, kode manual -> `kodeLain`.
+  // `alasanLain` hanya field transien form (bukan kolom DB) -> dibuang saat simpan.
+  const normalKeperluan = (f) => {
+    const { alasanLain, ...rest } = f;
+    if (f.alasan === "Lainnya")
+      return { ...rest, alasan: (alasanLain||"").trim() || "Lainnya", kodeLain: (f.kodeLain||"").trim().toUpperCase() };
+    return { ...rest, kodeLain: "" };
+  };
+  const simpanTunggal = () => onSave(normalKeperluan(form));
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
   // TMT Pindah — hanya untuk peringatan kemungkinan kelebihan gaji (tidak ikut disimpan).
   const [tmtPindah, setTmtPindah] = useState("");
@@ -3940,21 +3953,21 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
   const selisihHariPindah = pindahWarn ? Math.floor((today0 - tmtDate) / 86400000) : 0;
   const [showPindahPopup, setShowPindahPopup] = useState(false);
   // Klik simpan: jika ada potensi kelebihan gaji (Pindah & TMT terlewati), tampilkan popup konfirmasi dulu.
-  const handleSimpanTunggal = () => { if (pindahWarn) setShowPindahPopup(true); else onSave(form); };
+  const handleSimpanTunggal = () => { if (pindahWarn) setShowPindahPopup(true); else simpanTunggal(); };
   const [bulkOPD, setBulkOPD] = useState("");
-  const emptyItem = () => ({ nama:"", nip:"", jabatan:"", pangkat:"", kasubid:"", alasan:"Pensiun", subjenis:"", jalur:"", tmt:"", _id:Date.now()+Math.random() });
+  const emptyItem = () => ({ nama:"", nip:"", jabatan:"", pangkat:"", kasubid:"", alasan:"Pensiun", subjenis:"", alasanLain:"", kodeLain:"", jalur:"", tmt:"", _id:Date.now()+Math.random() });
   const [items, setItems] = useState([emptyItem()]);
   const setItem = (idx,k,v) => setItems(prev=>prev.map((it,i)=>i===idx?{...it,[k]:v}:it));
   const addItem = () => setItems(prev=>[...prev,emptyItem()]);
   const removeItem = (idx) => setItems(prev=>prev.filter((_,i)=>i!==idx));
   const duplicateItem = (idx) => setItems(prev=>{ const clone={...prev[idx],_id:Date.now()+Math.random()}; const next=[...prev]; next.splice(idx+1,0,clone); return next; });
-  const bulkValid = bulkOPD && items.length>0 && items.every(it=>it.nama&&it.nip&&it.kasubid&&it.jalur&&(it.alasan!=="Meninggal Dunia"||it.subjenis));
+  const bulkValid = bulkOPD && items.length>0 && items.every(it=>it.nama&&it.nip&&it.kasubid&&it.jalur&&(it.alasan!=="Meninggal Dunia"||it.subjenis)&&(it.alasan!=="Lainnya"||(it.alasanLain.trim()&&it.kodeLain.trim())));
   // Pegawai Pindah yang TMT-nya sudah terlewati (potensi kelebihan gaji)
   const bulkPindahOffenders = items.filter(it => it.alasan==="Pindah" && it.tmt && !isNaN(new Date(it.tmt)) && new Date(it.tmt) < today0);
   const [showBulkPindahPopup, setShowBulkPindahPopup] = useState(false);
   const doSaveBulk = () => {
     // tmt hanya untuk peringatan, tidak ikut disimpan ke server
-    onSaveBulk({ namaOPD:bulkOPD, items:items.map(({_id,tmt,...rest})=>rest) });
+    onSaveBulk({ namaOPD:bulkOPD, items:items.map(({_id,tmt,...rest})=>normalKeperluan(rest)) });
   };
   const handleSaveBulk = () => {
     if(!bulkValid) return;
@@ -4008,7 +4021,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
               <div className="form-group">
                 <label className="form-label">Keperluan SKPP</label>
                 <select className="form-control" value={form.alasan}
-                  onChange={e=>{ const v=e.target.value; setForm(f=>({...f, alasan:v, subjenis: v==="Meninggal Dunia"?f.subjenis:""})); }}>
+                  onChange={e=>{ const v=e.target.value; setForm(f=>({...f, alasan:v, subjenis: v==="Meninggal Dunia"?f.subjenis:"", alasanLain: v==="Lainnya"?f.alasanLain:"", kodeLain: v==="Lainnya"?f.kodeLain:""})); }}>
                   {DAFTAR_KEPERLUAN.map(k=><option key={k}>{k}</option>)}
                 </select>
                 {form.alasan==="Meninggal Dunia" && (
@@ -4021,7 +4034,16 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
                     {!form.subjenis && <div style={{fontSize:11,color:"#dc2626",marginTop:4}}>* Wajib dipilih</div>}
                   </div>
                 )}
-                <div style={{marginTop:6,padding:"6px 10px",background:"var(--surface-container-low)",borderRadius:8,fontSize:11,color:"var(--on-surface-variant)",fontFamily:"var(--mono)"}}>Kode: {form.alasan==="Meninggal Dunia"&&!form.subjenis ? "— (pilih jenis pensiun)" : kodeAlasan(form.alasan, form.subjenis)}</div>
+                {form.alasan==="Lainnya" && (
+                  <div style={{marginTop:8}}>
+                    <label className="form-label">Keperluan (ketik manual) *</label>
+                    <input className="form-control" value={form.alasanLain} onChange={e=>set("alasanLain",e.target.value)} placeholder="Tuliskan keperluan SKPP"/>
+                    <label className="form-label" style={{marginTop:8}}>Kode Penomoran *</label>
+                    <input className="form-control" value={form.kodeLain} onChange={e=>set("kodeLain",e.target.value.toUpperCase())} placeholder="mis. LN" style={{fontFamily:"var(--mono)"}}/>
+                    {(!form.alasanLain.trim()||!form.kodeLain.trim()) && <div style={{fontSize:11,color:"#dc2626",marginTop:4}}>* Keperluan & kode wajib diisi</div>}
+                  </div>
+                )}
+                <div style={{marginTop:6,padding:"6px 10px",background:"var(--surface-container-low)",borderRadius:8,fontSize:11,color:"var(--on-surface-variant)",fontFamily:"var(--mono)"}}>Kode: {(form.alasan==="Meninggal Dunia"&&!form.subjenis)||(form.alasan==="Lainnya"&&!form.kodeLain.trim()) ? "—" : kodeAlasan(form)}</div>
               </div>
               <div className="form-group">
                 <label className="form-label">Jalur Proses *</label>
@@ -4044,7 +4066,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
           </div>
           <div className="modal-footer">
             <button className="btn btn-secondary" onClick={onClose} disabled={saving}>Batal</button>
-            <button className="btn btn-primary" disabled={saving||!form.nama||!form.nip||!form.opd||!form.kasubid||!form.jalur||(form.alasan==="Meninggal Dunia"&&!form.subjenis)} onClick={handleSimpanTunggal}>
+            <button className="btn btn-primary" disabled={saving||!form.nama||!form.nip||!form.opd||!form.kasubid||!form.jalur||(form.alasan==="Meninggal Dunia"&&!form.subjenis)||(form.alasan==="Lainnya"&&(!form.alasanLain.trim()||!form.kodeLain.trim()))} onClick={handleSimpanTunggal}>
               {saving?"⟳ Menyimpan...":"Simpan & Mulai Proses"}
             </button>
           </div>
@@ -4113,7 +4135,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
                     <div className="form-group" style={{marginBottom:0}}>
                       <label className="form-label">Keperluan SKPP</label>
                       <select className="form-control" style={{marginBottom:0}} value={it.alasan}
-                        onChange={e=>{ const v=e.target.value; setItems(prev=>prev.map((x,i)=>i===idx?{...x, alasan:v, subjenis: v==="Meninggal Dunia"?x.subjenis:""}:x)); }}>
+                        onChange={e=>{ const v=e.target.value; setItems(prev=>prev.map((x,i)=>i===idx?{...x, alasan:v, subjenis: v==="Meninggal Dunia"?x.subjenis:"", alasanLain: v==="Lainnya"?x.alasanLain:"", kodeLain: v==="Lainnya"?x.kodeLain:""}:x)); }}>
                         {DAFTAR_KEPERLUAN.map(k=><option key={k} value={k}>{k}</option>)}
                       </select>
                     </div>
@@ -4124,6 +4146,14 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
                           <option value="">— Pilih jenis pensiun —</option>
                           {SUBJENIS_MD.map(s=><option key={s} value={s}>{s} ({KODE_ALASAN[s]})</option>)}
                         </select>
+                      </div>
+                    )}
+                    {it.alasan==="Lainnya" && (
+                      <div className="form-group" style={{marginBottom:0}}>
+                        <label className="form-label">Keperluan (ketik manual) *</label>
+                        <input className="form-control" style={{marginBottom:6}} value={it.alasanLain} onChange={e=>setItem(idx,"alasanLain",e.target.value)} placeholder="Tuliskan keperluan SKPP"/>
+                        <label className="form-label">Kode Penomoran *</label>
+                        <input className="form-control" style={{marginBottom:0,fontFamily:"var(--mono)"}} value={it.kodeLain} onChange={e=>setItem(idx,"kodeLain",e.target.value.toUpperCase())} placeholder="mis. LN"/>
                       </div>
                     )}
                     <div className="form-group" style={{marginBottom:0}}>
@@ -4186,7 +4216,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
           </div>
           <div className="modal-footer">
             <button className="btn btn-secondary" onClick={()=>setShowPindahPopup(false)} disabled={saving}>Periksa Dulu</button>
-            <button className="btn btn-primary" disabled={saving} onClick={()=>{setShowPindahPopup(false);onSave(form);}}>
+            <button className="btn btn-primary" disabled={saving} onClick={()=>{setShowPindahPopup(false);simpanTunggal();}}>
               {saving?"⟳ Menyimpan...":"Mengerti, Tetap Simpan"}
             </button>
           </div>
