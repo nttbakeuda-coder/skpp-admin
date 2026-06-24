@@ -2785,6 +2785,8 @@ function Timeline({ p }) {
         const isLast = idx === tahapan.length - 1;
         const logs = riwayat.filter(r => r.tahap === step.id);
         const log = logs.find(r => r.isKembali===true || r.isKembali==="TRUE") || logs[0];
+        // Catatan proses internal (tidak tampil di portal publik) — dari log mana pun pada tahap ini.
+        const catatanInternal = (logs.find(r => r.catatanInternal) || {}).catatanInternal;
         const pernahRet = logs.some(r => r.isKembali===true || r.isKembali==="TRUE");
         // "Dikembalikan" hanya ditampilkan selama tahap belum selesai. Begitu tahap
         // selesai (sudah dilengkapi & diproses lanjut), tampilkan sebagai selesai.
@@ -2823,6 +2825,12 @@ function Timeline({ p }) {
                   </div>
                 );
               })()}
+              {catatanInternal && (
+                <div style={{marginTop:6,background:"var(--surface-container-low)",border:"1px dashed var(--outline-variant)",borderRadius:8,padding:"7px 11px",fontSize:12,color:"var(--on-surface-variant)"}}>
+                  <span style={{display:"inline-block",fontSize:10,fontWeight:700,letterSpacing:0.5,textTransform:"uppercase",color:"var(--primary)",marginBottom:3}}>🔒 Catatan internal</span>
+                  <div>{catatanInternal}</div>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -3306,7 +3314,9 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
                         pengajuanId: p.id,
                         stepId: stepAktif.id,
                         nextStepId: nextStepId,
-                        catatan: catatan,
+                        // Catatan proses biasa = internal saja (tidak tampil di portal publik).
+                        catatan: "",
+                        catatanInternal: catatan,
                         isKembali: isKembali,
                         isFinal: stepAktif.final===true,
                         nomorSKPP: isPenomoran(stepAktif.id) ? generateTemplateNomor(nomorUrut, p) : undefined,

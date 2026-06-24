@@ -272,7 +272,7 @@ export async function inputBulk({ data: bulkData }) {
 }
 
 export async function updateTahap({ data: updateData }) {
-  const { pengajuanId, stepId, nextStepId, isKembali, isResume, catatan, nomorSKPP } = updateData;
+  const { pengajuanId, stepId, nextStepId, isKembali, isResume, catatan, catatanInternal, nomorSKPP } = updateData;
 
   const { data: p } = await supabase
     .from("Pengajuan").select("tahapSelesai, tahapAktif").eq("id", pengajuanId).maybeSingle();
@@ -301,7 +301,8 @@ export async function updateTahap({ data: updateData }) {
   await supabase.from("Riwayat").insert({
     pengajuanId, tahap: stepId,
     waktu: new Date().toLocaleString("id-ID"),
-    catatan: catatan ?? "", isKembali: isKembali ?? false,
+    catatan: catatan ?? "", catatanInternal: catatanInternal ?? "",
+    isKembali: isKembali ?? false,
     oleh: aktor.oleh, olehNama: aktor.olehNama,
   });
 
