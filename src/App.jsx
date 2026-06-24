@@ -3929,7 +3929,7 @@ function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuLi
 // ─── INPUT BARU ───────────────────────────────────────────────────────────────
 function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
   const [mode, setMode] = useState("tunggal");
-  const [form, setForm] = useState({ nama:"", nip:"", opd:"", jabatan:"", pangkat:"", alasan:"Pensiun", subjenis:"", jalur:"A", kasubid:DAFTAR_KASUBID[0] });
+  const [form, setForm] = useState({ nama:"", nip:"", opd:"", jabatan:"", pangkat:"", alasan:"Pensiun", subjenis:"", jalur:"", kasubid:DAFTAR_KASUBID[0] });
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
   // TMT Pindah — hanya untuk peringatan kemungkinan kelebihan gaji (tidak ikut disimpan).
   const [tmtPindah, setTmtPindah] = useState("");
@@ -3942,13 +3942,13 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
   // Klik simpan: jika ada potensi kelebihan gaji (Pindah & TMT terlewati), tampilkan popup konfirmasi dulu.
   const handleSimpanTunggal = () => { if (pindahWarn) setShowPindahPopup(true); else onSave(form); };
   const [bulkOPD, setBulkOPD] = useState("");
-  const emptyItem = () => ({ nama:"", nip:"", jabatan:"", pangkat:"", kasubid:DAFTAR_KASUBID[0], alasan:"Pensiun", subjenis:"", jalur:"A", tmt:"", _id:Date.now()+Math.random() });
+  const emptyItem = () => ({ nama:"", nip:"", jabatan:"", pangkat:"", kasubid:DAFTAR_KASUBID[0], alasan:"Pensiun", subjenis:"", jalur:"", tmt:"", _id:Date.now()+Math.random() });
   const [items, setItems] = useState([emptyItem()]);
   const setItem = (idx,k,v) => setItems(prev=>prev.map((it,i)=>i===idx?{...it,[k]:v}:it));
   const addItem = () => setItems(prev=>[...prev,emptyItem()]);
   const removeItem = (idx) => setItems(prev=>prev.filter((_,i)=>i!==idx));
   const duplicateItem = (idx) => setItems(prev=>{ const clone={...prev[idx],_id:Date.now()+Math.random()}; const next=[...prev]; next.splice(idx+1,0,clone); return next; });
-  const bulkValid = bulkOPD && items.length>0 && items.every(it=>it.nama&&it.nip&&it.kasubid&&(it.alasan!=="Meninggal Dunia"||it.subjenis));
+  const bulkValid = bulkOPD && items.length>0 && items.every(it=>it.nama&&it.nip&&it.kasubid&&it.jalur&&(it.alasan!=="Meninggal Dunia"||it.subjenis));
   // Pegawai Pindah yang TMT-nya sudah terlewati (potensi kelebihan gaji)
   const bulkPindahOffenders = items.filter(it => it.alasan==="Pindah" && it.tmt && !isNaN(new Date(it.tmt)) && new Date(it.tmt) < today0);
   const [showBulkPindahPopup, setShowBulkPindahPopup] = useState(false);
@@ -4022,11 +4022,13 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
                 <div style={{marginTop:6,padding:"6px 10px",background:"var(--surface-container-low)",borderRadius:8,fontSize:11,color:"var(--on-surface-variant)",fontFamily:"var(--mono)"}}>Kode: {form.alasan==="Meninggal Dunia"&&!form.subjenis ? "— (pilih jenis pensiun)" : kodeAlasan(form.alasan, form.subjenis)}</div>
               </div>
               <div className="form-group">
-                <label className="form-label">Jalur Proses</label>
+                <label className="form-label">Jalur Proses *</label>
                 <select className="form-control" value={form.jalur} onChange={e=>set("jalur",e.target.value)}>
+                  <option value="">— Pilih jalur proses —</option>
                   <option value="A">Jalur A – Tanpa Pangkat Pengabdian</option>
                   <option value="B">Jalur B – Ada Pangkat Pengabdian</option>
                 </select>
+                {!form.jalur && <div style={{fontSize:11,color:"#dc2626",marginTop:4}}>* Wajib dipilih</div>}
               </div>
             </div>
             {isPindah && (
@@ -4040,7 +4042,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
           </div>
           <div className="modal-footer">
             <button className="btn btn-secondary" onClick={onClose} disabled={saving}>Batal</button>
-            <button className="btn btn-primary" disabled={saving||!form.nama||!form.nip||!form.opd||!form.kasubid||(form.alasan==="Meninggal Dunia"&&!form.subjenis)} onClick={handleSimpanTunggal}>
+            <button className="btn btn-primary" disabled={saving||!form.nama||!form.nip||!form.opd||!form.kasubid||!form.jalur||(form.alasan==="Meninggal Dunia"&&!form.subjenis)} onClick={handleSimpanTunggal}>
               {saving?"⟳ Menyimpan...":"Simpan & Mulai Proses"}
             </button>
           </div>
@@ -4122,8 +4124,9 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
                       </div>
                     )}
                     <div className="form-group" style={{marginBottom:0}}>
-                      <label className="form-label">Jalur Proses</label>
+                      <label className="form-label">Jalur Proses *</label>
                       <select className="form-control" style={{marginBottom:0}} value={it.jalur} onChange={e=>setItem(idx,"jalur",e.target.value)}>
+                        <option value="">— Pilih jalur proses —</option>
                         <option value="A">Jalur A – Tanpa Pangkat Pengabdian</option>
                         <option value="B">Jalur B – Ada Pangkat Pengabdian</option>
                       </select>
