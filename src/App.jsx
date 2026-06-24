@@ -3116,6 +3116,10 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
     || tahapan.find(t => !p.tahapSelesai.includes(t.id));
   const prog = getProgress(p);
 
+  // Kosongkan kembali "Catatan Proses" setiap kali tahap aktif berpindah,
+  // agar catatan satu tahap tidak terbawa ke tahap berikutnya.
+  useEffect(() => { setCatatan(""); }, [stepAktif?.id]);
+
   return (
     <>
     <div className="modal-overlay">
