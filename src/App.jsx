@@ -4018,7 +4018,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
                       <option value="">— Pilih jenis pensiun —</option>
                       {SUBJENIS_MD.map(s=><option key={s} value={s}>{s} ({KODE_ALASAN[s]})</option>)}
                     </select>
-                    {!form.subjenis && <div style={{fontSize:11,color:"#dc2626",marginTop:4}}>* Wajib dipilih — menentukan kode penomoran (PJ/PD)</div>}
+                    {!form.subjenis && <div style={{fontSize:11,color:"#dc2626",marginTop:4}}>* Wajib dipilih</div>}
                   </div>
                 )}
                 <div style={{marginTop:6,padding:"6px 10px",background:"var(--surface-container-low)",borderRadius:8,fontSize:11,color:"var(--on-surface-variant)",fontFamily:"var(--mono)"}}>Kode: {form.alasan==="Meninggal Dunia"&&!form.subjenis ? "— (pilih jenis pensiun)" : kodeAlasan(form.alasan, form.subjenis)}</div>
