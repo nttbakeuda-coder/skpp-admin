@@ -3929,7 +3929,7 @@ function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuLi
 // ─── INPUT BARU ───────────────────────────────────────────────────────────────
 function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
   const [mode, setMode] = useState("tunggal");
-  const [form, setForm] = useState({ nama:"", nip:"", opd:"", jabatan:"", pangkat:"", alasan:"Pensiun", subjenis:"", jalur:"", kasubid:DAFTAR_KASUBID[0] });
+  const [form, setForm] = useState({ nama:"", nip:"", opd:"", jabatan:"", pangkat:"", alasan:"Pensiun", subjenis:"", jalur:"", kasubid:"" });
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
   // TMT Pindah — hanya untuk peringatan kemungkinan kelebihan gaji (tidak ikut disimpan).
   const [tmtPindah, setTmtPindah] = useState("");
@@ -3942,7 +3942,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
   // Klik simpan: jika ada potensi kelebihan gaji (Pindah & TMT terlewati), tampilkan popup konfirmasi dulu.
   const handleSimpanTunggal = () => { if (pindahWarn) setShowPindahPopup(true); else onSave(form); };
   const [bulkOPD, setBulkOPD] = useState("");
-  const emptyItem = () => ({ nama:"", nip:"", jabatan:"", pangkat:"", kasubid:DAFTAR_KASUBID[0], alasan:"Pensiun", subjenis:"", jalur:"", tmt:"", _id:Date.now()+Math.random() });
+  const emptyItem = () => ({ nama:"", nip:"", jabatan:"", pangkat:"", kasubid:"", alasan:"Pensiun", subjenis:"", jalur:"", tmt:"", _id:Date.now()+Math.random() });
   const [items, setItems] = useState([emptyItem()]);
   const setItem = (idx,k,v) => setItems(prev=>prev.map((it,i)=>i===idx?{...it,[k]:v}:it));
   const addItem = () => setItems(prev=>[...prev,emptyItem()]);
@@ -3998,9 +3998,11 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
             <div className="form-group">
               <label className="form-label">Kasubid Pembayaran *</label>
               <select className="form-control" value={form.kasubid} onChange={e=>set("kasubid",e.target.value)}>
+                <option value="">— Pilih kasubid pembayaran —</option>
                 {DAFTAR_KASUBID.map((k,i)=><option key={i} value={k}>{k}</option>)}
               </select>
-              <div style={{marginTop:6,padding:"6px 10px",background:"var(--surface-container-low)",borderRadius:8,fontSize:11,color:"var(--on-surface-variant)",fontFamily:"var(--mono)"}}>Kode: {KODE_KASUBID[form.kasubid]}</div>
+              {!form.kasubid && <div style={{fontSize:11,color:"#dc2626",marginTop:4}}>* Wajib dipilih</div>}
+              <div style={{marginTop:6,padding:"6px 10px",background:"var(--surface-container-low)",borderRadius:8,fontSize:11,color:"var(--on-surface-variant)",fontFamily:"var(--mono)"}}>Kode: {KODE_KASUBID[form.kasubid]||"—"}</div>
             </div>
             <div className="grid-2">
               <div className="form-group">
@@ -4104,6 +4106,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
                     <div className="form-group" style={{marginBottom:0}}>
                       <label className="form-label">Kasubid Pembayaran *</label>
                       <select className="form-control" style={{marginBottom:0}} value={it.kasubid} onChange={e=>setItem(idx,"kasubid",e.target.value)}>
+                        <option value="">— Pilih kasubid pembayaran —</option>
                         {DAFTAR_KASUBID.map((k,i)=><option key={i} value={k}>{k}</option>)}
                       </select>
                     </div>
