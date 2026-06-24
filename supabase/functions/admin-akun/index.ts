@@ -44,11 +44,16 @@ Deno.serve(async (req) => {
 
     const { data: prof } = await admin
       .from("profiles").select("role").eq("id", u.user.id).maybeSingle();
-    if (prof?.role !== "admin")
-      return json({ ok: false, pesan: "Hanya admin yang diizinkan." }, 403);
+    const isAdmin = prof?.role === "admin";
 
     // 2) Jalankan aksi
     const { action, username, password, nama, role, passwordBaru } = await req.json();
+
+    // Aksi "list" (baca daftar nama) diizinkan untuk semua user yang login —
+    // dibutuhkan form verifikasi untuk memilih nama staf loket / pengampu OPD.
+    // Aksi yang MENGUBAH data tetap khusus admin.
+    if (action !== "list" && !isAdmin)
+      return json({ ok: false, pesan: "Hanya admin yang diizinkan." }, 403);
 
     const findId = async (un: string) => {
       const { data } = await admin
