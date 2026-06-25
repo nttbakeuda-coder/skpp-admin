@@ -2754,11 +2754,13 @@ function CatatanKembali({ data }) {
         </ol>
       </>)}
 
-      {(mekList.length>0 || mek.jumlah) && (<>
+      {(mekList.length>0 || mek.jumlah || mek.penghitung) && (<>
         <div style={hLabel}>Mekanisme penyelesaian hutang</div>
         <div style={{fontSize:11.5,lineHeight:1.5}}>
           {mekList.join(" · ")}
-          {mek.jumlah ? <div style={{marginTop:2}}>Jumlah: <strong>Rp {fmtRibuan(mek.jumlah)}</strong></div> : null}
+          {mek.penghitung==="bendahara"
+            ? <div style={{marginTop:2}}>Jumlah dihitung oleh <strong>Bendahara OPD</strong></div>
+            : mek.jumlah ? <div style={{marginTop:2}}>Jumlah: <strong>Rp {fmtRibuan(mek.jumlah)}</strong></div> : null}
         </div>
       </>)}
 
@@ -2879,7 +2881,9 @@ function cetakFormulirKembali({ p, fkData, stafLoketNama, stafLoketNIP, nomorFor
     <tr><td>${cb(fkData.mPotong)} Pemotongan dari hak keuangan pegawai (gaji terakhir, uang pensiun, dsb.)</td></tr>
     <tr><td>${cb(fkData.mSetor)} Penyetoran tunai ke Rekening Kas Umum Daerah (RKUD)</td></tr>
     <tr><td>${cb(fkData.mCicilan)} Cicilan sesuai kesepakatan (dilampiri Berita Acara Kesepakatan Pelunasan)</td></tr>
-    <tr><td style="text-align:right"><b>Jumlah hutang yang harus diselesaikan:&nbsp;&nbsp; Rp ${fmtRibuan(fkData.jumlahHutang)||"___________________"}</b></td></tr>
+    <tr><td style="text-align:right"><b>${fkData.penghitungHutang==="bendahara"
+      ? "Jumlah hutang dihitung oleh Bendahara OPD"
+      : `Jumlah hutang yang harus diselesaikan:&nbsp;&nbsp; Rp ${fmtRibuan(fkData.jumlahHutang)||"___________________"}`}</b></td></tr>
   </table>` : "";
   // Huruf bagian "Pernyataan Pemohon" menyesuaikan jumlah bagian sebelumnya.
   const hurufPernyataan = "ABCDEFGH"[2 + (fkData.alasanDokumen?1:0) + (fkData.alasanHutang?2:0)];
@@ -3087,7 +3091,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
     alasanDokumen:false, alasanHutang:false,
     rincian:Array(5).fill(null).map(()=>({dokumen:"",dokLain:false,tindakan:"",tinLain:false,batas:besok})),
     rincianHutang:Array(4).fill(null).map(()=>({jenis:"",batas:besok})),
-    mPotong:false, mSetor:false, mCicilan:false, jumlahHutang:"",
+    mPotong:false, mSetor:false, mCicilan:false, jumlahHutang:"", penghitungHutang:"",
     stafLoket:"", pengampuNama:"", pengampuNIP:"", pemohonNama:"", pemohonNIP:"",
   });
   const [stafLoketList, setStafLoketList] = useState([]);
@@ -3375,7 +3379,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
             alasan:{dokumen:fkData.alasanDokumen,hutang:fkData.alasanHutang},
             rincian:fkData.rincian.filter(r=>r.dokumen),
             rincianHutang:(fkData.rincianHutang||[]).filter(r=>r.jenis),
-            mekanisme:{potong:fkData.mPotong,setor:fkData.mSetor,cicilan:fkData.mCicilan,jumlah:fkData.jumlahHutang},
+            mekanisme:{potong:fkData.mPotong,setor:fkData.mSetor,cicilan:fkData.mCicilan,jumlah:fkData.jumlahHutang,penghitung:fkData.penghitungHutang},
             stafLoket:stafNama,
             pengampu:{nama:fkData.pengampuNama,nip:fkData.pengampuNIP},
             pemohon:{nama:fkData.pemohonNama,nip:fkData.pemohonNIP},
@@ -3618,13 +3622,37 @@ function FormulirKembaliModal({ p, user, fkData, setFkData, stafLoketList, penga
               <CheckRow field="mSetor" label="Penyetoran tunai ke Rekening Kas Umum Daerah (RKUD)"/>
               <CheckRow field="mCicilan" label="Cicilan sesuai kesepakatan (dilampiri Berita Acara Kesepakatan Pelunasan)"/>
               <div className="form-group" style={{marginTop:10,marginBottom:0}}>
-                <label className="form-label">Jumlah Hutang yang Harus Diselesaikan</label>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{fontWeight:700,fontSize:15,flexShrink:0}}>Rp</span>
-                  <input className="form-control" style={{margin:0,textAlign:"right",fontFamily:"var(--mono)",fontWeight:700}} type="text" inputMode="numeric"
-                    value={fmtRibuan(fkData.jumlahHutang)} onChange={e=>setFkData(d=>({...d,jumlahHutang:e.target.value.replace(/\D/g,"")}))}
-                    placeholder="0"/>
+                <label className="form-label">Perhitungan Nominal Hutang Dilakukan Oleh</label>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  {[["bendahara","Bendahara OPD"],["pengampu","Staf Pengampu OPD"]].map(([val,lbl])=>{
+                    const aktif = fkData.penghitungHutang===val;
+                    return (
+                      <button key={val} type="button"
+                        onClick={()=>setFkData(d=>({...d, penghitungHutang:val, jumlahHutang: val==="pengampu"?d.jumlahHutang:""}))}
+                        style={{padding:"7px 14px",borderRadius:999,fontSize:12.5,fontWeight:700,cursor:"pointer",
+                          border:`1.5px solid ${aktif?"#1a4b9b":"var(--outline-variant)"}`,
+                          background:aktif?"#1a4b9b":"#fff",color:aktif?"#fff":"var(--on-surface-variant)"}}>
+                        {lbl}
+                      </button>
+                    );
+                  })}
                 </div>
+                {fkData.penghitungHutang==="bendahara" && (
+                  <div style={{fontSize:11.5,color:"var(--on-surface-variant)",marginTop:8,fontStyle:"italic"}}>
+                    Nominal hutang akan dihitung oleh Bendahara OPD.
+                  </div>
+                )}
+                {fkData.penghitungHutang==="pengampu" && (
+                  <div style={{marginTop:10}}>
+                    <label className="form-label">Jumlah Hutang yang Harus Diselesaikan</label>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <span style={{fontWeight:700,fontSize:15,flexShrink:0}}>Rp</span>
+                      <input className="form-control" style={{margin:0,textAlign:"right",fontFamily:"var(--mono)",fontWeight:700}} type="text" inputMode="numeric"
+                        value={fmtRibuan(fkData.jumlahHutang)} onChange={e=>setFkData(d=>({...d,jumlahHutang:e.target.value.replace(/\D/g,"")}))}
+                        placeholder="0"/>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
