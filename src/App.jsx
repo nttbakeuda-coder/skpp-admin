@@ -3060,13 +3060,13 @@ function cetakDaftarPeriksa({ p, dpData }) {
     <tr><td>${cb(dpData.kesimpulan==="kembali")} BERKAS TIDAK LENGKAP / TERDAPAT HUTANG — Dikembalikan kepada Pemohon</td></tr>
     <tr><td style="height:54px"><b>Catatan:</b> ${dpData.catatan||""}</td></tr>
   </table>
-  <p style="text-align:right;margin:4px 0">${dpData.tempat||"Kupang"}, ${tgl||"_____ / _____ / _______"}</p>
-  <table>
-    <tr><th>Diverifikasi oleh / Pengampu OPD</th></tr>
-    <tr class="sign">
-      <td><div style="margin-top:70px">Nama : ${dpData.pengampuNama||"___________________"}<br/>NIP &nbsp;&nbsp;: ${dpData.pengampuNIP||"___________________"}</div></td>
-    </tr>
-  </table>
+  <div style="text-align:right;margin-top:8px">
+    <div style="display:inline-block;text-align:left">
+      <div>${dpData.tempat||"Kupang"}, ${tgl||"_____ / _____ / _______"}</div>
+      <div style="font-weight:bold">Diverifikasi oleh / Pengampu OPD</div>
+      <div style="margin-top:70px">Nama : ${dpData.pengampuNama||"___________________"}<br/>NIP &nbsp;&nbsp;: ${dpData.pengampuNIP||"___________________"}</div>
+    </div>
+  </div>
   <p style="font-size:8.5pt;font-style:italic;margin-top:4px">Keterangan: ☑ = Centang pada kolom yang sesuai | Jalur B hanya berlaku jika SK Pangkat Pengabdian BELUM berlaku pada tanggal pensiun.</p>
   <script>window.onload=function(){window.print()}</script>
   </body></html>`;
