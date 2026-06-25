@@ -2483,7 +2483,7 @@ function Login({ onLogin }) {
         localStorage.setItem("isLoggedIn","true");
         localStorage.setItem("namaStaf", res.nama);
         localStorage.setItem("roleStaf", res.role);
-        onLogin({ username: user.trim(), nama: res.nama, role: res.role });
+        onLogin({ username: user.trim(), nama: res.nama, role: res.role, pangkat: res.pangkat || "" });
       } else {
         setErr(res.pesan || "NIP atau kata sandi yang Anda masukkan salah. Periksa kembali data Anda atau hubungi administrator.");
       }
