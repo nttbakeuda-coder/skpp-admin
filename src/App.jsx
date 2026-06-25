@@ -3416,7 +3416,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
             .filter(x=>x.st.status==="ada");
           const adaDok = dokKurang.length>0;
           const adaHutang = dpData.kesimpulanHutang==="hutang" || hutangAda.length>0;
-          const barisDok = dokKurang.map(x=>({dokumen:x.nama, dokLain:true, tindakan:"", tinLain:false, batas:besok}));
+          const barisDok = dokKurang.map(x=>({dokumen:x.nama, dokLain:true, dpAuto:true, tindakan:"", tinLain:false, batas:besok}));
           while (barisDok.length<5) barisDok.push({dokumen:"",dokLain:false,tindakan:"",tinLain:false,batas:besok});
           const barisHutang = hutangAda.map(x=>({jenis:x.nama, batas:besok}));
           while (barisHutang.length<4) barisHutang.push({jenis:"",batas:besok});
@@ -3456,7 +3456,13 @@ function FormulirKembaliModal({ p, user, fkData, setFkData, stafLoketList, penga
   const cellInput = {width:"100%",border:"none",outline:"none",background:"transparent",fontSize:12,padding:"4px 2px"};
   // Sel dropdown dengan opsi "Lainnya" untuk input manual. Dikembalikan sebagai elemen (bukan komponen)
   // agar input manual tidak kehilangan fokus saat mengetik.
-  const dropLain = (row,i,field,flag,options,ph) => (
+  const dropLain = (row,i,field,flag,options,ph) => {
+    // Baris dokumen hasil auto-isi dari Daftar Periksa: tampilkan nama dokumen
+    // sebagai teks langsung (tanpa dropdown "Lainnya"), tetap dapat diedit.
+    if (field==="dokumen" && row.dpAuto) {
+      return <input value={row[field]} onChange={e=>updRincian(i,field,e.target.value)} placeholder={ph} style={cellInput}/>;
+    }
+    return (
     <>
       <select value={row[flag] ? "__lain__" : (options.includes(row[field]) ? row[field] : "")}
         onChange={e=>{
@@ -3473,7 +3479,8 @@ function FormulirKembaliModal({ p, user, fkData, setFkData, stafLoketList, penga
           style={{...cellInput,marginTop:4,borderTop:"1px dashed var(--outline-variant)"}}/>
       )}
     </>
-  );
+    );
+  };
 
   const SectionTitle = ({children}) => (
     <div style={{fontWeight:800,fontSize:11.5,color:"white",textTransform:"uppercase",letterSpacing:"0.07em",
