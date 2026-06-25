@@ -3404,6 +3404,29 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
           // Pindah ke alur Formulir Pengembalian untuk merinci pengembalian berkas.
           setShowDaftarPeriksa(false);
           if (stafLoketList.length===0 || pengampuList.length===0) daftarAkun().then(res=>{ if(res.ok){ setStafLoketList(res.data.filter(a=>a.role==="operator")); setPengampuList(res.data.filter(a=>a.role==="staf")); } });
+          // Auto-isi Formulir Pengembalian dari hasil Daftar Periksa:
+          // dokumen ber-status "Tidak Ada" -> Rincian Dokumen Kurang;
+          // kewajiban ber-status "Ada" / kesimpulan "Terdapat Hutang" -> Rincian Hutang.
+          // Tindakan & batas waktu sengaja dibiarkan kosong/agar diisi manual.
+          const dokKurang = DP_DOKUMEN_FLAT
+            .map((it,idx)=>({nama:it.t, st:dpData.dok[idx]||{}}))
+            .filter(x=>x.st.status==="tidak");
+          const hutangAda = DP_HUTANG
+            .map((h,i)=>({nama:h, st:dpData.hutang[i]||{}}))
+            .filter(x=>x.st.status==="ada");
+          const adaDok = dokKurang.length>0;
+          const adaHutang = dpData.kesimpulanHutang==="hutang" || hutangAda.length>0;
+          const barisDok = dokKurang.map(x=>({dokumen:x.nama, dokLain:true, tindakan:"", tinLain:false, batas:besok}));
+          while (barisDok.length<5) barisDok.push({dokumen:"",dokLain:false,tindakan:"",tinLain:false,batas:besok});
+          const barisHutang = hutangAda.map(x=>({jenis:x.nama, batas:besok}));
+          while (barisHutang.length<4) barisHutang.push({jenis:"",batas:besok});
+          setFkData(d=>({
+            ...d,
+            alasanDokumen: adaDok,
+            alasanHutang: adaHutang,
+            rincian: adaDok ? barisDok : d.rincian,
+            rincianHutang: adaHutang ? barisHutang : d.rincianHutang,
+          }));
           setShowFormKembali(true);
         }}
       />
