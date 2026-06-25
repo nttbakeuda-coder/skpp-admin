@@ -5707,6 +5707,11 @@ export default function App() {
       setIdleWarn(false);
       localStorage.removeItem("isLoggedIn");
       setUser(null);
+      // Reset tampilan ke dashboard agar saat login kembali tidak membuka
+      // posisi terakhir sebelum logout otomatis.
+      setPage("dashboard");
+      setSelected(null);
+      setShowInput(false);
     };
 
     // Dipanggil tombol "Tetap Masuk": mulai ulang hitungan dari sekarang.
@@ -6131,7 +6136,7 @@ export default function App() {
               Klik <strong>Tetap Masuk</strong> untuk melanjutkan, atau biarkan untuk keluar.
             </div>
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={()=>{ setIdleWarn(false); localStorage.removeItem("isLoggedIn"); setUser(null); }}>Keluar Sekarang</button>
+              <button className="btn btn-secondary" onClick={()=>{ setIdleWarn(false); localStorage.removeItem("isLoggedIn"); setUser(null); setPage("dashboard"); setSelected(null); setShowInput(false); }}>Keluar Sekarang</button>
               <button className="btn btn-primary" onClick={()=>idleResetRef.current()}>Tetap Masuk</button>
             </div>
           </div>
