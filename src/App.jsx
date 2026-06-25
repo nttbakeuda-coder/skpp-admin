@@ -3064,7 +3064,7 @@ function cetakDaftarPeriksa({ p, dpData }) {
     <div style="display:inline-block;text-align:left">
       <div>${dpData.tempat||"Kupang"}, ${tgl||"_____ / _____ / _______"}</div>
       <div style="font-weight:bold">Diverifikasi oleh / Pengampu OPD</div>
-      <div style="margin-top:70px"><span style="text-decoration:underline">${dpData.pengampuNama||"___________________"}</span><br/>${dpData.pengampuPangkat?`${dpData.pengampuPangkat}<br/>`:""}${dpData.pengampuNIP||"___________________"}</div>
+      <div style="margin-top:70px">${dpData.pengampuNama||"___________________"}<br/>${dpData.pengampuPangkat?`${dpData.pengampuPangkat}<br/>`:""}${dpData.pengampuNIP||"___________________"}</div>
     </div>
   </div>
   <p style="font-size:8.5pt;font-style:italic;margin-top:4px">Keterangan: ☑ = Centang pada kolom yang sesuai | Jalur B hanya berlaku jika SK Pangkat Pengabdian BELUM berlaku pada tanggal pensiun.</p>
