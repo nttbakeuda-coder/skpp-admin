@@ -148,8 +148,7 @@ function dpGrupTampil(alasan) {
   return [true, isPS, isPD, isBH, isJD];
 }
 const DP_HUTANG = [
-  "Kelebihan pembayaran gaji pokok",
-  "Kelebihan pembayaran tunjangan jabatan / tunjangan umum",
+  "Kelebihan pembayaran gaji dan tunjangan",
   "Kelebihan pembayaran tunjangan kinerja / tambahan penghasilan",
   "Kelebihan pembayaran honorarium atau penghasilan lainnya",
   "Uang muka perjalanan dinas yang belum dipertanggungjawabkan",
