@@ -2952,14 +2952,6 @@ function cetakFormulirKembali({ p, fkData, stafLoketNama, stafLoketNIP, nomorFor
 }
 
 // Cetak "Daftar Periksa Verifikasi Berkas" (Lampiran 1) — logo Pemprov di kanan atas.
-// Ambil pangkat/golongan yang disimpan user di profilnya (lokal perangkat).
-// Kosong bila belum diisi -> tidak ada placeholder pada hasil cetak.
-function pangkatTersimpan(username) {
-  if (!username) return "";
-  try { return (JSON.parse(localStorage.getItem(`skpp_profil_${username}`)||"{}").pangkat) || ""; }
-  catch { return ""; }
-}
-
 function cetakDaftarPeriksa({ p, dpData }) {
   const al = p.alasan||"";
   const isJD = al.includes("Janda")||al.includes("Duda")||al.includes("Meninggal");
@@ -3112,7 +3104,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
     stafLoketNama:"", stafLoketNIP:"", stafLoketUser:"",
     // Pengampu OPD otomatis dari akun yang sedang login (NIP = username).
     pengampuUser:user?.username||"", pengampuNama:user?.nama||"", pengampuNIP:user?.username||"",
-    pengampuPangkat: pangkatTersimpan(user?.username),
+    pengampuPangkat: user?.pangkat || "",
   });
   const isPenomoran = (stepId) => stepId === "A6" || stepId === "B10";
   const isVerifikasi = (stepId) => stepId === "A2" || stepId === "B2";
@@ -3907,7 +3899,7 @@ function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuLi
                 <select className="form-control" value={dpData.pengampuUser||""}
                   onChange={e=>{
                     const u = pengampuList.find(s=>s.username===e.target.value);
-                    setDpData(d=>({...d, pengampuUser:e.target.value, pengampuNama:u?.nama||"", pengampuNIP:u?.username||"", pengampuPangkat:pangkatTersimpan(e.target.value)}));
+                    setDpData(d=>({...d, pengampuUser:e.target.value, pengampuNama:u?.nama||"", pengampuNIP:u?.username||"", pengampuPangkat:u?.pangkat||""}));
                   }}>
                   {!pengampuList.some(s=>s.username===dpData.pengampuUser) && dpData.pengampuNama && (
                     <option value={dpData.pengampuUser||""}>{dpData.pengampuNama}</option>
@@ -5445,7 +5437,7 @@ function PageProfil({ user, onToast, onUpdateUser }) {
     setSaving(true);
     try {
       localStorage.setItem(storeKey, JSON.stringify(form));
-      onUpdateUser?.({ nama: form.nama.trim(), foto: form.foto || "" });
+      onUpdateUser?.({ nama: form.nama.trim(), foto: form.foto || "", pangkat: form.pangkat || "" });
       // Sinkron ke backend; bila action belum tersedia, data tetap aman di perangkat
       let serverOk = false;
       try {

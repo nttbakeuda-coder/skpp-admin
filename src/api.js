@@ -26,7 +26,7 @@ const EMAIL = (username) => `${username}@skpp.local`;
 
 async function profilSesi(userId) {
   const { data } = await supabase
-    .from("profiles").select("username, nama, role").eq("id", userId).maybeSingle();
+    .from("profiles").select("username, nama, role, pangkat").eq("id", userId).maybeSingle();
   return data;
 }
 
@@ -51,7 +51,7 @@ export async function login({ username, password }) {
     await supabase.auth.signOut();
     return err("Akun belum memiliki profil. Hubungi administrator.");
   }
-  return ok({ username: prof.username, nama: prof.nama, role: prof.role });
+  return ok({ username: prof.username, nama: prof.nama, role: prof.role, pangkat: prof.pangkat || "" });
 }
 
 export async function logout() {
@@ -64,7 +64,7 @@ export async function sesiSaatIni() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.user) return null;
   const prof = await profilSesi(session.user.id);
-  return prof ? { username: prof.username, nama: prof.nama, role: prof.role } : null;
+  return prof ? { username: prof.username, nama: prof.nama, role: prof.role, pangkat: prof.pangkat || "" } : null;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -87,7 +87,7 @@ export async function daftarAkun() {
   // untuk memilih nama staf loket / pengampu OPD. Akses diatur oleh RLS policy
   // "profiles_select" (lihat supabase/04_profiles_directory.sql).
   const { data, error } = await supabase
-    .from("profiles").select("username, nama, role").order("nama");
+    .from("profiles").select("username, nama, role, pangkat").order("nama");
   if (error) return err(error.message || "Gagal memuat daftar akun.");
   return ok({ data: data || [] });
 }
@@ -162,7 +162,7 @@ export async function updateProfil({ data: formData }) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return err("Sesi berakhir. Silakan masuk kembali.");
   const { error } = await supabase
-    .from("profiles").update({ nama: formData.nama }).eq("id", user.id);
+    .from("profiles").update({ nama: formData.nama, pangkat: formData.pangkat || null }).eq("id", user.id);
   if (error) return err("Gagal memperbarui profil.");
   return ok({ pesan: "Profil berhasil diperbarui." });
 }
