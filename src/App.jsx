@@ -3062,9 +3062,8 @@ function cetakDaftarPeriksa({ p, dpData }) {
   </table>
   <p style="text-align:right;margin:4px 0">${dpData.tempat||"Kupang"}, ${tgl||"_____ / _____ / _______"}</p>
   <table>
-    <tr><th style="width:50%">Diterima oleh / Staf Loket</th><th>Diverifikasi oleh / Pengampu OPD</th></tr>
+    <tr><th>Diverifikasi oleh / Pengampu OPD</th></tr>
     <tr class="sign">
-      <td><div style="margin-top:70px">Nama : ${dpData.stafLoketNama||"___________________"}<br/>NIP &nbsp;&nbsp;: ${dpData.stafLoketNIP||"___________________"}</div></td>
       <td><div style="margin-top:70px">Nama : ${dpData.pengampuNama||"___________________"}<br/>NIP &nbsp;&nbsp;: ${dpData.pengampuNIP||"___________________"}</div></td>
     </tr>
   </table>
@@ -3891,22 +3890,8 @@ function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuLi
             <textarea className="form-control" value={dpData.catatan} onChange={e=>set("catatan",e.target.value)} placeholder="Catatan verifikasi (opsional)"/>
           </div>
 
-          {/* Tanda tangan */}
-          <div className="grid-2" style={{gap:14,marginTop:8}}>
-            <div style={{border:"1px solid var(--outline-variant,#e2e8f0)",borderRadius:10,padding:"12px 14px"}}>
-              <div style={{fontWeight:700,fontSize:11.5,color:"var(--on-surface-variant)",marginBottom:8}}>Diterima oleh / Staf Loket</div>
-              <div className="form-group" style={{marginBottom:8}}><label className="form-label">Nama</label>
-                <select className="form-control" value={dpData.stafLoketUser||""}
-                  onChange={e=>{
-                    const u = stafLoketList.find(s=>s.username===e.target.value);
-                    setDpData(d=>({...d, stafLoketUser:e.target.value, stafLoketNama:u?.nama||"", stafLoketNIP:u?.username||""}));
-                  }}>
-                  <option value="">— Pilih staf loket —</option>
-                  {stafLoketList.map(s=> <option key={s.username} value={s.username}>{s.nama}</option>)}
-                </select></div>
-              <div className="form-group" style={{marginBottom:0}}><label className="form-label">NIP</label>
-                <input className="form-control" value={dpData.stafLoketNIP} readOnly style={{background:"var(--surface-container-low,#f6f8fc)"}}/></div>
-            </div>
+          {/* Tanda tangan — hanya Pengampu OPD */}
+          <div style={{marginTop:8}}>
             <div style={{border:"1px solid var(--outline-variant,#e2e8f0)",borderRadius:10,padding:"12px 14px"}}>
               <div style={{fontWeight:700,fontSize:11.5,color:"var(--on-surface-variant)",marginBottom:8}}>Diverifikasi oleh / Pengampu OPD</div>
               <div className="form-group" style={{marginBottom:8}}><label className="form-label">Nama</label>
