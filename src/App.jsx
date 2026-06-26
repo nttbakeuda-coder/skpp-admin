@@ -3123,6 +3123,22 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
   // agar catatan satu tahap tidak terbawa ke tahap berikutnya.
   useEffect(() => { setCatatan(""); }, [stepAktif?.id]);
 
+  // Peringatan kemungkinan kelebihan pembayaran gaji (pegawai Pindah yang
+  // TMT-nya sudah terlewati saat input) tetap dimunculkan pada tahap
+  // verifikasi berkas, pembuatan draft SKPP, dan verifikasi/proses TTD pimpinan.
+  const TAHAP_PERINGATAN_GAJI = ["A2","B2","A4","B8","A5","B9"];
+  const today0KG = (() => { const d=new Date(); d.setHours(0,0,0,0); return d; })();
+  const tmtKGDate = p.tmtPindah ? new Date(p.tmtPindah) : null;
+  const kelebihanGajiWarn = p.alasan==="Pindah" && tmtKGDate && !isNaN(tmtKGDate) && tmtKGDate < today0KG;
+  const selisihHariKG = kelebihanGajiWarn ? Math.floor((today0KG - tmtKGDate) / 86400000) : 0;
+  const [showKelebihanGaji, setShowKelebihanGaji] = useState(false);
+  useEffect(() => {
+    if (kelebihanGajiWarn && stepAktif && TAHAP_PERINGATAN_GAJI.includes(stepAktif.id)) {
+      setShowKelebihanGaji(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepAktif?.id, kelebihanGajiWarn]);
+
   return (
     <>
     <div className="modal-overlay">
@@ -3433,6 +3449,28 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
           setShowFormKembali(true);
         }}
       />
+    )}
+
+    {showKelebihanGaji && (
+      <div className="modal-overlay" style={{zIndex:11000}}>
+        <div className="modal" style={{maxWidth:440,borderRadius:"22px",overflow:"hidden"}}>
+          <div className="modal-header" style={{background:"#fffbeb",borderBottom:"1px solid #fde68a"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:22}}>⚠️</span>
+              <div style={{fontWeight:800,fontSize:14,color:"#92400e"}}>Kemungkinan Kelebihan Pembayaran Gaji</div>
+            </div>
+          </div>
+          <div className="modal-body" style={{fontSize:13,lineHeight:1.6,color:"var(--on-surface)"}}>
+            Pegawai ini <strong>Pindah</strong> dan tanggal hari ini sudah melewati <strong>TMT Pindah ({fmtDate(p.tmtPindah)})</strong> selama <strong>{selisihHariKG} hari</strong>.
+            <div style={{marginTop:10,padding:"10px 12px",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:10,color:"#92400e"}}>
+              Pegawai berkemungkinan masih menerima pembayaran gaji setelah TMT pindah. Mohon periksa dan perhitungkan/setorkan kembali kelebihan pembayaran sebelum SKPP diterbitkan.
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button className="btn btn-primary" onClick={()=>setShowKelebihanGaji(false)}>OK</button>
+          </div>
+        </div>
+      </div>
     )}
     </>
   );
@@ -4004,7 +4042,8 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
       return { ...rest, alasan: (alasanLain||"").trim() || "Lainnya", kodeLain: (f.kodeLain||"").trim().toUpperCase() };
     return { ...rest, kodeLain: "" };
   };
-  const simpanTunggal = () => onSave(normalKeperluan(form));
+  // tmtPindah disimpan agar peringatan kelebihan gaji bisa muncul lagi di tahap proses.
+  const simpanTunggal = () => onSave(normalKeperluan({ ...form, tmtPindah: isPindah ? tmtPindah : "" }));
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
   // TMT Pindah — hanya untuk peringatan kemungkinan kelebihan gaji (tidak ikut disimpan).
   const [tmtPindah, setTmtPindah] = useState("");
@@ -4028,8 +4067,9 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
   const bulkPindahOffenders = items.filter(it => it.alasan==="Pindah" && it.tmt && !isNaN(new Date(it.tmt)) && new Date(it.tmt) < today0);
   const [showBulkPindahPopup, setShowBulkPindahPopup] = useState(false);
   const doSaveBulk = () => {
-    // tmt hanya untuk peringatan, tidak ikut disimpan ke server
-    onSaveBulk({ namaOPD:bulkOPD, items:items.map(({_id,tmt,...rest})=>normalKeperluan(rest)) });
+    // tmt (TMT Pindah) disimpan sebagai tmtPindah agar peringatan kelebihan gaji
+    // bisa muncul lagi di tahap proses.
+    onSaveBulk({ namaOPD:bulkOPD, items:items.map(({_id,tmt,...rest})=>normalKeperluan({ ...rest, tmtPindah: rest.alasan==="Pindah" ? (tmt||"") : "" })) });
   };
   const handleSaveBulk = () => {
     if(!bulkValid) return;
