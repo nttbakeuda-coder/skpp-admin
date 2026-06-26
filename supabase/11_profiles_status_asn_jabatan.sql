@@ -23,7 +23,7 @@ update public.profiles p set
   status_asn = v.status_asn
 from (values
   -- NIP (username),                jabatan,                                          status ASN
-  ('199508292025061002','Analis Keuangan Pusat dan Daerah Ahli Pertama','PNS'),
+  ('199508292025061002','Analis Keuangan Pusat dan Daerah Ahli Pertama','CPNS'),
   ('198107222025212013','Penata Layanan Operasional','PPPK'),
   ('199110122025211037','Penata Layanan Operasional','PPPK'),
   ('199502132025212030','Penata Layanan Operasional','PPPK'),
@@ -37,7 +37,7 @@ from (values
   ('199803162025211016','Penata Layanan Operasional','PPPK'),
   ('199309192025211026','Pranata Komputer Ahli Pertama','PPPK'),
   ('200201142025212006','Pengadministrasi Perkantoran','PPPK'),
-  ('200201092025062001','Analis Keuangan Pusat dan Daerah Ahli Pertama','PPPK'),
+  ('200201092025062001','Analis Keuangan Pusat dan Daerah Ahli Pertama','CPNS'),
   ('197507072003121015','Kepala Bidang Perbendaharaan','PNS'),
   ('198407032011011005','Penelaah Teknis Kebijakan','PNS'),
   ('198912172014022002','Penelaah Teknis Kebijakan','PNS'),
