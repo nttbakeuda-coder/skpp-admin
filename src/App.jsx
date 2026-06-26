@@ -4212,7 +4212,13 @@ function SerahTerimaModal({ p, user, saving, onClose, onSubmit }) {
           </div>
           <div className="form-group">
             <label className="form-label">Status Penerima *</label>
-            <select className="form-control" value={data.status} onChange={e=>set("status",e.target.value)}>
+            <select className="form-control" value={data.status}
+              onChange={e=>{
+                const v = e.target.value;
+                setData(d=>({...d, status:v,
+                  nama: v==="Pemohon sendiri" ? (p.nama||"") : "",
+                  nip:  v==="Pemohon sendiri" ? (p.nip||"")  : ""}));
+              }}>
               {STATUS_PENERIMA.map(s=><option key={s} value={s}>{s}</option>)}
             </select>
           </div>
