@@ -4109,7 +4109,7 @@ function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuLi
 }
 
 // ─── SERAH TERIMA SKPP ────────────────────────────────────────────────────────
-const STATUS_PENERIMA = ["Pemohon sendiri","Kuasa","Ahli waris"];
+const STATUS_PENERIMA = ["Pemohon sendiri","Kuasa","Ahli waris","Bendahara OPD"];
 
 // Kanvas tanda tangan digital (mouse + sentuh). onChange menerima dataURL PNG, atau "" bila kosong.
 function SignaturePad({ onChange }) {
@@ -6193,6 +6193,11 @@ export default function App() {
 
   const handleSerahTerima = async (payload) => {
     if (!selected) return false;
+    // Serah terima SKPP hanya untuk Staf Loket (operator) & Admin.
+    if (!(user?.role === "admin" || user?.role === "operator")) {
+      alert("Serah terima SKPP hanya dapat dilakukan oleh Staf Loket atau Admin.");
+      return false;
+    }
     setSaving(true);
     let berhasil = false;
     try {
