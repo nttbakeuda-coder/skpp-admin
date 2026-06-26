@@ -330,6 +330,67 @@ export async function setSelesai({ id, tanggalSelesai }) {
   return ok({ id, tanggalSelesai: tgl });
 }
 
+// ── Serah terima SKPP ke pemohon (bukti: data penerima + tanda tangan + foto) ──
+const BUKET_SERAH = "bukti-serah-terima";
+
+// Ubah dataURL (mis. PNG tanda tangan dari canvas) menjadi Blob untuk diunggah.
+async function dataUrlKeBlob(dataUrl) {
+  const res = await fetch(dataUrl);
+  return await res.blob();
+}
+
+export async function serahTerimaSKPP({ id, penerimaNama, penerimaNIP, penerimaStatus, ttdDataUrl, fotoFile }) {
+  const stamp = Date.now();
+  let ttdPath = null, buktiPath = null;
+  try {
+    if (ttdDataUrl) {
+      const blob = await dataUrlKeBlob(ttdDataUrl);
+      ttdPath = `${id}/ttd-${stamp}.png`;
+      const { error } = await supabase.storage.from(BUKET_SERAH)
+        .upload(ttdPath, blob, { contentType: "image/png", upsert: true });
+      if (error) return err("Gagal mengunggah tanda tangan: " + error.message);
+    }
+    if (fotoFile) {
+      const ext = (fotoFile.name?.split(".").pop() || "jpg").toLowerCase();
+      buktiPath = `${id}/bukti-${stamp}.${ext}`;
+      const { error } = await supabase.storage.from(BUKET_SERAH)
+        .upload(buktiPath, fotoFile, { upsert: true });
+      if (error) return err("Gagal mengunggah foto bukti: " + error.message);
+    }
+  } catch (e) {
+    return err("Gagal mengunggah berkas bukti: " + String(e?.message ?? e));
+  }
+
+  const waktu = new Date().toLocaleString("id-ID");
+  const tglSelesai = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+  const { error } = await supabase.from("Pengajuan").update({
+    status: "selesai",
+    tanggalSelesai: tglSelesai,
+    tanggalSerahTerima: waktu,
+    penerimaNama: penerimaNama || null,
+    penerimaNIP: penerimaNIP || null,
+    penerimaStatus: penerimaStatus || null,
+    ttdSerahPath: ttdPath,
+    buktiSerahPath: buktiPath,
+  }).eq("id", id);
+  if (error) return err("Gagal mencatat serah terima: " + error.message);
+
+  const aktor = await aktorSekarang();
+  await supabase.from("Riwayat").insert({
+    pengajuanId: id, tahap: "SELESAI", waktu,
+    catatan: `SKPP diserahkan kepada ${penerimaNama || "pemohon"}${penerimaStatus ? ` (${penerimaStatus})` : ""}.`,
+    isKembali: false, oleh: aktor.oleh, olehNama: aktor.olehNama,
+  });
+  return ok({ id, tanggalSelesai: tglSelesai, waktu });
+}
+
+// URL bertanda-tangan (sementara) untuk melihat berkas bukti dari bucket privat.
+export async function buktiSerahUrl(path, detik = 600) {
+  if (!path) return null;
+  const { data } = await supabase.storage.from(BUKET_SERAH).createSignedUrl(path, detik);
+  return data?.signedUrl || null;
+}
+
 // Hapus pengajuan beserta riwayatnya (khusus admin).
 export async function hapusPengajuan({ id }) {
   await supabase.from("Riwayat").delete().eq("pengajuanId", id);

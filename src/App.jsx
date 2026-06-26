@@ -5,6 +5,7 @@ import {
   ajukanResetPassword, daftarPermintaanReset, tandaiResetSelesai, hapusPermintaanReset,
   profil, updateProfil, gantiPassword,
   daftarSemua, detail, inputBaru, inputBulk, updateTahap, setSelesai, hapusPengajuan,
+  serahTerimaSKPP, buktiSerahUrl,
 } from "./api";
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
@@ -3137,7 +3138,7 @@ function cetakDaftarPeriksa({ p, dpData }) {
 }
 
 // ─── DETAIL MODAL ─────────────────────────────────────────────────────────────
-function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) {
+function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete, user }) {
   const [tab, setTab] = useState("info");
   const [catatan, setCatatan] = useState("");
   const [isKembali, setIsKembali] = useState(false);
@@ -3156,6 +3157,8 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
   const [pengampuList, setPengampuList] = useState([]);
   // Daftar Periksa Verifikasi (tahap A2/B2).
   const [showDaftarPeriksa, setShowDaftarPeriksa] = useState(false);
+  // Serah Terima ke pemohon (tahap akhir A7/B11).
+  const [showSerahTerima, setShowSerahTerima] = useState(false);
   const hariIni = (() => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
   const [dpData, setDpData] = useState({
     dok: DP_DOKUMEN_FLAT.map(()=>({status:"",ket:""})),
@@ -3273,6 +3276,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
                   )}
                 </div>
               </div>
+              {p.tanggalSerahTerima && <BuktiSerahBlock p={p}/>}
               <div style={{marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <span style={{fontSize:12,fontWeight:700,color:"var(--on-surface-variant)",textTransform:"uppercase",letterSpacing:"0.06em"}}>Progress</span>
                 <span style={{fontSize:13,fontWeight:800,color:prog===100?"var(--success)":"var(--primary)",fontFamily:"var(--mono)"}}>{prog}%</span>
@@ -3364,6 +3368,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
                     <label className="form-label">Catatan Proses</label>
                     <textarea className="form-control" value={catatan} onChange={e=>setCatatan(e.target.value)} placeholder={`Tuliskan catatan untuk tahap: ${stepAktif.label}`} />
                   </div>
+                  {stepAktif.final!==true && (
                   <div
                     style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:"#fffbeb",border:"1.5px solid #fde68a",borderRadius:10,cursor:"pointer",marginBottom:14}}
                     onClick={() => setIsKembali(!isKembali)}
@@ -3374,6 +3379,12 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
                       <div style={{fontSize:11,color:"#b45309"}}>Berkas tidak lengkap/sesuai, perlu dikembalikan ke pemohon</div>
                     </div>
                   </div>
+                  )}
+                  {stepAktif.final===true && (
+                    <div style={{background:"#ecfdf5",border:"1.5px solid #a7f3d0",borderRadius:10,padding:"11px 14px",marginBottom:14,fontSize:12,color:"#065f46"}}>
+                      📤 Tahap akhir: serahkan SKPP kepada pemohon. Catat penerima, tanda tangan, dan bukti penyerahan.
+                    </div>
+                  )}
                   <button
                     className="btn"
                     style={{
@@ -3384,6 +3395,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
                     }}
                     disabled={saving || !cekIzinProses(user?.role, stepAktif.pelaksana) || (isPenomoran(stepAktif.id) && !nomorUrut)}
                     onClick={() => {
+                      if (stepAktif.final===true) { setShowSerahTerima(true); return; }
                       if (isKembali) {
                         if (stafLoketList.length===0 || pengampuList.length===0) daftarAkun().then(res=>{ if(res.ok){ setStafLoketList(res.data.filter(a=>a.role==="operator")); setPengampuList(res.data.filter(a=>a.role==="staf")); } });
                         setShowFormKembali(true);
@@ -3406,6 +3418,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
                   >
                     {saving ? "⏳ Menyimpan..." :
                      !cekIzinProses(user?.role, stepAktif.pelaksana) ? `🔒 Khusus: ${stepAktif.pelaksana}` :
+                     stepAktif.final===true ? "📤 Serahkan ke Pemohon & Catat Bukti" :
                      isKembali ? "↩ Kembalikan Berkas" : "✔ Tandai Tahap Ini Selesai"}
                   </button>
                   </>)}
@@ -3461,6 +3474,13 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
           onUpdate({pengajuanId:p.id,stepId:stepAktif.id,nextStepId,isKembali:true,catatan:catatanStr,isFinal:false});
           setShowFormKembali(false);
         }}
+      />
+    )}
+    {showSerahTerima && (
+      <SerahTerimaModal
+        p={p} user={user} saving={saving}
+        onClose={()=>setShowSerahTerima(false)}
+        onSubmit={async (payload)=>{ const ok = await onSerah?.(payload); if (ok) setShowSerahTerima(false); }}
       />
     )}
     {showDaftarPeriksa && stepAktif && (
@@ -4083,6 +4103,161 @@ function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuLi
             </button>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── SERAH TERIMA SKPP ────────────────────────────────────────────────────────
+const STATUS_PENERIMA = ["Pemohon sendiri","Kuasa","Ahli waris"];
+
+// Kanvas tanda tangan digital (mouse + sentuh). onChange menerima dataURL PNG, atau "" bila kosong.
+function SignaturePad({ onChange }) {
+  const canvasRef = useRef(null);
+  const drawing = useRef(false);
+  const ada = useRef(false);
+  const last = useRef({x:0,y:0});
+  const pos = (e) => {
+    const c = canvasRef.current, r = c.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return { x:(t.clientX-r.left)*(c.width/r.width), y:(t.clientY-r.top)*(c.height/r.height) };
+  };
+  const start = (e) => { e.preventDefault(); drawing.current = true; last.current = pos(e); };
+  const move = (e) => {
+    if (!drawing.current) return; e.preventDefault();
+    const ctx = canvasRef.current.getContext("2d"); const p = pos(e);
+    ctx.strokeStyle = "#0d0d0d"; ctx.lineWidth = 2.4; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.beginPath(); ctx.moveTo(last.current.x, last.current.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+    last.current = p; ada.current = true;
+  };
+  const end = () => { if (!drawing.current) return; drawing.current = false; onChange(ada.current ? canvasRef.current.toDataURL("image/png") : ""); };
+  const clear = () => { const c = canvasRef.current; c.getContext("2d").clearRect(0,0,c.width,c.height); ada.current = false; onChange(""); };
+  return (
+    <div>
+      <canvas ref={canvasRef} width={620} height={200}
+        style={{width:"100%",height:170,border:"1.5px dashed var(--outline-variant)",borderRadius:10,background:"#fff",touchAction:"none",cursor:"crosshair"}}
+        onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end}
+        onTouchStart={start} onTouchMove={move} onTouchEnd={end}/>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
+        <span style={{fontSize:11,color:"var(--on-surface-variant)"}}>Tanda tangan penerima di kotak di atas</span>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={clear}>Hapus</button>
+      </div>
+    </div>
+  );
+}
+
+function cetakBuktiSerahTerima({ p, penerima, ttdDataUrl, petugasNama, waktu }) {
+  const tgl = waktu || new Date().toLocaleString("id-ID");
+  const nomor = `BST-${p.id}-${new Date().getFullYear()}`;
+  const td = "padding:6px 8px;border:1px solid #333;font-size:11pt";
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+  <title>Bukti Serah Terima — ${p.nama}</title>
+  <style>
+    body{font-family:'Times New Roman',serif;color:#000;margin:0;padding:22px 30px;font-size:12pt}
+    h2{text-align:center;margin:0 0 2px;font-size:14pt;text-transform:uppercase;text-decoration:underline}
+    .sub{text-align:center;margin:0 0 16px;font-size:11pt}
+    table{width:100%;border-collapse:collapse;margin:6px 0}
+    .ttd{display:flex;justify-content:space-between;margin-top:26px;text-align:center}
+    .ttd .box{width:45%}
+    .sig{height:120px;display:flex;align-items:center;justify-content:center}
+    .sig img{max-height:110px;max-width:100%}
+    @media print{body{margin:0;padding:16px 22px}}
+  </style></head><body>
+  <h2>Bukti Serah Terima SKPP</h2>
+  <div class="sub">Nomor: ${nomor}</div>
+  <p>Pada hari ini, ${tgl}, Surat Keterangan Penghentian Pembayaran (SKPP) berikut telah <b>diserahkan</b> kepada penerima:</p>
+  <table>
+    <tr><td style="${td};width:34%">Nama Pegawai</td><td style="${td}">${p.nama||"—"}</td></tr>
+    <tr><td style="${td}">NIP</td><td style="${td}">${p.nip||"—"}</td></tr>
+    <tr><td style="${td}">No. SKPP</td><td style="${td}">${p.nomorSKPP||"—"}</td></tr>
+    <tr><td style="${td}">Keperluan</td><td style="${td}">${p.alasan||"—"}</td></tr>
+    <tr><td style="${td}">Diterima oleh</td><td style="${td}">${penerima?.nama||"—"} (${penerima?.status||"—"})</td></tr>
+    <tr><td style="${td}">NIP / No. Identitas Penerima</td><td style="${td}">${penerima?.nip||"—"}</td></tr>
+  </table>
+  <div class="ttd">
+    <div class="box"><div>Petugas Penyerah,</div><div class="sig"></div><div>( ${petugasNama||"___________________"} )</div></div>
+    <div class="box"><div>Penerima,</div><div class="sig">${ttdDataUrl?`<img src="${ttdDataUrl}"/>`:""}</div><div>( ${penerima?.nama||"___________________"} )</div></div>
+  </div>
+  <script>window.onload=function(){window.print()}</script>
+  </body></html>`;
+  const w = window.open("", "_blank"); if (w) { w.document.write(html); w.document.close(); }
+}
+
+function SerahTerimaModal({ p, user, saving, onClose, onSubmit }) {
+  const [data, setData] = useState({ nama: p.nama||"", nip: p.nip||"", status: STATUS_PENERIMA[0] });
+  const [ttd, setTtd] = useState("");
+  const [foto, setFoto] = useState(null);
+  const set = (k,v) => setData(d=>({...d,[k]:v}));
+  const adaBukti = !!ttd || !!foto;
+  const valid = data.nama.trim() && adaBukti;
+  return (
+    <div className="modal-overlay" style={{zIndex:11000}}>
+      <div className="modal" style={{maxWidth:560}}>
+        <div className="modal-header">
+          <div>
+            <div style={{fontWeight:800,fontSize:14,color:"var(--primary)"}}>📤 Serah Terima SKPP ke Pemohon</div>
+            <div style={{fontSize:11,color:"var(--on-surface-variant)",marginTop:2}}>Catat penerima & bukti penyerahan</div>
+          </div>
+          <button className="modal-close" onClick={onClose} disabled={saving}>✕</button>
+        </div>
+        <div className="modal-body">
+          <div style={{background:"var(--surface-container-low,#f6f8fc)",border:"1px solid var(--outline-variant)",borderRadius:10,padding:"10px 12px",marginBottom:14,fontSize:12}}>
+            <b>{p.nama}</b> · {p.nip} · No. SKPP: <b>{p.nomorSKPP||"—"}</b>
+          </div>
+          <div className="grid-2">
+            <div className="form-group"><label className="form-label">Nama Penerima *</label>
+              <input className="form-control" value={data.nama} onChange={e=>set("nama",e.target.value)} placeholder="Nama penerima"/></div>
+            <div className="form-group"><label className="form-label">NIP / No. Identitas Penerima</label>
+              <input className="form-control" value={data.nip} onChange={e=>set("nip",e.target.value)} placeholder="NIP / No. KTP"/></div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Status Penerima *</label>
+            <select className="form-control" value={data.status} onChange={e=>set("status",e.target.value)}>
+              {STATUS_PENERIMA.map(s=><option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Tanda Tangan Digital Penerima</label>
+            <SignaturePad onChange={setTtd}/>
+          </div>
+          <div className="form-group" style={{marginBottom:0}}>
+            <label className="form-label">Unggah Foto / Scan Bukti (opsional)</label>
+            <input className="form-control" type="file" accept="image/*"
+              onChange={e=>setFoto(e.target.files?.[0]||null)}/>
+            {foto && <div style={{fontSize:11,color:"var(--on-surface-variant)",marginTop:4}}>📎 {foto.name}</div>}
+          </div>
+          {!adaBukti && <div style={{fontSize:11,color:"#dc2626",marginTop:8}}>* Sertakan minimal satu bukti: tanda tangan digital atau foto/scan</div>}
+        </div>
+        <div className="modal-footer" style={{flexWrap:"wrap",gap:8}}>
+          <button className="btn btn-secondary" onClick={()=>cetakBuktiSerahTerima({ p, penerima:{nama:data.nama,nip:data.nip,status:data.status}, ttdDataUrl:ttd, petugasNama:user?.nama, waktu:new Date().toLocaleString("id-ID") })}>🖨 Cetak Bukti</button>
+          <button className="btn btn-primary" disabled={saving||!valid}
+            onClick={()=>onSubmit({ penerimaNama:data.nama.trim(), penerimaNIP:data.nip.trim(), penerimaStatus:data.status, ttdDataUrl:ttd, fotoFile:foto })}>
+            {saving?"⏳ Menyimpan…":"✔ Serahkan & Tandai Selesai"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Ringkasan bukti serah terima + tombol melihat berkas (URL bertanda-tangan sementara).
+function BuktiSerahBlock({ p }) {
+  const buka = async (path) => {
+    const url = await buktiSerahUrl(path);
+    if (url) window.open(url, "_blank"); else alert("Berkas bukti tidak ditemukan / tidak dapat diakses.");
+  };
+  return (
+    <div style={{background:"#ecfdf5",border:"1px solid #a7f3d0",borderRadius:12,padding:"14px 16px",marginBottom:16}}>
+      <div style={{fontWeight:800,fontSize:12.5,color:"#065f46",marginBottom:8}}>📤 Bukti Serah Terima SKPP</div>
+      <div className="grid-2" style={{gap:8,fontSize:12}}>
+        <div className="info-row"><span className="info-lbl">Waktu Serah Terima</span><span className="info-val">{p.tanggalSerahTerima||"—"}</span></div>
+        <div className="info-row"><span className="info-lbl">Penerima</span><span className="info-val">{p.penerimaNama||"—"}{p.penerimaStatus?` (${p.penerimaStatus})`:""}</span></div>
+        <div className="info-row"><span className="info-lbl">NIP / Identitas Penerima</span><span className="info-val">{p.penerimaNIP||"—"}</span></div>
+      </div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
+        {p.ttdSerahPath && <button className="btn btn-secondary btn-sm" onClick={()=>buka(p.ttdSerahPath)}>✍ Lihat Tanda Tangan</button>}
+        {p.buktiSerahPath && <button className="btn btn-secondary btn-sm" onClick={()=>buka(p.buktiSerahPath)}>🖼 Lihat Foto Bukti</button>}
+        {!p.ttdSerahPath && !p.buktiSerahPath && <span style={{fontSize:11,color:"#065f46"}}>Tidak ada berkas bukti terlampir.</span>}
       </div>
     </div>
   );
@@ -6016,6 +6191,24 @@ export default function App() {
     setSaving(false);
   };
 
+  const handleSerahTerima = async (payload) => {
+    if (!selected) return false;
+    setSaving(true);
+    let berhasil = false;
+    try {
+      const res = await serahTerimaSKPP({ id: selected.id, ...payload });
+      if (res.ok) {
+        showToast("✓ SKPP diserahkan & bukti tercatat");
+        await load();
+        const refreshed = await detail({ id: selected.id });
+        if (refreshed.ok) setSelected(norm(refreshed.data));
+        berhasil = true;
+      } else alert("Gagal: " + res.pesan);
+    } catch { alert("Gagal terhubung ke server."); }
+    setSaving(false);
+    return berhasil;
+  };
+
   const handleDeletePengajuan = async (p) => {
     if (user?.role !== "admin") return;
     if (!window.confirm(`Hapus pengajuan ${p.id} (${p.nama})?\n\nTindakan ini permanen dan akan menghapus data beserta riwayatnya. Lanjutkan?`)) return;
@@ -6193,7 +6386,7 @@ export default function App() {
 
       {/* Detail Modal */}
       {selected && (
-        <DetailModal p={selected} onClose={()=>setSelected(null)} onUpdate={handleUpdate} saving={saving}
+        <DetailModal p={selected} onClose={()=>setSelected(null)} onUpdate={handleUpdate} onSerah={handleSerahTerima} saving={saving}
           onCetak={()=>cetakTandaTerima(selected)} onDelete={handleDeletePengajuan} user={user}/>
       )}
 
