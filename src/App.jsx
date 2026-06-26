@@ -2078,9 +2078,43 @@ const S = `
     .d2-filters { align-self: flex-start; }
     .d2-ticker { display: none; }
   }
+  .d2-hamburger { display: none; align-items: center; justify-content: center; width: 40px; height: 40px; border: none; background: transparent; color: var(--navy-900); cursor: pointer; border-radius: 10px; flex: none; }
+  .d2-hamburger:hover { background: rgba(0,0,0,0.06); }
+  .d2-mobile-scrim { display: none; }
+
   @media (max-width: 920px) {
-    .d2-side { display: none; height: 100vh; }
     .d2-root, .d2-root.side-collapsed { grid-template-columns: 1fr; zoom: 1; min-height: 100vh; }
+    /* Sidebar menjadi drawer geser dari kiri */
+    .d2-side, .d2-root.side-collapsed .d2-side {
+      display: flex; position: fixed; top: 0; left: 0; height: 100vh; width: 280px;
+      transform: translateX(-100%); transition: transform .28s cubic-bezier(.4,0,.2,1);
+      z-index: 1000; box-shadow: 0 0 40px rgba(0,0,0,0.28); overflow-y: auto;
+    }
+    .d2-root.mobile-nav-open .d2-side { transform: translateX(0); }
+    /* Di drawer mobile selalu tampil penuh (bukan rail) */
+    .d2-side.d2-rail { width: 280px; }
+    .d2-side.d2-rail .d2-brand-txt, .d2-side.d2-rail .d2-admin-txt,
+    .d2-side.d2-rail .d2-navtxt, .d2-side.d2-rail .d2-navlabel,
+    .d2-side.d2-rail .d2-admin-txt { opacity: 1; pointer-events: auto; width: auto; }
+    .d2-side .d2-collapse-btn { display: none; }
+    .d2-mobile-scrim { display: block; position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 999; }
+    .d2-hamburger { display: inline-flex; }
+    .d2-top { gap: 10px; padding: 12px 16px; min-height: 56px; }
+    .d2-top-org b { font-size: 12.5px; white-space: normal; }
+    .d2-top-org span { display: none; }
+    .d2-greet { display: none; }
+  }
+
+  @media (max-width: 640px) {
+    .d2-body { padding: 14px 12px 28px; gap: 14px; }
+    .content { padding: 16px 12px; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .d2-kpis { grid-template-columns: 1fr; }
+    .d2-tbl-card, .card, .terbaru-card, .opd-card { overflow-x: auto; }
+    .modal { max-width: 100% !important; width: 100%; margin: 0; border-radius: 16px 16px 0 0; }
+    .modal-body { max-height: 72vh; }
+    .modal-overlay { align-items: flex-end; padding: 0; }
+    .modal-footer { flex-wrap: wrap; }
   }
 
   /* ════════════════════════════════════════════
@@ -5795,6 +5829,7 @@ export default function App() {
   const [booting, setBooting] = useState(true);
   const [page, setPage] = useState("dashboard");
   const [sideCollapsed, setSideCollapsed] = useState(false);
+  const [mobileNav, setMobileNav] = useState(false); // drawer navigasi di layar kecil
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errLoad, setErrLoad] = useState("");
@@ -6030,11 +6065,15 @@ export default function App() {
     <>
       <style>{S}</style>
       {toast && <Toast msg={toast} onDone={()=>setToast("")}/>}
-      <div className={"d2-root"+(sideCollapsed?" side-collapsed":"")}>
-        <D2Sidebar user={user} active={page} onChange={setPage} counts={counts} onLogout={handleLogout}
+      <div className={"d2-root"+(sideCollapsed?" side-collapsed":"")+(mobileNav?" mobile-nav-open":"")}>
+        {mobileNav && <div className="d2-mobile-scrim" onClick={()=>setMobileNav(false)}/>}
+        <D2Sidebar user={user} active={page} onChange={(k)=>{setPage(k);setMobileNav(false);}} counts={counts} onLogout={handleLogout}
           collapsed={sideCollapsed} onToggleCollapse={()=>setSideCollapsed(v=>!v)}/>
         <div className="d2-main">
           <header className="d2-top">
+            <button className="d2-hamburger" aria-label="Buka menu" onClick={()=>setMobileNav(true)}>
+              <D2Ico d={<><path d="M3 12h18"/><path d="M3 6h18"/><path d="M3 18h18"/></>} size={22}/>
+            </button>
             <div className="d2-top-org">
               <b>Pemerintah Provinsi Nusa Tenggara Timur</b>
               <span>Badan Keuangan Daerah — Bidang Perbendaharaan</span>
