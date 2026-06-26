@@ -5388,8 +5388,8 @@ function PageUsers({ onToast }) {
             </div>
             <div className="modal-body">
               <div className="grid-2">
-                <div className="form-group"><label className="form-label">Username *</label><input className="form-control" value={form.username} onChange={e=>set("username",e.target.value)} placeholder="Tanpa spasi"/></div>
-                <div className="form-group"><label className="form-label">Password *</label><input className="form-control" type="password" value={form.password} onChange={e=>set("password",e.target.value)} placeholder="6+ karakter, 1 huruf kapital"/></div>
+                <div className="form-group"><label className="form-label">Username *</label><input className="form-control" name="skpp-username-baru" autoComplete="off" value={form.username} onChange={e=>set("username",e.target.value)} placeholder="Tanpa spasi"/></div>
+                <div className="form-group"><label className="form-label">Password *</label><input className="form-control" type="password" name="skpp-password-baru" autoComplete="new-password" value={form.password} onChange={e=>set("password",e.target.value)} placeholder="6+ karakter, 1 huruf kapital"/></div>
               </div>
               <div className="form-group"><label className="form-label">Nama Lengkap *</label><input className="form-control" value={form.nama} onChange={e=>set("nama",e.target.value)}/></div>
               <div className="form-group">
