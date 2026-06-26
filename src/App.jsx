@@ -5491,7 +5491,7 @@ function PageProfil({ user, onToast, onUpdateUser }) {
     nama:    saved.nama    ?? user?.nama ?? "",
     foto:    saved.foto    ?? user?.foto ?? "",
     jabatan: saved.jabatan ?? "",
-    unit:    saved.unit    ?? "",
+    unit:    "Bidang Perbendaharaan",
     hp:      saved.hp      ?? "",
     email:   saved.email   ?? "",
     tglLahir:saved.tglLahir ?? "",
@@ -5662,7 +5662,7 @@ function PageProfil({ user, onToast, onUpdateUser }) {
         </div>
         <div className="profil-row">
           <div className="profil-row-label">{ico.unit} Unit / Bidang</div>
-          <input className="form-control" style={{marginBottom:0}} value={form.unit} onChange={e=>set("unit", e.target.value)} placeholder="Mis. Bidang Perbendaharaan"/>
+          <input className="form-control" style={{marginBottom:0,background:"var(--surface-container-low,#f6f8fc)"}} value={form.unit} readOnly/>
         </div>
         <div className="profil-row">
           <div className="profil-row-label">{ico.pangkat} Status ASN</div>
