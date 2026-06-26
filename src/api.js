@@ -363,9 +363,18 @@ export async function serahTerimaSKPP({ id, penerimaNama, penerimaNIP, penerimaS
 
   const waktu = new Date().toLocaleString("id-ID");
   const tglSelesai = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+
+  // Tuntaskan tahap akhir: tandai tahap aktif (tahap terakhir) sebagai selesai
+  // agar progress menjadi 100% — langkah yg biasanya dilakukan updateTahap.
+  const { data: cur } = await supabase
+    .from("Pengajuan").select("tahapSelesai, tahapAktif").eq("id", id).maybeSingle();
+  const tahapSelesai = (cur?.tahapSelesai || "").split(",").filter(Boolean);
+  if (cur?.tahapAktif && !tahapSelesai.includes(cur.tahapAktif)) tahapSelesai.push(cur.tahapAktif);
+
   const { error } = await supabase.from("Pengajuan").update({
     status: "selesai",
     tanggalSelesai: tglSelesai,
+    tahapSelesai: tahapSelesai.join(","),
     tanggalSerahTerima: waktu,
     penerimaNama: penerimaNama || null,
     penerimaNIP: penerimaNIP || null,
