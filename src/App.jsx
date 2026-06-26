@@ -58,6 +58,29 @@ const DAFTAR_PANGKAT = [
   "Pembina Utama Madya / IV-d","Pembina Utama / IV-e"
 ];
 
+// Golongan PPPK (Perpres No. 11 Tahun 2024) — dipakai bila Status ASN = PPPK.
+const GOLONGAN_PPPK = [
+  "Golongan I — SD",
+  "Golongan II — SD (syarat/masa kerja tertentu)",
+  "Golongan III — SMP (syarat/masa kerja tertentu)",
+  "Golongan IV — SMP sederajat",
+  "Golongan V — SMA / SMK / Diploma I (D1)",
+  "Golongan VI — Diploma II (D2)",
+  "Golongan VII — Diploma III (D3)",
+  "Golongan VIII — D3 (penyesuaian masa kerja/jabatan tertentu)",
+  "Golongan IX — Sarjana (S1) / Diploma IV (D4)",
+  "Golongan X — Magister (S2) / Pendidikan Profesi",
+  "Golongan XI — Doktor (S3)",
+  "Golongan XII — Jabatan Fungsional Ahli Madya",
+  "Golongan XIII — Ahli Madya / Dosen Lektor Kepala",
+  "Golongan XIV — Jabatan Fungsional Ahli Utama",
+  "Golongan XV — Ahli Utama jenjang atas",
+];
+
+const STATUS_ASN = ["PNS","PPPK"];
+// Daftar pangkat/golongan sesuai Status ASN.
+const pangkatUntukStatus = (statusAsn) => statusAsn==="PPPK" ? GOLONGAN_PPPK : DAFTAR_PANGKAT;
+
 const DAFTAR_KASUBID = ["Ibu Ivoni S. Meok, SE., MM","Ibu Vebby R. Saba, SE"];
 
 const DAFTAR_KEPERLUAN = [
@@ -5473,6 +5496,7 @@ function PageProfil({ user, onToast, onUpdateUser }) {
     email:   saved.email   ?? "",
     tglLahir:saved.tglLahir ?? "",
     pangkat: saved.pangkat ?? "",
+    status_asn: saved.status_asn ?? "PNS",
   });
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
   const [saving, setSaving] = useState(false);
@@ -5522,6 +5546,7 @@ function PageProfil({ user, onToast, onUpdateUser }) {
             email:   d.email    ?? f.email,
             tglLahir:d.tglLahir ?? f.tglLahir,
             pangkat: d.pangkat  ?? f.pangkat,
+            status_asn: d.status_asn ?? f.status_asn,
           }));
         }
       } catch {}
@@ -5640,9 +5665,20 @@ function PageProfil({ user, onToast, onUpdateUser }) {
           <input className="form-control" style={{marginBottom:0}} value={form.unit} onChange={e=>set("unit", e.target.value)} placeholder="Mis. Bidang Perbendaharaan"/>
         </div>
         <div className="profil-row">
-          <div className="profil-row-label">{ico.pangkat} Pangkat dan Golongan</div>
+          <div className="profil-row-label">{ico.pangkat} Status ASN</div>
+          <select className="form-control" style={{marginBottom:0}} value={form.status_asn}
+            onChange={e=>{
+              const v = e.target.value;
+              // Ganti status -> kosongkan pangkat bila tidak ada di daftar golongan baru.
+              setForm(f=>({...f, status_asn:v, pangkat: pangkatUntukStatus(v).includes(f.pangkat) ? f.pangkat : ""}));
+            }}>
+            {STATUS_ASN.map(s=><option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div className="profil-row">
+          <div className="profil-row-label">{ico.pangkat} {form.status_asn==="PPPK"?"Golongan (PPPK)":"Pangkat dan Golongan"}</div>
           <div style={{marginTop:-8, marginBottom:-16}}>
-            <SearchableSelect value={form.pangkat} onChange={v=>set("pangkat", v)} options={DAFTAR_PANGKAT} placeholder="-- Pilih Pangkat / Golongan --"/>
+            <SearchableSelect value={form.pangkat} onChange={v=>set("pangkat", v)} options={pangkatUntukStatus(form.status_asn)} placeholder={form.status_asn==="PPPK"?"-- Pilih Golongan PPPK --":"-- Pilih Pangkat / Golongan --"}/>
           </div>
         </div>
         <div className="profil-row">

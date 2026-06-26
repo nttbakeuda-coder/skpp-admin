@@ -162,7 +162,12 @@ export async function updateProfil({ data: formData }) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return err("Sesi berakhir. Silakan masuk kembali.");
   const { error } = await supabase
-    .from("profiles").update({ nama: formData.nama, pangkat: formData.pangkat || null }).eq("id", user.id);
+    .from("profiles").update({
+      nama: formData.nama,
+      pangkat: formData.pangkat || null,
+      jabatan: formData.jabatan || null,
+      status_asn: formData.status_asn || null,
+    }).eq("id", user.id);
   if (error) return err("Gagal memperbarui profil.");
   return ok({ pesan: "Profil berhasil diperbarui." });
 }
