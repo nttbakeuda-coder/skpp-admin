@@ -77,8 +77,9 @@ const GOLONGAN_PPPK = [
   "Golongan XV — Ahli Utama jenjang atas",
 ];
 
-const STATUS_ASN = ["PNS","PPPK"];
-// Daftar pangkat/golongan sesuai Status ASN.
+const STATUS_ASN = ["PNS","CPNS","PPPK"];
+// Daftar pangkat/golongan sesuai Status ASN. PNS & CPNS pakai daftar pangkat
+// yang sama; PPPK pakai daftar golongan PPPK.
 const pangkatUntukStatus = (statusAsn) => statusAsn==="PPPK" ? GOLONGAN_PPPK : DAFTAR_PANGKAT;
 
 const DAFTAR_KASUBID = ["Ibu Ivoni S. Meok, SE., MM","Ibu Vebby R. Saba, SE"];
