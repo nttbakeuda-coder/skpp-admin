@@ -3218,7 +3218,7 @@ function DetailModal({ p, onClose, onUpdate, saving, onCetak, onDelete, user }) 
                   <div style={{background:"#fffbeb",border:"2px solid #f59e0b",borderRadius:12,padding:"18px",marginBottom:16}}>
                     <div style={{fontWeight:800,fontSize:15,color:"#92400e",marginBottom:8}}>⚠️ Berkas Sedang Dikembalikan</div>
                     <div style={{fontSize:13,color:"#b45309",marginBottom:14,lineHeight:1.6}}>
-                      Berkas pengajuan ini telah dikembalikan kepada pemohon. Jika berkas perbaikan sudah diterima dan lengkap, klik tombol hijau di bawah untuk melanjutkan proses dari tahap yang sama — <strong>tanpa mengulang dari awal</strong>.
+                      Berkas pengajuan ini telah dikembalikan kepada pemohon. Jika berkas perbaikan sudah diterima dan lengkap, klik tombol hijau di bawah untuk melanjutkan proses.
                     </div>
                     <button
                       className="btn btn-success"
