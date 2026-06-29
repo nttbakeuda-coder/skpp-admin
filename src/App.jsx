@@ -1910,6 +1910,16 @@ const S = `
      bawahnya tidak naik (mencegah pergeseran vertikal). */
   .d2-side.d2-rail .d2-navlabel { opacity: 0; }
   .d2-side.d2-rail .d2-mark { display: block; cursor: pointer; }
+  /* Ikon "buka panel" — disembunyikan secara default, hanya relevan saat ciut.
+     Ditumpuk di atas logo agar pergantian mulus tanpa menggeser tata letak. */
+  .d2-mark-open { display: none; }
+  .d2-side.d2-rail .d2-logo-btn { display: grid; place-items: center; }
+  .d2-side.d2-rail .d2-logo-btn .d2-mark,
+  .d2-side.d2-rail .d2-logo-btn .d2-mark-open { grid-area: 1 / 1; transition: opacity .15s ease; }
+  .d2-side.d2-rail .d2-mark-open { display: block; color: var(--navy-700); opacity: 0; }
+  /* Saat dihover: logo memudar, ikon buka-panel muncul */
+  .d2-side.d2-rail .d2-logo-btn:hover .d2-mark { opacity: 0; }
+  .d2-side.d2-rail .d2-logo-btn:hover .d2-mark-open { opacity: 1; }
   /* Avatar: chip dibersihkan (border tetap, warna transparan) + dipusatkan
      horizontal di rail via padding tetap (anchor, bukan width-relative -> tak nge-slide).
      Avatar 38px, rail 72px => left = (72-38)/2 = 17px = padding-left 2 (14 side +1 border). */
@@ -5951,6 +5961,11 @@ function D2Sidebar({ user, active, onChange, counts, onLogout, collapsed, onTogg
         <span className="d2-logo-btn" data-tip="Buka panel samping"
           onClick={collapsed ? onToggleCollapse : undefined}>
           <img src="/logo-sipasti.png" alt="" className="d2-mark" onError={e=>{e.target.style.display="none";}}/>
+          {/* Saat ciut + dihover: logo berganti jadi ikon "buka panel" */}
+          <svg className="d2-mark-open" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="m14 9 3 3-3 3"/>
+          </svg>
         </span>
         <div className="d2-brand-txt">
           <b>SI-PASTI</b>
