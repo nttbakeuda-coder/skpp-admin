@@ -2270,6 +2270,21 @@ const S = `
   .theme-dark .alert-green { background:#15301f; border-color:#2f6b49; color:#7fd0a0; }
   .theme-dark .alert-red   { background:#341a19; border-color:#7a3a38; color:#f0a0a0; }
   .theme-dark .alert-blue  { background:#172a45; border-color:#3a5fa0; color:#9cc0f3; }
+  /* Tabel dashboard (.d2-tbl): zebra & hover gelap. Sebelumnya baris ganjil
+     memakai #eef2fa (terang) sehingga teks terang jadi tak terbaca. */
+  .theme-dark .d2-tbl tbody tr:nth-child(odd) td { background: #1a2333; }
+  .theme-dark .d2-tbl tbody tr:hover td { background: #22304a; }
+  .theme-dark .d2-tbl tbody td { border-bottom-color: rgba(255,255,255,0.06); }
+  /* Hover baris kartu (.card) yg sebelumnya #e1eafb terang */
+  .theme-dark .d2-root .card .tr-clickable:hover td { background: #22304a !important; }
+  /* Garis antar-baris tabel umum */
+  .theme-dark .d2-root td, .theme-dark .modal-overlay td { border-bottom-color: rgba(255,255,255,0.07); }
+  /* Tombol hapus: merah jenuh + teks putih. Token --error sengaja diterangkan
+     untuk teks (alert/badge), jadi latar tombolnya ditetapkan eksplisit. */
+  .theme-dark .btn-danger { background: #d8353d; color: #fff; }
+  .theme-dark .btn-danger:hover { background: #e85a60; }
+  /* Placeholder agar lebih terbaca di atas field gelap */
+  .theme-dark .d2-root ::placeholder, .theme-dark .modal-overlay ::placeholder { color: #8995a8; opacity: 1; }
   /* Tema toggle: rotasi halus ikon saat ganti */
   .d2-themebtn svg { transition: transform .3s ease; }
   .d2-themebtn:hover svg { transform: rotate(-18deg); }
@@ -3986,7 +4001,7 @@ function SearchableSelect({ label, value, onChange, options, placeholder="-- Pil
           display:"flex", alignItems:"center", justifyContent:"space-between",
           padding:"10px 14px",
           border:`1.5px solid ${open?"var(--primary)":"var(--outline-variant)"}`,
-          borderRadius:"var(--r-md)", background:"white", cursor:"pointer",
+          borderRadius:"var(--r-md)", background:"var(--surface-container-lowest)", cursor:"pointer",
           fontSize:13.5, color:value?"var(--on-surface)":"var(--outline)",
           userSelect:"none", transition:"border-color .15s",
         }}
@@ -4000,8 +4015,8 @@ function SearchableSelect({ label, value, onChange, options, placeholder="-- Pil
       {open && (
         <div style={{
           position:"absolute",top:"calc(100% + 4px)",left:0,right:0,zIndex:2000,
-          background:"white",border:"1.5px solid var(--outline-variant)",borderRadius:"var(--r-md)",
-          boxShadow:"0 8px 24px rgba(0,0,0,.12)",overflow:"hidden",
+          background:"var(--surface-container-lowest)",border:"1.5px solid var(--outline-variant)",borderRadius:"var(--r-md)",
+          boxShadow:"0 8px 24px rgba(0,0,0,.28)",overflow:"hidden",
         }}>
           <div style={{padding:"8px 10px",borderBottom:"1px solid var(--outline-variant)",display:"flex",alignItems:"center",gap:6}}>
             <span style={{color:"var(--outline)",display:"flex"}}><IcoSearch size={13}/></span>
@@ -4019,14 +4034,14 @@ function SearchableSelect({ label, value, onChange, options, placeholder="-- Pil
                 key={i} onClick={() => select(opt)}
                 style={{
                   padding:"9px 14px",fontSize:13,cursor:"pointer",
-                  background:value===opt?"var(--primary-fixed)":"white",
+                  background:value===opt?"var(--primary-fixed)":"var(--surface-container-lowest)",
                   color:value===opt?"var(--primary)":"var(--on-surface)",
                   fontWeight:value===opt?600:400,
                   borderLeft:value===opt?"3px solid var(--primary)":"3px solid transparent",
                   transition:"background .1s",
                 }}
                 onMouseEnter={e=>{if(value!==opt)e.currentTarget.style.background="var(--surface-container-low)";}}
-                onMouseLeave={e=>{if(value!==opt)e.currentTarget.style.background="white";}}
+                onMouseLeave={e=>{if(value!==opt)e.currentTarget.style.background="var(--surface-container-lowest)";}}
               >{opt}</div>
             ))}
           </div>
@@ -4064,7 +4079,7 @@ function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuLi
     </div>
   );
   const ketInput = { width:"100%",border:"1px solid var(--outline-variant,#d6deea)",borderRadius:7,
-    padding:"4px 8px",fontSize:11.5,outline:"none",background:"#fff",boxSizing:"border-box" };
+    padding:"4px 8px",fontSize:11.5,outline:"none",background:"var(--surface-container-lowest)",color:"var(--on-surface)",boxSizing:"border-box" };
 
   const tampilGrup = dpGrupTampil(al);
   let no = 0;
@@ -4544,7 +4559,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
                     </span>
                     <div style={{display:"flex",gap:6}}>
                       <button type="button" title="Duplikat data pegawai ini" onClick={()=>duplicateItem(idx)}
-                        style={{display:"inline-flex",alignItems:"center",gap:5,padding:"6px 11px",border:"1px solid var(--outline-variant)",borderRadius:8,background:"white",cursor:"pointer",fontSize:11.5,fontWeight:600,color:"var(--on-surface-variant)"}}>⧉ Duplikat</button>
+                        style={{display:"inline-flex",alignItems:"center",gap:5,padding:"6px 11px",border:"1px solid var(--outline-variant)",borderRadius:8,background:"var(--surface-container-low)",cursor:"pointer",fontSize:11.5,fontWeight:600,color:"var(--on-surface-variant)"}}>⧉ Duplikat</button>
                       {items.length>1 && (
                         <button type="button" title="Hapus pegawai ini" onClick={()=>removeItem(idx)}
                           style={{display:"inline-flex",alignItems:"center",gap:5,padding:"6px 11px",border:"1px solid #fca5a5",borderRadius:8,background:"var(--error-container)",cursor:"pointer",fontSize:11.5,fontWeight:600,color:"var(--error)"}}>✕ Hapus</button>
@@ -6578,7 +6593,7 @@ export default function App() {
                   <div style={{fontSize:11,fontWeight:700,color:"var(--on-surface-variant)",textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Nomor Pengajuan Terdaftar</div>
                   <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
                     {kodeAksesModal.daftarId.map(id=>(
-                      <span key={id} style={{fontFamily:"var(--mono)",fontSize:11,background:"white",border:"1px solid var(--outline-variant)",borderRadius:6,padding:"3px 8px",color:"var(--primary)",fontWeight:700}}>{id}</span>
+                      <span key={id} style={{fontFamily:"var(--mono)",fontSize:11,background:"var(--surface-container-lowest)",border:"1px solid var(--outline-variant)",borderRadius:6,padding:"3px 8px",color:"var(--primary)",fontWeight:700}}>{id}</span>
                     ))}
                   </div>
                 </div>
