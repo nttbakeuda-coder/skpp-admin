@@ -3386,7 +3386,7 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
                   {p.nomorSKPP && (
                     <div className="info-row">
                       <span className="info-lbl">No. SKPP</span>
-                      <span className="info-val" style={{color:"var(--success)",fontWeight:700,fontFamily:"var(--mono)"}}>{p.nomorSKPP}</span>
+                      <span className="info-val" style={{color:"var(--success)",fontWeight:700,fontFamily:"var(--mono)",fontSize:11,letterSpacing:"-0.02em",whiteSpace:"nowrap"}}>{p.nomorSKPP}</span>
                     </div>
                   )}
                   {p.kodeAkses && (
