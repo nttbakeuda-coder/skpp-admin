@@ -1630,7 +1630,7 @@ const S = `
   /* ════════════════════════════════════════════
      GRID HELPERS
   ════════════════════════════════════════════ */
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-2 { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 16px; }
   /* Cegah kolom melebar mengikuti konten panjang (mis. nama OPD) — jaga lebar tetap konsisten 1fr : 1fr */
   .grid-2 > * { min-width: 0; }
   .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
@@ -1664,7 +1664,7 @@ const S = `
     min-width: 120px;
     flex-shrink: 0;
   }
-  .info-val { font-size: 13.5px; color: var(--on-surface); font-weight: 500; }
+  .info-val { font-size: 13.5px; color: var(--on-surface); font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
 
   /* ════════════════════════════════════════════
      STEP BUTTONS
