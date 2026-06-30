@@ -1651,6 +1651,18 @@ const S = `
   .alert-green  { background: var(--success-pale);     border-color: #a7f3d0;  color: var(--success); }
   .alert-red    { background: var(--error-container);  border-color: #fca5a5;  color: var(--error); }
 
+  /* Notice box (panel berwarna di tab Update Proses). Warna dasar = terang;
+     mode gelap di-override di blok DARK MODE. Hanya warna (bg/border/teks)
+     yang diatur di sini; tata letak tetap inline pada masing-masing kotak. */
+  .nbox-blue  { background: #f0f9ff; border: 1.5px solid #bae6fd; color: #0369a1; }
+  .nbox-blue  .nbox-title { color: #0369a1; }
+  .nbox-teal  { background: #f0fdfa; border: 1.5px solid #99f6e4; color: #0f766e; }
+  .nbox-teal  .nbox-title { color: #0e5a59; }
+  .nbox-warn  { background: #fffbeb; border: 1.5px solid #fde68a; color: #b45309; }
+  .nbox-warn  .nbox-title { color: #92400e; }
+  .nbox-green { background: #ecfdf5; border: 1.5px solid #a7f3d0; color: #065f46; }
+  .nbox-inset { background: #ffffff; border: 1px solid #bae6fd; }
+
   /* ════════════════════════════════════════════
      INFO ROWS (detail modal)
   ════════════════════════════════════════════ */
@@ -2277,6 +2289,15 @@ const S = `
   .theme-dark .alert-green { background:#15301f; border-color:#2f6b49; color:#7fd0a0; }
   .theme-dark .alert-red   { background:#341a19; border-color:#7a3a38; color:#f0a0a0; }
   .theme-dark .alert-blue  { background:#172a45; border-color:#3a5fa0; color:#9cc0f3; }
+  /* Notice box (tab Update Proses) versi gelap */
+  .theme-dark .nbox-blue  { background:#16263f; border-color:#2f4a72; color:#9cc0f3; }
+  .theme-dark .nbox-blue  .nbox-title { color:#9cc0f3; }
+  .theme-dark .nbox-teal  { background:#102a2a; border-color:#2c5a58; color:#a8d2cd; }
+  .theme-dark .nbox-teal  .nbox-title { color:#6fd0c4; }
+  .theme-dark .nbox-warn  { background:#2c2410; border-color:#6b551f; color:#d8b15a; }
+  .theme-dark .nbox-warn  .nbox-title { color:#f0c674; }
+  .theme-dark .nbox-green { background:#15301f; border-color:#2f6b49; color:#7fd0a0; }
+  .theme-dark .nbox-inset { background:#121a2a; border-color:#2f4a72; }
   /* Tabel dashboard (.d2-tbl): zebra & hover gelap. Sebelumnya baris ganjil
      memakai #eef2fa (terang) sehingga teks terang jadi tak terbaca. */
   .theme-dark .d2-tbl tbody tr:nth-child(odd) td { background: #1a2333; }
@@ -3454,9 +3475,9 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
                     <div><strong>Tahap aktif: {stepAktif.icon} {stepAktif.label}</strong><br/><span style={{fontSize:12}}>Pelaksana: {stepAktif.pelaksana}</span></div>
                   </div>
                   {isVerifikasi(stepAktif.id) ? (
-                    <div style={{background:"#f0fdfa",border:"1.5px solid #99f6e4",borderRadius:12,padding:"16px 18px"}}>
-                      <div style={{fontWeight:800,fontSize:13.5,color:"#0E5A59",marginBottom:6}}>📋 Verifikasi Berkas dengan Daftar Periksa</div>
-                      <div style={{fontSize:12.5,color:"#0f766e",lineHeight:1.6,marginBottom:14}}>
+                    <div className="nbox-teal" style={{borderRadius:12,padding:"16px 18px"}}>
+                      <div className="nbox-title" style={{fontWeight:800,fontSize:13.5,marginBottom:6}}>📋 Verifikasi Berkas dengan Daftar Periksa</div>
+                      <div style={{fontSize:12.5,lineHeight:1.6,marginBottom:14}}>
                         Periksa kelengkapan dokumen persyaratan dan kewajiban finansial pemohon sesuai Lampiran 1.
                         Identitas pegawai terisi otomatis. Setelah selesai, <strong>Daftar Periksa langsung dicetak</strong> dan tahap verifikasi ditandai selesai.
                       </div>
@@ -3472,8 +3493,8 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
                     </div>
                   ) : (<>
                   {isPenomoran(stepAktif.id) && (
-                    <div style={{background:"#f0f9ff",border:"1.5px solid #bae6fd",borderRadius:12,padding:"14px 16px",marginBottom:14}}>
-                      <div style={{fontWeight:700,fontSize:13,color:"#0369a1",marginBottom:10}}>📋 Input Nomor SKPP</div>
+                    <div className="nbox-blue" style={{borderRadius:12,padding:"14px 16px",marginBottom:14}}>
+                      <div className="nbox-title" style={{fontWeight:700,fontSize:13,marginBottom:10}}>📋 Input Nomor SKPP</div>
                       <div className="form-group" style={{marginBottom:8}}>
                         <label className="form-label">Nomor Urut (sesuai buku regis) *</label>
                         <input
@@ -3486,9 +3507,9 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
                         />
                       </div>
                       {nomorUrut && (
-                        <div style={{marginTop:6,padding:"10px 12px",background:"white",border:"1px solid #bae6fd",borderRadius:8}}>
-                          <div style={{fontSize:10,color:"#64748b",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>Preview Nomor SKPP</div>
-                          <div style={{fontFamily:"var(--mono)",fontWeight:700,fontSize:13,color:"#0369a1"}}>
+                        <div className="nbox-inset" style={{marginTop:6,padding:"10px 12px",borderRadius:8}}>
+                          <div style={{fontSize:10,color:"var(--on-surface-variant)",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>Preview Nomor SKPP</div>
+                          <div style={{fontFamily:"var(--mono)",fontWeight:700,fontSize:13,color:"var(--primary)"}}>
                             {generateTemplateNomor(nomorUrut, p)}
                           </div>
                         </div>
@@ -3500,28 +3521,26 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
                     <textarea className="form-control" value={catatan} onChange={e=>setCatatan(e.target.value)} placeholder={`Tuliskan catatan untuk tahap: ${stepAktif.label}`} />
                   </div>
                   {stepAktif.final!==true && (
-                  <div
-                    style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:"#fffbeb",border:"1.5px solid #fde68a",borderRadius:10,cursor:"pointer",marginBottom:14}}
+                  <div className="nbox-warn"
+                    style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:10,cursor:"pointer",marginBottom:14}}
                     onClick={() => setIsKembali(!isKembali)}
                   >
                     <input type="checkbox" checked={isKembali} readOnly style={{width:15,height:15}} />
                     <div>
-                      <div style={{fontWeight:700,fontSize:13,color:"#92400e"}}>Kembalikan Berkas</div>
-                      <div style={{fontSize:11,color:"#b45309"}}>Berkas tidak lengkap/sesuai, perlu dikembalikan ke pemohon</div>
+                      <div className="nbox-title" style={{fontWeight:700,fontSize:13}}>Kembalikan Berkas</div>
+                      <div style={{fontSize:11}}>Berkas tidak lengkap/sesuai, perlu dikembalikan ke pemohon</div>
                     </div>
                   </div>
                   )}
                   {stepAktif.final===true && (
-                    <div style={{background:"#ecfdf5",border:"1.5px solid #a7f3d0",borderRadius:10,padding:"11px 14px",marginBottom:14,fontSize:12,color:"#065f46"}}>
+                    <div className="nbox-green" style={{borderRadius:10,padding:"11px 14px",marginBottom:14,fontSize:12}}>
                       📤 Tahap akhir: serahkan SKPP kepada pemohon. Catat penerima, tanda tangan, dan bukti penyerahan.
                     </div>
                   )}
                   <button
-                    className="btn"
+                    className={"btn "+(isKembali?"btn-danger":"btn-primary")}
                     style={{
                       width:"100%", justifyContent:"center",
-                      background: isKembali?"var(--error)":"var(--primary)",
-                      color:"white",
                       opacity: !cekIzinProses(user?.role, stepAktif.pelaksana)?0.6:1
                     }}
                     disabled={saving || !cekIzinProses(user?.role, stepAktif.pelaksana) || (isPenomoran(stepAktif.id) && !nomorUrut)}
