@@ -4422,11 +4422,14 @@ function BuktiSerahBlock({ p }) {
 // ─── INPUT BARU ───────────────────────────────────────────────────────────────
 function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
   const [mode, setMode] = useState("tunggal");
-  const [form, setForm] = useState({ nama:"", nip:"", opd:"", jabatan:"", pangkat:"", alasan:"Pensiun", subjenis:"", alasanLain:"", kodeLain:"", jalur:"", kasubid:"" });
+  const [form, setForm] = useState({ nama:"", nip:"", opd:"", jabatan:"", pangkat:"", jenisASN:"PNS", alasan:"Pensiun", subjenis:"", alasanLain:"", kodeLain:"", jalur:"", kasubid:"" });
   // Untuk keperluan "Lainnya": ketik manual jadi `alasan`, kode manual -> `kodeLain`.
-  // `alasanLain` hanya field transien form (bukan kolom DB) -> dibuang saat simpan.
+  // `alasanLain` & `jenisASN` hanya field transien form (bukan kolom DB) -> dibuang
+  // saat simpan. jenisASN cuma memilih daftar pangkat/golongan; jenis ASN tetap
+  // tersirat dari nilai pangkat/golongan yang dipilih.
   const normalKeperluan = (f) => {
-    const { alasanLain, ...rest } = f;
+    const { alasanLain, jenisASN, ...rest } = f;
+    void jenisASN;
     if (f.alasan === "Lainnya")
       return { ...rest, alasan: (alasanLain||"").trim() || "Lainnya", kodeLain: (f.kodeLain||"").trim().toUpperCase() };
     return { ...rest, kodeLain: "" };
@@ -4445,7 +4448,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
   // Klik simpan: jika ada potensi kelebihan gaji (Pindah & TMT terlewati), tampilkan popup konfirmasi dulu.
   const handleSimpanTunggal = () => { if (pindahWarn) setShowPindahPopup(true); else simpanTunggal(); };
   const [bulkOPD, setBulkOPD] = useState("");
-  const emptyItem = () => ({ nama:"", nip:"", jabatan:"", pangkat:"", kasubid:"", alasan:"Pensiun", subjenis:"", alasanLain:"", kodeLain:"", jalur:"", tmt:"", _id:Date.now()+Math.random() });
+  const emptyItem = () => ({ nama:"", nip:"", jabatan:"", pangkat:"", jenisASN:"PNS", kasubid:"", alasan:"Pensiun", subjenis:"", alasanLain:"", kodeLain:"", jalur:"", tmt:"", _id:Date.now()+Math.random() });
   const [items, setItems] = useState([emptyItem()]);
   const setItem = (idx,k,v) => setItems(prev=>prev.map((it,i)=>i===idx?{...it,[k]:v}:it));
   const addItem = () => setItems(prev=>[...prev,emptyItem()]);
@@ -4495,9 +4498,17 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
               <div className="form-group"><label className="form-label">NIP *</label><input className="form-control" value={form.nip} onChange={e=>set("nip",e.target.value)} placeholder="18 digit" style={{fontFamily:"var(--mono)"}}/></div>
             </div>
             <div className="grid-2">
-              <SearchableSelect label="Pangkat / Golongan" value={form.pangkat} onChange={v=>set("pangkat",v)} options={DAFTAR_PANGKAT} placeholder="-- Pilih Pangkat / Golongan --"/>
+              <div className="form-group">
+                <label className="form-label">Jenis ASN</label>
+                <select className="form-control" value={form.jenisASN}
+                  onChange={e=>{ const v=e.target.value; setForm(f=>({...f, jenisASN:v, pangkat: pangkatUntukStatus(v).includes(f.pangkat)?f.pangkat:""})); }}>
+                  <option value="PNS">PNS</option>
+                  <option value="PPPK">PPPK</option>
+                </select>
+              </div>
               <div className="form-group"><label className="form-label">Jabatan Terakhir</label><input className="form-control" value={form.jabatan} onChange={e=>set("jabatan",e.target.value)}/></div>
             </div>
+            <SearchableSelect label={form.jenisASN==="PPPK"?"Golongan (PPPK)":"Pangkat / Golongan"} value={form.pangkat} onChange={v=>set("pangkat",v)} options={pangkatUntukStatus(form.jenisASN)} placeholder={form.jenisASN==="PPPK"?"-- Pilih Golongan PPPK --":"-- Pilih Pangkat / Golongan --"}/>
             <SearchableSelect label="OPD / Instansi *" value={form.opd} onChange={v=>set("opd",v)} options={DAFTAR_OPD} placeholder="-- Pilih OPD / Instansi --"/>
             <div className="form-group">
               <label className="form-label">Kasubid Pembayaran *</label>
@@ -4610,10 +4621,18 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
                       <input className="form-control" style={{marginBottom:0}} value={it.jabatan} onChange={e=>setItem(idx,"jabatan",e.target.value)} placeholder="Jabatan terakhir"/>
                     </div>
                     <div className="form-group" style={{marginBottom:0}}>
-                      <label className="form-label">Pangkat / Golongan</label>
+                      <label className="form-label">Jenis ASN</label>
+                      <select className="form-control" style={{marginBottom:0}} value={it.jenisASN}
+                        onChange={e=>{ const v=e.target.value; setItems(prev=>prev.map((x,i)=>i===idx?{...x, jenisASN:v, pangkat: pangkatUntukStatus(v).includes(x.pangkat)?x.pangkat:""}:x)); }}>
+                        <option value="PNS">PNS</option>
+                        <option value="PPPK">PPPK</option>
+                      </select>
+                    </div>
+                    <div className="form-group" style={{marginBottom:0}}>
+                      <label className="form-label">{it.jenisASN==="PPPK"?"Golongan (PPPK)":"Pangkat / Golongan"}</label>
                       <select className="form-control" style={{marginBottom:0}} value={it.pangkat} onChange={e=>setItem(idx,"pangkat",e.target.value)}>
-                        <option value="">-- Pilih Pangkat / Golongan --</option>
-                        {DAFTAR_PANGKAT.map(p=><option key={p} value={p}>{p}</option>)}
+                        <option value="">{it.jenisASN==="PPPK"?"-- Pilih Golongan PPPK --":"-- Pilih Pangkat / Golongan --"}</option>
+                        {pangkatUntukStatus(it.jenisASN).map(p=><option key={p} value={p}>{p}</option>)}
                       </select>
                     </div>
                     <div className="form-group" style={{marginBottom:0}}>
