@@ -2178,6 +2178,101 @@ const S = `
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--outline-variant); border-radius: var(--r-full); }
   ::-webkit-scrollbar-thumb:hover { background: var(--outline); }
+
+  /* ════════════════════════════════════════════
+     DARK MODE — aktif saat <html class="theme-dark">.
+     Strategi: override token desain (mengalir ke sebagian besar komponen)
+     lalu tambal aturan yang memakai warna hardcoded. Halaman login dibiarkan
+     terang (tidak di-scope). Toggle ada di sebelah ikon lonceng.
+  ════════════════════════════════════════════ */
+  html.theme-dark, html.theme-dark body { background: #0a1019; }
+
+  .theme-dark .d2-root, .theme-dark .modal-overlay {
+    color-scheme: dark;
+    /* Permukaan */
+    --white:#171f2e; --surface-card:#171f2e; --surface-page:#0c131f;
+    /* Neutrals — nilai rendah = latar gelap, nilai tinggi = teks terang */
+    --grey-50:#1b2433; --grey-100:#212b3c; --grey-150:#263043; --grey-200:#2b3649;
+    --grey-300:#3a4760; --grey-400:#8995a8; --grey-500:#9aa6b9; --grey-600:#b7c2d3;
+    --grey-700:#d0d9e6; --grey-800:#e6ecf4; --grey-900:#f0f4fa; --grey-950:#f7f9fc;
+    /* Navy dipakai sebagai warna teks judul -> dibalik jadi terang */
+    --navy-900:#eef3fa; --navy-800:#e2e9f4; --navy-700:#cdd9ec;
+    /* Aksen biru */
+    --blue-700:#9cc0f3; --blue-600:#3f6fdb; --blue-500:#5b8def; --blue-400:#7aa4f0;
+    --blue-100:#1d3a63; --blue-50:#15263f;
+    /* Aksen emas (lonceng / alert) */
+    --gold-700:#f0d49a; --gold-600:#e6b252; --gold-500:#e0a53c; --gold-300:#6b551f;
+    --gold-100:#3a3015; --gold-50:#2b2410;
+    /* Status tint */
+    --success-700:#5fd08f; --success-600:#54c184; --success-100:#15402b; --success-50:#102a1d;
+    --danger-700:#f3a0a0; --danger-600:#ef7d7d; --danger-100:#46211f; --danger-50:#311615;
+    --warning-600:#e6b252; --warning-500:#e0951f;
+    /* Teks & garis */
+    --text-strong:#eef3fa; --text-body:#dde5f0; --text-muted:#aab4c5; --text-subtle:#8d97a9;
+    --border-subtle:#2a3447; --border-default:#33415a; --border-strong:#3f4f6b;
+    /* Token Material (halaman dalam .d2-body & isi modal) */
+    --surface:#0c131f; --background:#0c131f; --surface-bright:#1a2333; --surface-dim:#0c131f;
+    --surface-container-lowest:#121a2a; --surface-container-low:#1a2333;
+    --surface-container:#1f2939; --surface-container-high:#273142; --surface-container-highest:#2c374a;
+    --on-surface:#e8edf5; --on-surface-variant:#b6c1d2;
+    --outline:#7e8a9d; --outline-variant:#33415a;
+    --inverse-surface:#e6ecf4; --inverse-on-surface:#0c131f;
+    --primary:#5b8def; --primary-container:#27457d; --primary-fixed:#1b2c4a; --primary-fixed-dim:#3a5fa0;
+    --on-primary-fixed:#bcd6f7; --primary-pale:#1b2c4a;
+    --secondary-fixed:#3a3015; --on-secondary-container:#f0d49a; --secondary-container:#5a4a18;
+    --warning-pale:#332810; --success-pale:#15402b; --error:#f3a0a0;
+    --error-container:#46211f; --error-pale:#46211f; --tertiary:#f3a0a0;
+  }
+
+  /* Latar utama dashboard (override gradien terang) */
+  .theme-dark .d2-root {
+    background:
+      radial-gradient(1100px 520px at 100% -5%, rgba(60,92,165,0.20) 0%, transparent 55%),
+      radial-gradient(900px 480px at -5% 110%, rgba(72,62,135,0.16) 0%, transparent 55%),
+      linear-gradient(158deg, #0c131f 0%, #0e1626 52%, #0c1320 100%);
+    background-attachment: fixed;
+  }
+  /* Kartu — latar gelap + bayangan lebih pekat */
+  .theme-dark .d2-root .kpi, .theme-dark .d2-root .d2-jalur, .theme-dark .d2-root .d2-opd,
+  .theme-dark .d2-root .d2-tbl-card, .theme-dark .d2-root .card,
+  .theme-dark .d2-root .terbaru-card, .theme-dark .d2-root .opd-card {
+    background: #171f2e;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.45), 0 16px 30px -18px rgba(0,0,0,0.7);
+  }
+  .theme-dark .d2-root .card { border-color: rgba(255,255,255,0.07); }
+  /* Sidebar & topbar */
+  .theme-dark .d2-side { background: linear-gradient(184deg, #141c2b 0%, #0f1726 100%); border-right-color: #232e42; }
+  .theme-dark .d2-top { background: rgba(15,21,33,0.82); border-bottom-color: #232e42; }
+  .theme-dark .d2-hamburger:hover { background: rgba(255,255,255,0.08); }
+  /* Lencana lonceng menyatu dengan panel gelap */
+  .theme-dark .d2-notif-badge { border-color: #171f2e; }
+  /* Tooltip rail tetap gelap pekat (token navy kini terang) */
+  .theme-dark .d2-side.d2-rail .d2-navitem::after,
+  .theme-dark .d2-side.d2-rail .d2-logo-btn::after,
+  .theme-dark .d2-collapse-btn::after { background: #060d1a; }
+  /* Avatar admin tetap brand biru gelap */
+  .theme-dark .d2-admin-av { background: #27457d; }
+  /* Komponen lama: header kartu & baris tabel */
+  .theme-dark .d2-root .card-header { background: linear-gradient(180deg,#1c2638 0%,#151d2c 100%); border-bottom-color: #232e42; }
+  .theme-dark .d2-root .card tbody tr:nth-child(odd) td { background: #1a2333; }
+  .theme-dark .d2-root .card tbody tr:nth-child(even) td { background: #161f2e; }
+  .theme-dark .d2-root .card .tr-clickable:hover td { background: #22304a !important; }
+  /* Modal */
+  .theme-dark .modal-overlay { background: rgba(2,6,14,0.64); }
+  .theme-dark .modal { background: var(--surface-container-lowest); }
+  .theme-dark .modal-header { border-bottom-color: #232e42; }
+  .theme-dark .modal-footer { border-top-color: #232e42; }
+  .theme-dark .modal-close:hover { background: rgba(255,255,255,0.08); }
+  /* Chip & alert dengan warna hardcoded */
+  .theme-dark .badge-amber, .theme-dark .role-operator { background:#332810; color:#f0c674; }
+  .theme-dark .badge-purple, .theme-dark .role-admin { background:#241b3a; color:#c4b5fd; }
+  .theme-dark .alert-amber { background:#2c2410; border-color:#6b551f; color:#f0c674; }
+  .theme-dark .alert-green { background:#15301f; border-color:#2f6b49; color:#7fd0a0; }
+  .theme-dark .alert-red   { background:#341a19; border-color:#7a3a38; color:#f0a0a0; }
+  .theme-dark .alert-blue  { background:#172a45; border-color:#3a5fa0; color:#9cc0f3; }
+  /* Tema toggle: rotasi halus ikon saat ganti */
+  .d2-themebtn svg { transition: transform .3s ease; }
+  .d2-themebtn:hover svg { transform: rotate(-18deg); }
 `;
 
 // ─── TICKER MOTIVASI ─────────────────────────────────────────────────────────
@@ -4667,6 +4762,8 @@ const D2ICONS = {
   returned: <><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 5 5v2"/></>,
   eye: <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></>,
   report: <><path d="M3 3v18h18"/><path d="M7 16v-5M12 16V8M17 16v-3"/></>,
+  moon: <><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></>,
+  sun: <><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></>,
 };
 
 /* ── d2 mini charts (pure SVG) ── */
@@ -6039,6 +6136,16 @@ export default function App() {
   const profileRef = useRef(null);
   const notifRef = useRef(null);
 
+  // ── Tema terang / gelap (disimpan di localStorage, kelas dipasang di <html>
+  //    agar ikut menjangkau modal yang dirender di luar .d2-root). ──
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem("skpp_theme") === "dark" ? "dark" : "light"; } catch { return "light"; }
+  });
+  useEffect(() => {
+    document.documentElement.classList.toggle("theme-dark", theme === "dark");
+    try { localStorage.setItem("skpp_theme", theme); } catch {}
+  }, [theme]);
+
   // ── Batas waktu sesi (idle timeout) ──
   const [idleWarn, setIdleWarn] = useState(false);
   const [idleCountdown, setIdleCountdown] = useState(IDLE_WARNING_SECONDS);
@@ -6306,6 +6413,12 @@ export default function App() {
               )}
               <span className="d2-greet">{(()=>{const h=new Date().getHours();return h<11?"Selamat Pagi":h<15?"Selamat Siang":h<18?"Selamat Sore":"Selamat Malam";})()}</span>
               <D2Ticker/>
+              <button className="d2-iconbtn d2-themebtn" type="button"
+                onClick={()=>setTheme(t=>t==="dark"?"light":"dark")}
+                aria-label={theme==="dark"?"Beralih ke mode terang":"Beralih ke mode gelap"}
+                title={theme==="dark"?"Mode terang":"Mode gelap"}>
+                <D2Ico d={theme==="dark"?D2ICONS.sun:D2ICONS.moon}/>
+              </button>
               {(()=>{
                 const SEMUA_TAHAPAN = [...TAHAPAN_A, ...TAHAPAN_B];
                 const notifUser = data.filter(d => {
