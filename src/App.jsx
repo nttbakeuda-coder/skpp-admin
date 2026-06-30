@@ -2222,7 +2222,14 @@ const S = `
     --secondary-fixed:#3a3015; --on-secondary-container:#f0d49a; --secondary-container:#5a4a18;
     --warning-pale:#332810; --success-pale:#15402b; --error:#f3a0a0;
     --error-container:#46211f; --error-pale:#46211f; --tertiary:#f3a0a0;
+    /* Alias semantik (dipakai sbg teks/isi: No.SKPP hijau, progress bar, dll) -> diterangkan */
+    --success:#3ecf8e; --warning:#e6b252; --green:#3ecf8e; --amber:#e6b252; --red:#f3a0a0;
+    --success-pale:#15402b; --warning-pale:#332810;
   }
+  /* Aksen emas khusus di dalam modal (kotak Kode Akses + tombol Cetak):
+     gold cerah + teks gelap agar kontras di atas kotak biru. Dipisah dari
+     d2-root supaya badge emas (mis. role Staf Loket) tetap teks terang. */
+  .theme-dark .modal-overlay { --secondary-container:#e7b13e; --on-secondary-container:#3a2a05; --secondary-fixed:#e7b13e; }
 
   /* Latar utama dashboard (override gradien terang) */
   .theme-dark .d2-root {
@@ -2283,6 +2290,10 @@ const S = `
      untuk teks (alert/badge), jadi latar tombolnya ditetapkan eksplisit. */
   .theme-dark .btn-danger { background: #d8353d; color: #fff; }
   .theme-dark .btn-danger:hover { background: #e85a60; }
+  /* Tombol primary: --primary diterangkan utk teks, jadi latar tombol pakai
+     biru lebih pekat agar teks putih tetap kontras. */
+  .theme-dark .btn-primary { background: #3f6fdb; }
+  .theme-dark .btn-primary:hover { background: #5183ea; }
   /* Placeholder agar lebih terbaca di atas field gelap */
   .theme-dark .d2-root ::placeholder, .theme-dark .modal-overlay ::placeholder { color: #8995a8; opacity: 1; }
   /* Tema toggle: rotasi halus ikon saat ganti */
