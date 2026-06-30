@@ -61,21 +61,21 @@ const DAFTAR_PANGKAT = [
 
 // Golongan PPPK (Perpres No. 11 Tahun 2024) — dipakai bila Status ASN = PPPK.
 const GOLONGAN_PPPK = [
-  "Golongan I — SD",
-  "Golongan II — SD (syarat/masa kerja tertentu)",
-  "Golongan III — SMP (syarat/masa kerja tertentu)",
-  "Golongan IV — SMP sederajat",
-  "Golongan V — SMA / SMK / Diploma I (D1)",
-  "Golongan VI — Diploma II (D2)",
-  "Golongan VII — Diploma III (D3)",
-  "Golongan VIII — D3 (penyesuaian masa kerja/jabatan tertentu)",
-  "Golongan IX — Sarjana (S1) / Diploma IV (D4)",
-  "Golongan X — Magister (S2) / Pendidikan Profesi",
-  "Golongan XI — Doktor (S3)",
-  "Golongan XII — Jabatan Fungsional Ahli Madya",
-  "Golongan XIII — Ahli Madya / Dosen Lektor Kepala",
-  "Golongan XIV — Jabatan Fungsional Ahli Utama",
-  "Golongan XV — Ahli Utama jenjang atas",
+  "I — SD",
+  "II — SD (syarat/masa kerja tertentu)",
+  "III — SMP (syarat/masa kerja tertentu)",
+  "IV — SMP sederajat",
+  "V — SMA / SMK / Diploma I (D1)",
+  "VI — Diploma II (D2)",
+  "VII — Diploma III (D3)",
+  "VIII — D3 (penyesuaian masa kerja/jabatan tertentu)",
+  "IX — Sarjana (S1) / Diploma IV (D4)",
+  "X — Magister (S2) / Pendidikan Profesi",
+  "XI — Doktor (S3)",
+  "XII — Jabatan Fungsional Ahli Madya",
+  "XIII — Ahli Madya / Dosen Lektor Kepala",
+  "XIV — Jabatan Fungsional Ahli Utama",
+  "XV — Ahli Utama jenjang atas",
 ];
 
 const STATUS_ASN = ["PNS","CPNS","PPPK"];
