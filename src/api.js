@@ -4,8 +4,17 @@ import { supabase } from "./supabaseClient";
 const ok  = (extra = {}) => ({ ok: true,  ...extra });
 const err = (pesan)       => ({ ok: false, pesan });
 
+// Kode akses portal: 8 karakter acak KRIPTOGRAFIS (crypto.getRandomValues),
+// bukan Math.random() yang mudah ditebak. Alfabet tanpa karakter ambigu
+// (0/O, 1/I/L) agar mudah dibaca & diketik warga. 31^8 ≈ 8,5×10^11 kombinasi.
 function kodeAksesRandom() {
-  return Math.random().toString(36).slice(2, 8).toUpperCase();
+  const ALF = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // 31 simbol, tanpa 0 O 1 I L
+  const n = 8;
+  const buf = new Uint32Array(n);
+  (globalThis.crypto || globalThis.msCrypto).getRandomValues(buf);
+  let out = "";
+  for (let i = 0; i < n; i++) out += ALF[buf[i] % ALF.length];
+  return out;
 }
 
 // ── ID generator via tabel Counter ───────────────────────────────────────────
