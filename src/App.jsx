@@ -6138,6 +6138,7 @@ function StatCards({ items }) {
 // ── Tab 1: feed aktivitas dari Riwayat ──
 function TabAktivitas({ data, loading }) {
   const [filterUser, setFilterUser] = useState("");
+  const [filterPeng, setFilterPeng] = useState("");
   const [q, setQ] = useState("");
   const TAHAPAN_ALL = [...TAHAPAN_A, ...TAHAPAN_B];
   const labelTahap = (id) => id==="SELESAI" ? "Selesai / Serah Terima"
@@ -6159,12 +6160,17 @@ function TabAktivitas({ data, loading }) {
   }))).sort((a,b)=>b._ts - a._ts);
 
   const users = [...new Set(semua.map(a=>a._user).filter(Boolean))].sort();
+  // Daftar pengajuan yang punya aktivitas (untuk filter "berdasarkan nama pengajuan").
+  const pengajuanList = [...new Map(semua.map(a=>[a._pengId, a._pengNama])).entries()]
+    .map(([id,nama])=>({ id, nama }))
+    .sort((a,b)=>(a.nama||"").localeCompare(b.nama||""));
   const startToday = (()=>{ const d=new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
   const totalHariIni = semua.filter(a=>a._ts>=startToday).length;
 
   const ql = q.trim().toLowerCase();
   const rows = semua.filter(a =>
     (!filterUser || a._user===filterUser) &&
+    (!filterPeng || a._pengId===filterPeng) &&
     (!ql || `${a._pengNama} ${a._pengId} ${a._note} ${labelTahap(a.tahap)}`.toLowerCase().includes(ql))
   );
 
@@ -6182,6 +6188,10 @@ function TabAktivitas({ data, loading }) {
             <select className="form-control" style={{width:"auto",minWidth:170}} value={filterUser} onChange={e=>setFilterUser(e.target.value)}>
               <option value="">Semua pengguna</option>
               {users.map(u=><option key={u} value={u}>{u}</option>)}
+            </select>
+            <select className="form-control" style={{width:"auto",minWidth:200,maxWidth:300}} value={filterPeng} onChange={e=>setFilterPeng(e.target.value)}>
+              <option value="">Semua pengajuan</option>
+              {pengajuanList.map(p=><option key={p.id} value={p.id}>{p.nama||"(tanpa nama)"} · {p.id}</option>)}
             </select>
             <input className="form-control" style={{width:220}} placeholder="Cari nama / nomor / catatan…" value={q} onChange={e=>setQ(e.target.value)}/>
           </div>
