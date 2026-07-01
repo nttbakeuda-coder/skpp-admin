@@ -60,7 +60,36 @@ export async function login({ username, password }) {
     await supabase.auth.signOut();
     return err("Akun belum memiliki profil. Hubungi administrator.");
   }
+  // Catat waktu login & kehadiran (best-effort; abaikan bila kolom belum ada).
+  try {
+    const now = new Date().toISOString();
+    await supabase.from("profiles").update({ last_login: now, last_seen: now }).eq("id", data.user.id);
+  } catch {}
   return ok({ username: prof.username, nama: prof.nama, role: prof.role, pangkat: prof.pangkat || "" });
+}
+
+// Heartbeat kehadiran: perbarui last_seen agar admin bisa melihat siapa yang
+// sedang aktif. Dipanggil berkala oleh aplikasi selama sesi terbuka.
+export async function touchPresence() {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from("profiles").update({ last_seen: new Date().toISOString() }).eq("id", user.id);
+  } catch {}
+}
+
+// Status login seluruh pengguna (khusus admin) — nama, role, last_login,
+// last_seen. Bila kolom login belum ditambahkan (migrasi belum jalan),
+// kembalikan needsMigration:true agar UI menampilkan petunjuk.
+export async function statusLoginPengguna() {
+  const res = await supabase
+    .from("profiles").select("username, nama, role, last_login, last_seen").order("nama");
+  if (res.error) {
+    const base = await supabase.from("profiles").select("username, nama, role").order("nama");
+    if (base.error) return err(base.error.message || "Gagal memuat data pengguna.");
+    return ok({ data: (base.data || []).map(u => ({ ...u, last_login: null, last_seen: null })), needsMigration: true });
+  }
+  return ok({ data: res.data || [] });
 }
 
 export async function logout() {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  login, logout, sesiSaatIni,
+  login, logout, sesiSaatIni, touchPresence, statusLoginPengguna,
   daftarAkun, tambahAkun, editAkun, hapusAkun, resetPassword,
   ajukanResetPassword, daftarPermintaanReset, tandaiResetSelesai, hapusPermintaanReset,
   profil, updateProfil, gantiPassword,
@@ -6105,16 +6105,44 @@ function PageProfil({ user, onToast, onUpdateUser }) {
 }
 
 // ─── PAGE AKTIVITAS PENGGUNA (khusus admin) ──────────────────────────────────
-// Memantau aktivitas seluruh pengguna dari jejak audit tabel Riwayat
-// (siapa memproses tahap apa, kapan, pada pengajuan mana).
+// Dua sub-tab:
+//  1) "Aktivitas"     — jejak audit tabel Riwayat (siapa memproses tahap apa).
+//  2) "Status Login"  — siapa sedang aktif, terakhir login, belum/lama login.
 function PageAktivitas({ data, loading }) {
+  const [tab, setTab] = useState("aktivitas");
+  return (
+    <>
+      <div className="tabs" style={{marginBottom:16}}>
+        <div className={`tab ${tab==="aktivitas"?"active":""}`} onClick={()=>setTab("aktivitas")}>📋 Aktivitas</div>
+        <div className={`tab ${tab==="status"?"active":""}`} onClick={()=>setTab("status")}>🟢 Status Login</div>
+      </div>
+      {tab==="aktivitas" ? <TabAktivitas data={data} loading={loading}/> : <TabStatusLogin/>}
+    </>
+  );
+}
+
+// Kartu ringkasan kecil (dipakai kedua tab).
+function StatCards({ items }) {
+  return (
+    <div style={{display:"grid",gridTemplateColumns:`repeat(${items.length},minmax(0,1fr))`,gap:16,marginBottom:16}}>
+      {items.map(([l,v,c])=>(
+        <div key={l} className="card" style={{padding:"14px 16px"}}>
+          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",color:"var(--on-surface-variant)"}}>{l}</div>
+          <div style={{fontSize:28,fontWeight:800,color:c||"var(--navy-800)",marginTop:4}}>{v}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Tab 1: feed aktivitas dari Riwayat ──
+function TabAktivitas({ data, loading }) {
   const [filterUser, setFilterUser] = useState("");
   const [q, setQ] = useState("");
   const TAHAPAN_ALL = [...TAHAPAN_A, ...TAHAPAN_B];
   const labelTahap = (id) => id==="SELESAI" ? "Selesai / Serah Terima"
     : (TAHAPAN_ALL.find(t=>t.id===id)?.label || id || "—");
   // Waktu tersimpan sebagai string locale id-ID (DD/MM/YYYY, HH.MM.SS).
-  // Ambil angka-angkanya untuk membentuk timestamp yang bisa diurut.
   const parseWaktu = (w) => {
     const n = String(w||"").match(/\d+/g);
     if (!n || n.length < 3) return 0;
@@ -6144,21 +6172,12 @@ function PageAktivitas({ data, loading }) {
     ? new Date(a._ts).toLocaleString("id-ID",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})
     : (a.waktu||"—");
 
-  const stats = [["Total Aktivitas", semua.length], ["Pengguna Aktif", users.length], ["Aktivitas Hari Ini", totalHariIni]];
-
   return (
     <>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:16,marginBottom:16}}>
-        {stats.map(([l,v])=>(
-          <div key={l} className="card" style={{padding:"14px 16px"}}>
-            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",color:"var(--on-surface-variant)"}}>{l}</div>
-            <div style={{fontSize:28,fontWeight:800,color:"var(--navy-800)",marginTop:4}}>{v}</div>
-          </div>
-        ))}
-      </div>
+      <StatCards items={[["Total Aktivitas", semua.length], ["Pengguna Aktif", users.length], ["Aktivitas Hari Ini", totalHariIni]]}/>
       <div className="card">
         <div className="card-header">
-          <div className="card-header-title">Aktivitas Pengguna</div>
+          <div className="card-header-title">Jejak Aktivitas</div>
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
             <select className="form-control" style={{width:"auto",minWidth:170}} value={filterUser} onChange={e=>setFilterUser(e.target.value)}>
               <option value="">Semua pengguna</option>
@@ -6198,6 +6217,113 @@ function PageAktivitas({ data, loading }) {
               Menampilkan 300 aktivitas terbaru dari {rows.length}. Persempit dengan filter di atas.
             </div>
           )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Tab 2: status login pengguna ──
+const ONLINE_MS = 5*60*1000;        // aktif dalam 5 menit terakhir -> online
+const LAMA_MS   = 14*24*3600*1000;  // >14 hari sejak login -> "lama tidak login"
+function TabStatusLogin() {
+  const [rows, setRows] = useState(null);   // null = memuat
+  const [err, setErr] = useState("");
+  const [needsMig, setNeedsMig] = useState(false);
+  const muat = () => {
+    setRows(null); setErr("");
+    statusLoginPengguna().then(res => {
+      if (res.ok) { setRows(res.data); setNeedsMig(!!res.needsMigration); }
+      else { setRows([]); setErr(res.pesan||"Gagal memuat status login."); }
+    });
+  };
+  useEffect(() => { muat(); }, []);
+
+  const roleLabel = (r) => r==="admin"?"Admin":r==="operator"?"Staf Loket":"Staf Pengampu OPD";
+  const parseTs = (s) => s ? (new Date(s).getTime()||0) : 0;
+  const now = Date.now();
+  const fmtAbs = (ts) => ts ? new Date(ts).toLocaleString("id-ID",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}) : "—";
+  const relTime = (ts) => {
+    if (!ts) return "";
+    const m = Math.floor((now-ts)/60000);
+    if (m < 1) return "baru saja"; if (m < 60) return `${m} mnt lalu`;
+    const h = Math.floor(m/60); if (h < 24) return `${h} jam lalu`;
+    const d = Math.floor(h/24); if (d < 30) return `${d} hari lalu`;
+    const mo = Math.floor(d/30); if (mo < 12) return `${mo} bln lalu`;
+    return `${Math.floor(mo/12)} thn lalu`;
+  };
+  const enrich = (u) => {
+    const seen = parseTs(u.last_seen), login = parseTs(u.last_login);
+    let status = "offline";
+    if (!login) status = "never";
+    else if (seen && now-seen <= ONLINE_MS) status = "online";
+    else if (now-login >= LAMA_MS) status = "lama";
+    return { ...u, _seen:seen, _login:login, _status:status };
+  };
+  const rankStatus = (s) => s==="online"?0 : s==="offline"?1 : s==="lama"?2 : 3;
+  const list = (rows||[]).map(enrich).sort((a,b)=>{
+    if (rankStatus(a._status)!==rankStatus(b._status)) return rankStatus(a._status)-rankStatus(b._status);
+    return b._login - a._login;
+  });
+  const cOnline = list.filter(u=>u._status==="online").length;
+  const cNever  = list.filter(u=>u._status==="never").length;
+  const cLama   = list.filter(u=>u._status==="lama").length;
+
+  const statusBadge = (s) =>
+    s==="online" ? <span className="badge badge-green">● Online</span> :
+    s==="lama"   ? <span className="badge badge-amber">Lama tidak login</span> :
+    s==="never"  ? <span className="badge badge-red">Belum pernah login</span> :
+                   <span className="badge" style={{background:"var(--surface-container)",color:"var(--on-surface-variant)"}}>Offline</span>;
+
+  return (
+    <>
+      {needsMig && (
+        <div className="alert alert-amber" style={{marginBottom:16}}>
+          <span>⚠️</span>
+          <div>Kolom pelacakan login belum ada. Jalankan <strong>supabase/14_profiles_login_tracking.sql</strong> di Supabase SQL Editor. Sampai itu dijalankan, data login belum terisi.</div>
+        </div>
+      )}
+      {err && <div className="alert alert-red" style={{marginBottom:16}}><span>⛔</span><span>{err}</span></div>}
+      <StatCards items={[
+        ["Sedang Online", cOnline, "var(--success)"],
+        ["Belum Pernah Login", cNever, cNever>0?"var(--error)":"var(--navy-800)"],
+        ["Lama Tidak Login (>14 hr)", cLama, cLama>0?"var(--warning)":"var(--navy-800)"],
+      ]}/>
+      <div className="card">
+        <div className="card-header">
+          <div className="card-header-title">Status Login Pengguna</div>
+          <button className="btn btn-secondary btn-sm" onClick={muat}>↻ Muat Ulang</button>
+        </div>
+        <div className="card-body" style={{padding:0}}>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Pengguna</th><th>Role</th><th>Status</th><th>Terakhir Login</th><th>Terakhir Aktif</th></tr></thead>
+              <tbody>
+                {rows===null ? (
+                  <tr><td colSpan={5} style={{textAlign:"center",padding:24}}>Memuat…</td></tr>
+                ) : list.length===0 ? (
+                  <tr><td colSpan={5} style={{textAlign:"center",padding:24,color:"var(--on-surface-variant)"}}>Tidak ada pengguna.</td></tr>
+                ) : list.map((u,i)=>(
+                  <tr key={i}>
+                    <td>
+                      <div style={{fontWeight:600}}>{u.nama||"—"}</div>
+                      <div style={{fontSize:11,color:"var(--on-surface-variant)",fontFamily:"var(--mono)"}}>{u.username}</div>
+                    </td>
+                    <td style={{whiteSpace:"nowrap"}}>{roleLabel(u.role)}</td>
+                    <td>{statusBadge(u._status)}</td>
+                    <td style={{whiteSpace:"nowrap"}}>
+                      <div>{fmtAbs(u._login)}</div>
+                      {u._login>0 && <div style={{fontSize:11,color:"var(--on-surface-variant)"}}>{relTime(u._login)}</div>}
+                    </td>
+                    <td style={{whiteSpace:"nowrap"}}>
+                      <div>{fmtAbs(u._seen)}</div>
+                      {u._seen>0 && <div style={{fontSize:11,color:"var(--on-surface-variant)"}}>{relTime(u._seen)}</div>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </>
@@ -6314,6 +6440,17 @@ export default function App() {
     document.documentElement.classList.toggle("theme-dark", theme === "dark");
     try { localStorage.setItem("skpp_theme", theme); } catch {}
   }, [theme]);
+
+  // ── Heartbeat kehadiran: perbarui last_seen tiap 2 menit & saat tab aktif,
+  //    agar admin bisa melihat siapa yang "sedang aktif". ──
+  useEffect(() => {
+    if (!user) return;
+    touchPresence();
+    const iv = setInterval(touchPresence, 120000);
+    const onVis = () => { if (document.visibilityState === "visible") touchPresence(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { clearInterval(iv); document.removeEventListener("visibilitychange", onVis); };
+  }, [user]);
 
   // ── Batas waktu sesi (idle timeout) ──
   const [idleWarn, setIdleWarn] = useState(false);
