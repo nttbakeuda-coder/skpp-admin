@@ -6488,6 +6488,9 @@ export default function App() {
     const endSession = () => {
       if (ticker) clearInterval(ticker);
       setIdleWarn(false);
+      // Akhiri sesi Supabase (sessionStorage) juga — bukan hanya state React —
+      // agar refresh setelah logout idle TIDAK memulihkan sesi & masuk lagi.
+      logout().catch(()=>{});
       localStorage.removeItem("isLoggedIn");
       setUser(null);
       // Reset tampilan ke dashboard agar saat login kembali tidak membuka
@@ -6954,7 +6957,7 @@ export default function App() {
               Klik <strong>Tetap Masuk</strong> untuk melanjutkan, atau biarkan untuk keluar.
             </div>
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={()=>{ setIdleWarn(false); localStorage.removeItem("isLoggedIn"); setUser(null); setPage("dashboard"); setSelected(null); setShowInput(false); }}>Keluar Sekarang</button>
+              <button className="btn btn-secondary" onClick={()=>{ logout().catch(()=>{}); setIdleWarn(false); localStorage.removeItem("isLoggedIn"); setUser(null); setPage("dashboard"); setSelected(null); setShowInput(false); }}>Keluar Sekarang</button>
               <button className="btn btn-primary" onClick={()=>idleResetRef.current()}>Tetap Masuk</button>
             </div>
           </div>
