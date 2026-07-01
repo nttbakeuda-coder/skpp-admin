@@ -4826,6 +4826,7 @@ const D2ICONS = {
   returned: <><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 5 5v2"/></>,
   eye: <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></>,
   report: <><path d="M3 3v18h18"/><path d="M7 16v-5M12 16V8M17 16v-3"/></>,
+  activity: <><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></>,
   moon: <><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></>,
   sun: <><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></>,
 };
@@ -6103,6 +6104,106 @@ function PageProfil({ user, onToast, onUpdateUser }) {
   );
 }
 
+// ─── PAGE AKTIVITAS PENGGUNA (khusus admin) ──────────────────────────────────
+// Memantau aktivitas seluruh pengguna dari jejak audit tabel Riwayat
+// (siapa memproses tahap apa, kapan, pada pengajuan mana).
+function PageAktivitas({ data, loading }) {
+  const [filterUser, setFilterUser] = useState("");
+  const [q, setQ] = useState("");
+  const TAHAPAN_ALL = [...TAHAPAN_A, ...TAHAPAN_B];
+  const labelTahap = (id) => id==="SELESAI" ? "Selesai / Serah Terima"
+    : (TAHAPAN_ALL.find(t=>t.id===id)?.label || id || "—");
+  // Waktu tersimpan sebagai string locale id-ID (DD/MM/YYYY, HH.MM.SS).
+  // Ambil angka-angkanya untuk membentuk timestamp yang bisa diurut.
+  const parseWaktu = (w) => {
+    const n = String(w||"").match(/\d+/g);
+    if (!n || n.length < 3) return 0;
+    const [d,mo,y,h=0,mi=0,s=0] = n.map(Number);
+    return new Date(y,(mo||1)-1,d,h,mi,s).getTime() || 0;
+  };
+
+  const semua = (data||[]).flatMap(p => (p.riwayat||[]).map(r => ({
+    ...r,
+    _ts: parseWaktu(r.waktu),
+    _pengNama: p.nama, _pengId: p.id, _opd: p.opd,
+    _user: r.olehNama || r.oleh || "",
+    _note: r.catatanInternal || r.catatan || "",
+  }))).sort((a,b)=>b._ts - a._ts);
+
+  const users = [...new Set(semua.map(a=>a._user).filter(Boolean))].sort();
+  const startToday = (()=>{ const d=new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
+  const totalHariIni = semua.filter(a=>a._ts>=startToday).length;
+
+  const ql = q.trim().toLowerCase();
+  const rows = semua.filter(a =>
+    (!filterUser || a._user===filterUser) &&
+    (!ql || `${a._pengNama} ${a._pengId} ${a._note} ${labelTahap(a.tahap)}`.toLowerCase().includes(ql))
+  );
+
+  const fmtWaktu = (a) => a._ts
+    ? new Date(a._ts).toLocaleString("id-ID",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})
+    : (a.waktu||"—");
+
+  const stats = [["Total Aktivitas", semua.length], ["Pengguna Aktif", users.length], ["Aktivitas Hari Ini", totalHariIni]];
+
+  return (
+    <>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:16,marginBottom:16}}>
+        {stats.map(([l,v])=>(
+          <div key={l} className="card" style={{padding:"14px 16px"}}>
+            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",color:"var(--on-surface-variant)"}}>{l}</div>
+            <div style={{fontSize:28,fontWeight:800,color:"var(--navy-800)",marginTop:4}}>{v}</div>
+          </div>
+        ))}
+      </div>
+      <div className="card">
+        <div className="card-header">
+          <div className="card-header-title">Aktivitas Pengguna</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            <select className="form-control" style={{width:"auto",minWidth:170}} value={filterUser} onChange={e=>setFilterUser(e.target.value)}>
+              <option value="">Semua pengguna</option>
+              {users.map(u=><option key={u} value={u}>{u}</option>)}
+            </select>
+            <input className="form-control" style={{width:220}} placeholder="Cari nama / nomor / catatan…" value={q} onChange={e=>setQ(e.target.value)}/>
+          </div>
+        </div>
+        <div className="card-body" style={{padding:0}}>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Waktu</th><th>Pengguna</th><th>Aksi</th><th>Pengajuan</th></tr></thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={4} style={{textAlign:"center",padding:24}}>Memuat…</td></tr>
+                ) : rows.length===0 ? (
+                  <tr><td colSpan={4} style={{textAlign:"center",padding:24,color:"var(--on-surface-variant)"}}>Belum ada aktivitas.</td></tr>
+                ) : rows.slice(0,300).map((a,i)=>(
+                  <tr key={i}>
+                    <td style={{whiteSpace:"nowrap",fontFamily:"var(--mono)",fontSize:12}}>{fmtWaktu(a)}</td>
+                    <td style={{fontWeight:600,whiteSpace:"nowrap"}}>{a._user||"—"}</td>
+                    <td>
+                      <div>{labelTahap(a.tahap)}{a.isKembali && <span className="badge badge-amber" style={{marginLeft:6}}>↩ Dikembalikan</span>}</div>
+                      {a._note && <div style={{fontSize:11,color:"var(--on-surface-variant)",marginTop:2}}>{a._note}</div>}
+                    </td>
+                    <td style={{whiteSpace:"nowrap"}}>
+                      <div style={{fontFamily:"var(--mono)",fontSize:11.5}}>{a._pengId}</div>
+                      <div style={{fontSize:11,color:"var(--on-surface-variant)"}}>{a._pengNama}</div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {rows.length>300 && (
+            <div style={{padding:"10px 16px",fontSize:11,color:"var(--on-surface-variant)"}}>
+              Menampilkan 300 aktivitas terbaru dari {rows.length}. Persempit dengan filter di atas.
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── DASHBOARD SHELL (d2) — sidebar + motto ticker ───────────────────────────
 function D2Sidebar({ user, active, onChange, counts, onLogout, collapsed, onToggleCollapse }) {
   const rail = collapsed; // saat diciutkan tampil rail ikon statis
@@ -6161,6 +6262,10 @@ function D2Sidebar({ user, active, onChange, counts, onLogout, collapsed, onTogg
             <button data-tip="Manajemen Staf" className={"d2-navitem"+(active==="users"?" is-active":"")} onClick={()=>onChange("users")}>
               <span className="d2-navic"><D2Ico d={D2ICONS.staff} size={19}/></span>
               <span className="d2-navtxt">Manajemen Staf</span>
+            </button>
+            <button data-tip="Aktivitas Pengguna" className={"d2-navitem"+(active==="aktivitas"?" is-active":"")} onClick={()=>onChange("aktivitas")}>
+              <span className="d2-navic"><D2Ico d={D2ICONS.activity} size={19}/></span>
+              <span className="d2-navtxt">Aktivitas Pengguna</span>
             </button>
           </>
         )}
@@ -6435,6 +6540,7 @@ export default function App() {
     input:     { title:"Input Pengajuan Baru",    sub:"Daftarkan pengajuan SKPP baru" },
     riwayat:   { title:"Riwayat & Arsip",         sub:"SKPP yang telah selesai diproses" },
     users:     { title:"Manajemen Staf",          sub:"Kelola akun dan hak akses staf" },
+    aktivitas: { title:"Aktivitas Pengguna",      sub:"Pantau jejak aktivitas seluruh staf" },
   };
 
   if (booting) return <><style>{S}</style><div style={{minHeight:"100vh"}}/></>;
@@ -6578,9 +6684,10 @@ export default function App() {
             {page==="laporan"   && <PageLaporan data={data} loading={loading} onDetail={setSelected}/>}
             {page==="profil"    && <PageProfil user={user} onToast={setToast} onUpdateUser={u=>setUser(prev=>({...prev,...u}))}/>}
             {page==="users"     && user.role==="admin" && <PageUsers onToast={showToast}/>}
-            {page==="users"     && user.role!=="admin" && (
+            {page==="aktivitas" && user.role==="admin" && <PageAktivitas data={data} loading={loading}/>}
+            {(page==="users"||page==="aktivitas") && user.role!=="admin" && (
               <div className="alert alert-red">
-                <span>🚫</span><span>Anda tidak memiliki akses ke halaman ini. Hanya Admin yang dapat mengelola akun staf.</span>
+                <span>🚫</span><span>Anda tidak memiliki akses ke halaman ini. Hanya Admin yang dapat membuka halaman ini.</span>
               </div>
             )}
           </div>
