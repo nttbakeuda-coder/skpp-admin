@@ -6138,7 +6138,7 @@ function StatCards({ items }) {
 // ── Tab 1: feed aktivitas dari Riwayat ──
 function TabAktivitas({ data, loading }) {
   const [filterUser, setFilterUser] = useState("");
-  const [filterPeng, setFilterPeng] = useState("");
+  const [filterPengLabel, setFilterPengLabel] = useState("");
   const [q, setQ] = useState("");
   const TAHAPAN_ALL = [...TAHAPAN_A, ...TAHAPAN_B];
   const labelTahap = (id) => id==="SELESAI" ? "Selesai / Serah Terima"
@@ -6160,10 +6160,14 @@ function TabAktivitas({ data, loading }) {
   }))).sort((a,b)=>b._ts - a._ts);
 
   const users = [...new Set(semua.map(a=>a._user).filter(Boolean))].sort();
-  // Daftar pengajuan yang punya aktivitas (untuk filter "berdasarkan nama pengajuan").
+  // Daftar pengajuan yang punya aktivitas (untuk filter "berdasarkan nama
+  // pengajuan"). Pakai dropdown bisa-cari agar tetap efektif walau banyak.
   const pengajuanList = [...new Map(semua.map(a=>[a._pengId, a._pengNama])).entries()]
     .map(([id,nama])=>({ id, nama }))
     .sort((a,b)=>(a.nama||"").localeCompare(b.nama||""));
+  const pengOpts = pengajuanList.map(p=>`${p.nama||"(tanpa nama)"} · ${p.id}`);
+  const labelToId = new Map(pengajuanList.map(p=>[`${p.nama||"(tanpa nama)"} · ${p.id}`, p.id]));
+  const filterPeng = labelToId.get(filterPengLabel) || "";
   const startToday = (()=>{ const d=new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
   const totalHariIni = semua.filter(a=>a._ts>=startToday).length;
 
@@ -6181,20 +6185,25 @@ function TabAktivitas({ data, loading }) {
   return (
     <>
       <StatCards items={[["Total Aktivitas", semua.length], ["Pengguna Aktif", users.length], ["Aktivitas Hari Ini", totalHariIni]]}/>
+      {/* Bilah filter di LUAR card — supaya dropdown cari pengajuan tak
+          terpotong oleh overflow:hidden milik .card. */}
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"flex-start",marginBottom:12}}>
+        <select className="form-control" style={{width:"auto",minWidth:170,flex:"none"}} value={filterUser} onChange={e=>setFilterUser(e.target.value)}>
+          <option value="">Semua pengguna</option>
+          {users.map(u=><option key={u} value={u}>{u}</option>)}
+        </select>
+        <div style={{width:280,flex:"none"}}>
+          <SearchableSelect value={filterPengLabel} onChange={setFilterPengLabel} options={pengOpts} placeholder="Semua pengajuan (ketik utk cari)"/>
+        </div>
+        <input className="form-control" style={{width:220,flex:"none"}} placeholder="Cari nama / nomor / catatan…" value={q} onChange={e=>setQ(e.target.value)}/>
+        {(filterUser||filterPengLabel||q) && (
+          <button className="btn btn-secondary btn-sm" onClick={()=>{setFilterUser("");setFilterPengLabel("");setQ("");}}>Reset filter</button>
+        )}
+      </div>
       <div className="card">
         <div className="card-header">
-          <div className="card-header-title">Jejak Aktivitas</div>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            <select className="form-control" style={{width:"auto",minWidth:170}} value={filterUser} onChange={e=>setFilterUser(e.target.value)}>
-              <option value="">Semua pengguna</option>
-              {users.map(u=><option key={u} value={u}>{u}</option>)}
-            </select>
-            <select className="form-control" style={{width:"auto",minWidth:200,maxWidth:300}} value={filterPeng} onChange={e=>setFilterPeng(e.target.value)}>
-              <option value="">Semua pengajuan</option>
-              {pengajuanList.map(p=><option key={p.id} value={p.id}>{p.nama||"(tanpa nama)"} · {p.id}</option>)}
-            </select>
-            <input className="form-control" style={{width:220}} placeholder="Cari nama / nomor / catatan…" value={q} onChange={e=>setQ(e.target.value)}/>
-          </div>
+          <div className="card-header-title">Jejak Aktivitas{filterPeng && ` — ${filterPengLabel}`}</div>
+          <div className="card-header-title" style={{fontWeight:500,color:"var(--on-surface-variant)",fontSize:12}}>{rows.length} aktivitas</div>
         </div>
         <div className="card-body" style={{padding:0}}>
           <div className="table-wrap">
