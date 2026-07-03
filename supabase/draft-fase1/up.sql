@@ -206,7 +206,9 @@ begin
      "kodeAkses", "submittedBy", sumber, status, "tanggalMasuk")
   values
     (new_id, p->>'nama', p->>'nip', p->>'opd', p->>'jabatan', p->>'pangkat',
-     coalesce(p->>'alasan','Pensiun'), p->>'jalur', p->>'kasubid',
+     coalesce(p->>'alasan','Pensiun'),
+     null,                                    -- jalur A/B DITENTUKAN LOKET saat verifikasi
+     p->>'kasubid',
      kode, uid, 'online', 'diajukan', to_char(now(),'DD Mon YYYY'));
 
   return jsonb_build_object('id', new_id, 'kodeAkses', kode);

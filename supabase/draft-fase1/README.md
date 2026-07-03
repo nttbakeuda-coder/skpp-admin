@@ -29,9 +29,11 @@ Portal digabung ke modul pelacakan publik (login + ajukan + lacak).
 - **Trigger** `handle_new_external_user` (SECURITY DEFINER) membuat baris
   `profiles` (akun_status `pending`) **hanya** untuk role pemohon/bendahara —
   akun staf (dibuat Edge Function) tak tersentuh.
-- Supabase kirim email konfirmasi → **butuh SMTP** dikonfigurasi untuk volume
-  produksi (email bawaan Supabase ada batas). Aktifkan "Confirm email".
-- (disarankan) **CAPTCHA** (hCaptcha/Turnstile) di signup — anti-bot.
+- Supabase kirim email konfirmasi → **SMTP: Resend** (terpilih), kirim dari
+  `noreply@sipasti.my.id` (SPF/DKIM). Aktifkan "Confirm email". Skala besar →
+  bisa pindah ke Amazon SES.
+- **CAPTCHA signup: Cloudflare Turnstile** (terpilih; native Supabase, sering
+  tanpa puzzle).
 
 ## 4. ACC admin (gerbang kedua anti-spam)
 - Menu admin **"Persetujuan Akun"**: daftar `profiles` `akun_status='pending'`.
@@ -49,13 +51,16 @@ perbaiki & kirim ulang)
   dibuat server (8 char CSPRNG) → pemohon/pegawai bisa lacak di portal publik.
 - Saat **Terima**, loket menjalankan transisi normal (A1/B1 selesai, A2/B2 aktif)
   & tulis Riwayat — persis seperti `inputBaru` sekarang.
+- **Jalur A/B ditentukan LOKET** saat verifikasi. Form online tidak menanyakan
+  jalur; RPC menyimpan `jalur` kosong dulu, loket menetapkannya saat Terima.
 
 ## 6. Berkas (Storage)
 - Bucket **privat** `berkas-pengajuan`. Path: `{uid}/{pengajuanId}/{namafile}`.
 - Policy: pemohon **insert/select** miliknya (folder[1]=uid); **staf select semua**;
   hapus hanya pemilik saat draft / admin.
 - Metadata di tabel **`BerkasPengajuan`** (pengajuanId, jenis, path, uploadedBy).
-- Batasi **tipe** (pdf/jpg/png) & **ukuran** file (setelan bucket) + jumlah per pengajuan.
+- Batas berkas (terpilih): tipe **PDF/JPG/PNG**, maks **5 MB/file**, maks **15
+  file/pengajuan** (diatur di setelan bucket + validasi UI).
 - Staf lihat berkas via signed URL (pola sama `buktiSerahUrl`).
 
 ## 7. RLS (menambah Fase 0)
