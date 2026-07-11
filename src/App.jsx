@@ -6,6 +6,8 @@ import {
   profil, updateProfil, gantiPassword,
   daftarSemua, detail, inputBaru, inputBulk, updateTahap, setSelesai, hapusPengajuan,
   serahTerimaSKPP, buktiSerahUrl,
+  listAkunPending, setAkunStatus,
+  listAntreanOnline, berkasPengajuanUrl, terimaPengajuanOnline, kembalikanPengajuanOnline, tolakPengajuanOnline,
 } from "./api";
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
@@ -4827,6 +4829,7 @@ const D2ICONS = {
   eye: <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></>,
   report: <><path d="M3 3v18h18"/><path d="M7 16v-5M12 16V8M17 16v-3"/></>,
   activity: <><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></>,
+  inbox: <><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></>,
   moon: <><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></>,
   sun: <><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></>,
 };
@@ -6350,6 +6353,279 @@ function TabStatusLogin() {
 }
 
 // ─── DASHBOARD SHELL (d2) — sidebar + motto ticker ───────────────────────────
+// ── Persetujuan Akun (pemohon/bendahara yang mendaftar mandiri di portal) ──
+function PageAkunPersetujuan({ onToast, onCount }) {
+  const [rows, setRows] = useState(null); // null = memuat
+  const [err, setErr] = useState("");
+  const [busyId, setBusyId] = useState("");
+
+  const muat = () => {
+    setRows(null); setErr("");
+    listAkunPending().then(res => {
+      if (res.ok) { setRows(res.data || []); onCount?.((res.data || []).length); }
+      else { setRows([]); setErr(res.pesan || "Gagal memuat daftar akun."); }
+    });
+  };
+  useEffect(() => { muat(); }, []);
+
+  const roleLabel = r => r === "bendahara" ? "Bendahara OPD" : "Pegawai (Pemohon)";
+
+  const tindak = async (row, akunStatus) => {
+    if (akunStatus === "rejected" && !window.confirm(`Tolak pendaftaran akun "${row.nama}"?`)) return;
+    setBusyId(row.id);
+    try {
+      const res = await setAkunStatus({ userId: row.id, akunStatus });
+      if (res.ok) {
+        onToast?.(akunStatus === "approved" ? `✓ Akun ${row.nama} disetujui` : `⛔ Akun ${row.nama} ditolak`);
+        setRows(prev => { const next = prev.filter(r => r.id !== row.id); onCount?.(next.length); return next; });
+      } else alert("Gagal: " + res.pesan);
+    } catch { alert("Gagal terhubung ke server."); }
+    setBusyId("");
+  };
+
+  return (
+    <>
+      <StatCards items={[["Menunggu Persetujuan", rows?.length ?? 0, (rows?.length ?? 0) > 0 ? "var(--warning)" : undefined]]}/>
+      {err && <div className="alert alert-red" style={{marginBottom:16}}><IcoAlert size={14}/><span>{err}</span></div>}
+      <div className="card">
+        <div className="card-header">
+          <div className="card-header-title">Pendaftaran Akun Pemohon / Bendahara</div>
+          <button className="btn btn-secondary btn-sm" onClick={muat}>↻ Muat Ulang</button>
+        </div>
+        <div className="card-body" style={{padding:0}}>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Nama</th><th>NIP / Username</th><th>Email</th><th>Peran</th><th>OPD</th><th>Daftar</th><th></th></tr></thead>
+              <tbody>
+                {rows===null ? (
+                  <tr><td colSpan={7} style={{textAlign:"center",padding:24}}>Memuat…</td></tr>
+                ) : rows.length===0 ? (
+                  <tr><td colSpan={7} style={{textAlign:"center",padding:24,color:"var(--on-surface-variant)"}}>Tidak ada pendaftaran yang menunggu persetujuan.</td></tr>
+                ) : rows.map(r => (
+                  <tr key={r.id}>
+                    <td style={{fontWeight:600}}>{r.nama||"—"}</td>
+                    <td style={{fontFamily:"var(--mono)",fontSize:12}}>{r.username||"—"}</td>
+                    <td style={{fontSize:12}}>{r.email||"—"}</td>
+                    <td><span className="badge badge-blue">{roleLabel(r.role)}</span></td>
+                    <td style={{fontSize:12}}>{r.opd||"—"}</td>
+                    <td style={{whiteSpace:"nowrap",fontSize:12}}>{r.created_at ? new Date(r.created_at).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}) : "—"}</td>
+                    <td>
+                      <div style={{display:"flex",gap:6,justifyContent:"flex-end"}}>
+                        <button className="btn btn-success btn-sm" disabled={busyId===r.id} onClick={()=>tindak(r,"approved")}>Setujui</button>
+                        <button className="btn btn-danger btn-sm" disabled={busyId===r.id} onClick={()=>tindak(r,"rejected")}>Tolak</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Antrean Pengajuan Online (loket: Terima / Kembalikan / Tolak) ──
+function AntreanBerkasList({ berkas }) {
+  const [loadingId, setLoadingId] = useState("");
+  const lihat = async (b) => {
+    setLoadingId(b.id);
+    const url = await berkasPengajuanUrl(b.path);
+    setLoadingId("");
+    if (url) window.open(url, "_blank", "noopener");
+    else alert("Gagal membuka berkas.");
+  };
+  if (!berkas?.length) return <div style={{fontSize:12,color:"var(--on-surface-variant)"}}>Belum ada berkas diunggah.</div>;
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:6}}>
+      {berkas.map(b => (
+        <div key={b.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",background:"var(--surface-container-low)",borderRadius:8}}>
+          <span style={{fontSize:12,fontWeight:600}}>{b.jenis || "Berkas"}</span>
+          <button className="btn btn-secondary btn-sm" disabled={loadingId===b.id} onClick={()=>lihat(b)}>{loadingId===b.id?"⟳":"👁 Lihat"}</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AntreanDetailModal({ p, onClose, onTerima, onKembalikan, onTolak, saving }) {
+  const [aksi, setAksi] = useState(""); // "" | "terima" | "kembalikan" | "tolak"
+  const [jalur, setJalur] = useState("");
+  const [catatan, setCatatan] = useState("");
+
+  return (
+    <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget && !saving) onClose();}}>
+      <div className="modal" style={{maxWidth:640}}>
+        <div className="modal-header">
+          <div>
+            <div style={{fontWeight:800,fontSize:14,color:"var(--primary)",letterSpacing:"-0.4px"}}>{p.id}</div>
+            <div style={{marginTop:6}}>
+              {p.status==="ditolak" ? <span className="badge badge-red">⛔ Ditolak</span> : <span className="badge badge-gold">⏳ Menunggu Verifikasi</span>}
+            </div>
+          </div>
+          <button className="modal-close" onClick={onClose} disabled={saving}>✕</button>
+        </div>
+        <div className="modal-body">
+          <div className="grid-2">
+            <div className="form-group"><label className="form-label">Nama</label><div style={{fontWeight:600}}>{p.nama}</div></div>
+            <div className="form-group"><label className="form-label">NIP</label><div style={{fontFamily:"var(--mono)"}}>{p.nip}</div></div>
+            <div className="form-group"><label className="form-label">OPD</label><div>{p.opd||"—"}</div></div>
+            <div className="form-group"><label className="form-label">Jabatan</label><div>{p.jabatan||"—"}</div></div>
+            <div className="form-group"><label className="form-label">Pangkat / Golongan</label><div>{p.pangkat||"—"}</div></div>
+            <div className="form-group"><label className="form-label">Kasubid Pembayaran</label><div>{p.kasubid||"—"}</div></div>
+          </div>
+          <div className="form-group"><label className="form-label">Keperluan SKPP</label><div>{p.alasan||"—"}</div></div>
+
+          {p.catatan && (
+            <div className={"alert "+(p.status==="ditolak"?"alert-red":"alert-amber")} style={{marginBottom:4}}>
+              <IcoAlert size={14}/>
+              <div style={{fontSize:12}}>
+                <strong>{p.status==="ditolak"?"Alasan penolakan":"Catatan pengembalian sebelumnya"}:</strong> {p.catatan}
+              </div>
+            </div>
+          )}
+
+          <div style={{marginTop:14}}>
+            <label className="form-label" style={{marginBottom:6,display:"block"}}>Berkas Diunggah Pemohon</label>
+            <AntreanBerkasList berkas={p.berkas}/>
+          </div>
+
+          {p.status==="diajukan" && (
+            <div style={{marginTop:18,paddingTop:14,borderTop:"1px solid var(--outline-variant)"}}>
+              {aksi==="" && (
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <button className="btn btn-success btn-sm" onClick={()=>setAksi("terima")}>✓ Terima</button>
+                  <button className="btn btn-secondary btn-sm" onClick={()=>setAksi("kembalikan")}>↩ Kembalikan</button>
+                  <button className="btn btn-danger btn-sm" onClick={()=>setAksi("tolak")}>⛔ Tolak</button>
+                </div>
+              )}
+              {aksi==="terima" && (
+                <div className="form-group">
+                  <label className="form-label">Jalur Proses *</label>
+                  <select className="form-control" value={jalur} onChange={e=>setJalur(e.target.value)}>
+                    <option value="">— Pilih jalur proses —</option>
+                    <option value="A">Jalur A – Tanpa Pangkat Pengabdian</option>
+                    <option value="B">Jalur B – Ada Pangkat Pengabdian</option>
+                  </select>
+                  <div style={{display:"flex",gap:8,marginTop:10}}>
+                    <button className="btn btn-secondary btn-sm" onClick={()=>setAksi("")} disabled={saving}>Batal</button>
+                    <button className="btn btn-primary btn-sm" disabled={saving||!jalur} onClick={()=>onTerima(p,jalur)}>{saving?"⟳ Memproses…":"Konfirmasi Terima"}</button>
+                  </div>
+                </div>
+              )}
+              {aksi==="kembalikan" && (
+                <div className="form-group">
+                  <label className="form-label">Catatan untuk pemohon (berkas yang perlu dilengkapi) *</label>
+                  <textarea className="form-control" rows={3} value={catatan} onChange={e=>setCatatan(e.target.value)}/>
+                  <div style={{display:"flex",gap:8,marginTop:10}}>
+                    <button className="btn btn-secondary btn-sm" onClick={()=>setAksi("")} disabled={saving}>Batal</button>
+                    <button className="btn btn-primary btn-sm" disabled={saving||!catatan.trim()} onClick={()=>onKembalikan(p,catatan)}>{saving?"⟳ Memproses…":"Konfirmasi Kembalikan"}</button>
+                  </div>
+                </div>
+              )}
+              {aksi==="tolak" && (
+                <div className="form-group">
+                  <label className="form-label">Alasan penolakan *</label>
+                  <textarea className="form-control" rows={3} value={catatan} onChange={e=>setCatatan(e.target.value)}/>
+                  <div style={{display:"flex",gap:8,marginTop:10}}>
+                    <button className="btn btn-secondary btn-sm" onClick={()=>setAksi("")} disabled={saving}>Batal</button>
+                    <button className="btn btn-danger btn-sm" disabled={saving||!catatan.trim()} onClick={()=>onTolak(p,catatan)}>{saving?"⟳ Memproses…":"Konfirmasi Tolak"}</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-secondary" onClick={onClose} disabled={saving}>Tutup</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PageAntreanOnline({ onToast, onCount }) {
+  const [rows, setRows] = useState(null); // null = memuat
+  const [err, setErr] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [tab, setTab] = useState("menunggu");
+
+  const muat = () => {
+    setRows(null); setErr("");
+    listAntreanOnline().then(res => {
+      if (res.ok) { setRows(res.data || []); onCount?.((res.data||[]).filter(r=>r.status==="diajukan").length); }
+      else { setRows([]); setErr(res.pesan || "Gagal memuat antrean pengajuan online."); }
+    });
+  };
+  useEffect(() => { muat(); }, []);
+
+  const menunggu = (rows||[]).filter(r=>r.status==="diajukan");
+  const ditolak  = (rows||[]).filter(r=>r.status==="ditolak");
+  const list = tab==="menunggu" ? menunggu : ditolak;
+
+  const jalankan = async (aksi, p, arg) => {
+    setSaving(true);
+    try {
+      const res = aksi==="terima" ? await terimaPengajuanOnline({ id:p.id, jalur:arg })
+                : aksi==="kembalikan" ? await kembalikanPengajuanOnline({ id:p.id, catatan:arg })
+                : await tolakPengajuanOnline({ id:p.id, alasan:arg });
+      if (res.ok) { onToast?.(res.pesan || "Berhasil."); setSelected(null); muat(); }
+      else alert("Gagal: " + res.pesan);
+    } catch { alert("Gagal terhubung ke server."); }
+    setSaving(false);
+  };
+
+  return (
+    <>
+      <StatCards items={[["Menunggu Verifikasi", menunggu.length, menunggu.length>0?"var(--warning)":undefined], ["Ditolak (riwayat)", ditolak.length]]}/>
+      {err && <div className="alert alert-red" style={{marginBottom:16}}><IcoAlert size={14}/><span>{err}</span></div>}
+      <div className="tabs" style={{marginBottom:16}}>
+        <div className={`tab ${tab==="menunggu"?"active":""}`} onClick={()=>setTab("menunggu")}>⏳ Menunggu Verifikasi</div>
+        <div className={`tab ${tab==="ditolak"?"active":""}`} onClick={()=>setTab("ditolak")}>⛔ Ditolak</div>
+      </div>
+      <div className="card">
+        <div className="card-header">
+          <div className="card-header-title">Antrean Pengajuan Online</div>
+          <button className="btn btn-secondary btn-sm" onClick={muat}>↻ Muat Ulang</button>
+        </div>
+        <div className="card-body" style={{padding:0}}>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Nomor</th><th>Nama</th><th>OPD</th><th>Keperluan</th><th>Berkas</th><th>Diajukan</th><th></th></tr></thead>
+              <tbody>
+                {rows===null ? (
+                  <tr><td colSpan={7} style={{textAlign:"center",padding:24}}>Memuat…</td></tr>
+                ) : list.length===0 ? (
+                  <tr><td colSpan={7} style={{textAlign:"center",padding:24,color:"var(--on-surface-variant)"}}>{tab==="menunggu"?"Tidak ada pengajuan yang menunggu verifikasi.":"Belum ada pengajuan yang ditolak."}</td></tr>
+                ) : list.map(p => (
+                  <tr key={p.id} style={{cursor:"pointer"}} onClick={()=>setSelected(p)}>
+                    <td style={{fontFamily:"var(--mono)",fontWeight:700,fontSize:11.5}}>{p.id}</td>
+                    <td style={{fontWeight:600}}>{p.nama}</td>
+                    <td style={{fontSize:12}}>{p.opd||"—"}</td>
+                    <td style={{fontSize:12}}>{p.alasan||"—"}</td>
+                    <td style={{fontSize:12}}>{p.berkas?.length||0} berkas</td>
+                    <td style={{whiteSpace:"nowrap",fontSize:12}}>{p.tanggalMasuk||"—"}</td>
+                    <td><button className="btn btn-secondary btn-sm" onClick={e=>{e.stopPropagation();setSelected(p);}}>Detail</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {selected && (
+        <AntreanDetailModal p={selected} saving={saving} onClose={()=>{ if(!saving) setSelected(null); }}
+          onTerima={(p,jalur)=>jalankan("terima",p,jalur)}
+          onKembalikan={(p,catatan)=>jalankan("kembalikan",p,catatan)}
+          onTolak={(p,alasan)=>jalankan("tolak",p,alasan)}
+        />
+      )}
+    </>
+  );
+}
+
 function D2Sidebar({ user, active, onChange, counts, onLogout, collapsed, onToggleCollapse }) {
   const rail = collapsed; // saat diciutkan tampil rail ikon statis
   const initials = (user?.nama||"U").split(" ").map(w=>w[0]).filter(Boolean).slice(0,2).join("").toUpperCase();
@@ -6357,8 +6633,12 @@ function D2Sidebar({ user, active, onChange, counts, onLogout, collapsed, onTogg
   const main = [
     { key:"dashboard", label:"Dashboard",            ic:"grid" },
     { key:"pengajuan", label:"Daftar Pengajuan",     ic:"list", badge:counts?.proses },
-    // Input Pengajuan Baru tidak ditampilkan untuk role Staf Pengampu OPD.
-    ...(user?.role==="staf" ? [] : [{ key:"input", label:"Input Pengajuan Baru", ic:"plus" }]),
+    // Input Pengajuan Baru & Antrean Online tidak ditampilkan untuk role Staf Pengampu OPD
+    // (keduanya tugas loket: Admin & Staf Loket/operator).
+    ...(user?.role==="staf" ? [] : [
+      { key:"input",   label:"Input Pengajuan Baru", ic:"plus" },
+      { key:"antrean", label:"Antrean Pengajuan Online", ic:"inbox", badge:counts?.antrean },
+    ]),
     { key:"riwayat",   label:"Riwayat & Arsip",      ic:"archive" },
     { key:"laporan",   label:"Laporan",              ic:"report" },
   ];
@@ -6412,6 +6692,11 @@ function D2Sidebar({ user, active, onChange, counts, onLogout, collapsed, onTogg
               <span className="d2-navic"><D2Ico d={D2ICONS.activity} size={19}/></span>
               <span className="d2-navtxt">Aktivitas Pengguna</span>
             </button>
+            <button data-tip="Persetujuan Akun" className={"d2-navitem"+(active==="persetujuan"?" is-active":"")} onClick={()=>onChange("persetujuan")}>
+              <span className="d2-navic"><D2Ico d={D2ICONS.clipboard} size={19}/></span>
+              <span className="d2-navtxt">Persetujuan Akun</span>
+              {counts?.akunPending>0 && <span className="d2-navbadge tnum">{counts.akunPending}</span>}
+            </button>
           </>
         )}
       </div>
@@ -6447,6 +6732,8 @@ export default function App() {
   const [kodeAksesModal, setKodeAksesModal] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
   const [showNotif, setShowNotif] = useState(false);
+  const [antreanCount, setAntreanCount] = useState(0);
+  const [akunPendingCount, setAkunPendingCount] = useState(0);
   const profileRef = useRef(null);
   const notifRef = useRef(null);
 
@@ -6580,7 +6867,12 @@ export default function App() {
     setLoading(true); setErrLoad("");
     try {
       const res = await daftarSemua();
-      if(res.ok) setData(res.data.map(norm));
+      // Pengajuan online yang belum diverifikasi loket (diajukan/ditolak) belum
+      // masuk alur normal (jalur/tahap belum ada) -> disembunyikan dari daftar
+      // utama, hanya tampil di menu "Antrean Pengajuan Online".
+      if(res.ok) setData(res.data
+        .filter(p => !(p.sumber==="online" && (p.status==="diajukan"||p.status==="ditolak")))
+        .map(norm));
       else setErrLoad(res.pesan||"Gagal memuat data.");
     } catch { setErrLoad("Gagal terhubung ke server."); }
     setLoading(false);
@@ -6690,16 +6982,20 @@ export default function App() {
   // Badge sidebar = semua pengajuan yang butuh perhatian (proses + dikembalikan)
   // agar konsisten dengan angka di dashboard
   const counts = {
-    proses: data.filter(d => !(d.status==="selesai"||getProgress(d)===100)).length
+    proses: data.filter(d => !(d.status==="selesai"||getProgress(d)===100)).length,
+    antrean: antreanCount,
+    akunPending: akunPendingCount,
   };
 
   const PAGE_TITLES = {
-    dashboard: { title:"Dashboard",               sub:`Selamat datang, ${user?.nama||""}` },
-    pengajuan: { title:"Daftar Pengajuan SKPP",   sub:"Kelola seluruh pengajuan SKPP" },
-    input:     { title:"Input Pengajuan Baru",    sub:"Daftarkan pengajuan SKPP baru" },
-    riwayat:   { title:"Riwayat & Arsip",         sub:"SKPP yang telah selesai diproses" },
-    users:     { title:"Manajemen Staf",          sub:"Kelola akun dan hak akses staf" },
-    aktivitas: { title:"Aktivitas Pengguna",      sub:"Pantau jejak aktivitas seluruh staf" },
+    dashboard:    { title:"Dashboard",               sub:`Selamat datang, ${user?.nama||""}` },
+    pengajuan:    { title:"Daftar Pengajuan SKPP",   sub:"Kelola seluruh pengajuan SKPP" },
+    input:        { title:"Input Pengajuan Baru",    sub:"Daftarkan pengajuan SKPP baru" },
+    antrean:      { title:"Antrean Pengajuan Online",sub:"Verifikasi pengajuan yang masuk lewat portal (Terima/Kembalikan/Tolak)" },
+    riwayat:      { title:"Riwayat & Arsip",         sub:"SKPP yang telah selesai diproses" },
+    users:        { title:"Manajemen Staf",          sub:"Kelola akun dan hak akses staf" },
+    aktivitas:    { title:"Aktivitas Pengguna",      sub:"Pantau jejak aktivitas seluruh staf" },
+    persetujuan:  { title:"Persetujuan Akun",        sub:"ACC pendaftaran akun pemohon & bendahara dari portal" },
   };
 
   if (booting) return <><style>{S}</style><div style={{minHeight:"100vh"}}/></>;
@@ -6842,9 +7138,16 @@ export default function App() {
             {page==="riwayat"   && <PageRiwayat data={data} loading={loading} onDetail={setSelected}/>}
             {page==="laporan"   && <PageLaporan data={data} loading={loading} onDetail={setSelected}/>}
             {page==="profil"    && <PageProfil user={user} onToast={setToast} onUpdateUser={u=>setUser(prev=>({...prev,...u}))}/>}
-            {page==="users"     && user.role==="admin" && <PageUsers onToast={showToast}/>}
-            {page==="aktivitas" && user.role==="admin" && <PageAktivitas data={data} loading={loading}/>}
-            {(page==="users"||page==="aktivitas") && user.role!=="admin" && (
+            {page==="antrean"     && user.role!=="staf"  && <PageAntreanOnline onToast={showToast} onCount={setAntreanCount}/>}
+            {page==="users"       && user.role==="admin" && <PageUsers onToast={showToast}/>}
+            {page==="aktivitas"   && user.role==="admin" && <PageAktivitas data={data} loading={loading}/>}
+            {page==="persetujuan" && user.role==="admin" && <PageAkunPersetujuan onToast={showToast} onCount={setAkunPendingCount}/>}
+            {page==="antrean" && user.role==="staf" && (
+              <div className="alert alert-red">
+                <span>🚫</span><span>Anda tidak memiliki akses ke halaman ini. Hanya Admin dan Staf Loket yang dapat membuka halaman ini.</span>
+              </div>
+            )}
+            {(page==="users"||page==="aktivitas"||page==="persetujuan") && user.role!=="admin" && (
               <div className="alert alert-red">
                 <span>🚫</span><span>Anda tidak memiliki akses ke halaman ini. Hanya Admin yang dapat membuka halaman ini.</span>
               </div>

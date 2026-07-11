@@ -146,6 +146,15 @@ export async function resetPassword({ username, passwordBaru }) {
   return await adminAkun({ action: "resetPassword", username, passwordBaru });
 }
 
+// ── Persetujuan akun pemohon/bendahara (portal pengajuan online) ──
+export async function listAkunPending() {
+  return await adminAkun({ action: "listPending" });
+}
+
+export async function setAkunStatus({ userId, akunStatus }) {
+  return await adminAkun({ action: "setAkunStatus", userId, akunStatus });
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // LUPA KATA SANDI — permintaan reset dari halaman login (tanpa perlu login)
 // ══════════════════════════════════════════════════════════════════════════════
@@ -449,4 +458,79 @@ export async function hapusPengajuan({ id }) {
     return err("Server tidak menghapus data. Periksa kebijakan akses (RLS) tabel \"Pengajuan\" di Supabase — pastikan operasi DELETE diizinkan.");
   }
   return ok({ id, pesan: "Pengajuan berhasil dihapus." });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ANTREAN PENGAJUAN ONLINE (loket: Terima / Kembalikan / Tolak)
+// ══════════════════════════════════════════════════════════════════════════════
+const BUKET_BERKAS = "berkas-pengajuan";
+
+// URL bertanda-tangan (sementara) untuk melihat berkas persyaratan dari bucket privat.
+export async function berkasPengajuanUrl(path, detik = 600) {
+  if (!path) return null;
+  const { data } = await supabase.storage.from(BUKET_BERKAS).createSignedUrl(path, detik);
+  return data?.signedUrl || null;
+}
+
+// Pengajuan online yang masih menunggu tindakan loket (belum Diterima ke alur normal),
+// termasuk yang baru saja Ditolak (agar staf masih bisa melihat riwayat penolakan).
+export async function listAntreanOnline() {
+  const [{ data: pengajuan, error: e1 }, { data: berkas }] = await Promise.all([
+    supabase.from("Pengajuan").select("*")
+      .eq("sumber", "online").in("status", ["diajukan", "ditolak"])
+      .order("id", { ascending: false }),
+    supabase.from("BerkasPengajuan").select("*").order("created_at", { ascending: true }),
+  ]);
+  if (e1) return err("Gagal memuat antrean pengajuan online: " + e1.message);
+  const ids = new Set((pengajuan ?? []).map(p => p.id));
+  const data = (pengajuan ?? []).map(p => ({
+    ...p,
+    berkas: (berkas ?? []).filter(b => b.pengajuanId === p.id && ids.has(p.id)),
+  }));
+  return ok({ data });
+}
+
+// Terima: pengajuan online masuk alur normal — persis pola inputBaru (tahap A1/B1
+// langsung selesai, tahap aktif pindah ke A2/B2), bedanya baris sudah ada (update, bukan insert).
+export async function terimaPengajuanOnline({ id, jalur }) {
+  if (!["A", "B"].includes(jalur)) return err("Jalur proses wajib dipilih (A atau B).");
+  const est = new Date(); est.setDate(est.getDate() + 7);
+  const estimasiSelesai = est.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+  const firstStep = jalur === "A" ? "A1" : "B1";
+  const nextStep  = jalur === "A" ? "A2" : "B2";
+
+  const { error } = await supabase.from("Pengajuan").update({
+    jalur, estimasiSelesai, tahapAktif: nextStep, tahapSelesai: firstStep,
+    status: "proses", catatan: null,
+  }).eq("id", id);
+  if (error) return err("Gagal menerima pengajuan: " + error.message);
+
+  const aktor = await aktorSekarang();
+  await supabase.from("Riwayat").insert({
+    pengajuanId: id, tahap: firstStep,
+    waktu: new Date().toLocaleString("id-ID"),
+    catatan: "Berkas diterima di loket (pengajuan online)", isKembali: false,
+    oleh: aktor.oleh, olehNama: aktor.olehNama,
+  });
+
+  return ok({ id, pesan: "Pengajuan diterima & masuk ke alur proses." });
+}
+
+// Kembalikan: tetap berstatus "diajukan" (antrean) + catatan agar pemohon
+// melengkapi/mengganti berkas lalu mengunggah ulang lewat portal.
+export async function kembalikanPengajuanOnline({ id, catatan }) {
+  const c = (catatan || "").trim();
+  if (!c) return err("Catatan/alasan pengembalian wajib diisi.");
+  const { error } = await supabase.from("Pengajuan").update({ catatan: c }).eq("id", id);
+  if (error) return err("Gagal mengembalikan pengajuan: " + error.message);
+  return ok({ id, pesan: "Pengajuan dikembalikan ke pemohon untuk dilengkapi." });
+}
+
+// Tolak: pengajuan tidak dilanjutkan (keperluan tidak sesuai / bukan wewenang, dst).
+export async function tolakPengajuanOnline({ id, alasan }) {
+  const c = (alasan || "").trim();
+  if (!c) return err("Alasan penolakan wajib diisi.");
+  const { error } = await supabase.from("Pengajuan").update({ status: "ditolak", catatan: c }).eq("id", id);
+  if (error) return err("Gagal menolak pengajuan: " + error.message);
+  return ok({ id, pesan: "Pengajuan ditolak." });
 }

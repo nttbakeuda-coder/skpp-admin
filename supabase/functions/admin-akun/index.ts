@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     const isAdmin = prof?.role === "admin";
 
     // 2) Jalankan aksi
-    const { action, username, password, nama, role, passwordBaru } = await req.json();
+    const { action, username, password, nama, role, passwordBaru, userId, akunStatus } = await req.json();
 
     // Aksi "list" (baca daftar nama) diizinkan untuk semua user yang login —
     // dibutuhkan form verifikasi untuk memilih nama staf loket / pengampu OPD.
@@ -118,6 +118,31 @@ Deno.serve(async (req) => {
         const { error } = await admin.auth.admin.updateUserById(id, { password: passwordBaru });
         if (error) return json({ ok: false, pesan: error.message });
         return json({ ok: true, pesan: "Kata sandi berhasil direset." });
+      }
+
+      // Akun pemohon/bendahara yang mendaftar mandiri via portal (akun_status='pending').
+      case "listPending": {
+        const { data, error } = await admin
+          .from("profiles")
+          .select("id, username, nama, email, role, opd, akun_status, created_at")
+          .eq("akun_status", "pending")
+          .order("created_at", { ascending: true });
+        if (error) return json({ ok: false, pesan: error.message });
+        return json({ ok: true, data });
+      }
+
+      // ACC / tolak akun pemohon-bendahara. akunStatus: "approved" | "rejected".
+      case "setAkunStatus": {
+        if (!userId) return json({ ok: false, pesan: "userId wajib diisi." });
+        if (!["approved", "rejected"].includes(akunStatus))
+          return json({ ok: false, pesan: "Status akun tidak valid." });
+        const { error } = await admin
+          .from("profiles").update({ akun_status: akunStatus }).eq("id", userId);
+        if (error) return json({ ok: false, pesan: error.message });
+        return json({
+          ok: true,
+          pesan: akunStatus === "approved" ? "Akun berhasil disetujui." : "Akun ditolak.",
+        });
       }
 
       default:
