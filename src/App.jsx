@@ -1,14 +1,17 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   login, logout, sesiSaatIni, touchPresence, statusLoginPengguna,
   daftarAkun, tambahAkun, editAkun, hapusAkun, resetPassword,
   ajukanResetPassword, daftarPermintaanReset, tandaiResetSelesai, hapusPermintaanReset,
   profil, updateProfil, gantiPassword,
   daftarSemua, detail, inputBaru, inputBulk, updateTahap, setSelesai, hapusPengajuan,
-  serahTerimaSKPP, buktiSerahUrl,
+  serahTerimaSKPP, buktiSerahUrl, unggahSkppFinal, skppFinalUrl,
   listAkunPending, setAkunStatus,
-  listAntreanOnline, berkasPengajuanUrl, terimaPengajuanOnline, kembalikanPengajuanOnline, tolakPengajuanOnline,
+  listAntreanOnline, berkasPengajuanUrl, unduhBerkasPengajuan, terimaPengajuanOnline, kembalikanPengajuanOnline, tolakPengajuanOnline,
+  tolakBuktiHutang, uploadDraftSkpp, uploadSkppFotoDitempel, uploadRincianKekurangan,
+  rekapSurvei,
 } from "./api";
+import { PushToggle } from "./PushToggle.jsx";
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 // Batas waktu sesi tanpa aktivitas: setelah IDLE_LIMIT_MINUTES idle, muncul
@@ -95,7 +98,7 @@ const DAFTAR_KEPERLUAN = [
 
 // Subjenis untuk keperluan "Meninggal Dunia" — menentukan kode penomoran
 // (Pensiun Janda -> PJ, Pensiun Duda -> PD), karena tidak ada kode "MD".
-const SUBJENIS_MD = ["Pensiun Janda","Pensiun Duda"];
+const SUBJENIS_MD = ["Pensiun Janda","Pensiun Duda","Anak","Orang Tua","Ahli Waris Lain"];
 
 // Pilihan dokumen persyaratan SKPP untuk dropdown "Dokumen Kurang".
 const DAFTAR_DOKUMEN_SKPP = [
@@ -135,29 +138,25 @@ const DP_DOKUMEN_GRUP = [
   { grup:"I. DOKUMEN UMUM (WAJIB UNTUK SEMUA JENIS SKPP)", items:[
     { t:"Fotokopi KTP Pegawai yang Bersangkutan" },
     { t:"Fotokopi Kartu Keluarga yang masih berlaku" },
-    { t:"Surat Pernyataan Bebas Hutang dari Bendahara Gaji OPD (bermaterai)" },
-    { t:"Pas foto terbaru ukuran 4×6 berlatar merah/biru sebanyak 3 (tiga) lembar" },
+    { t:"Pas foto terbaru berlatar merah/biru" },
   ]},
-  { grup:"II. DOKUMEN TAMBAHAN — PENSIUN (BUP / APS / CACAT / MENINGGAL)", items:[
+  { grup:"II. DOKUMEN TAMBAHAN — PENSIUN", items:[
     { t:"SK Pensiun / Persetujuan Pensiun yang telah ditetapkan oleh BKN / Pejabat Pembina Kepegawaian" },
-    { t:"Fotokopi Surat Keputusan Kenaikan Pangkat Pengabdian (jika ada dan belum berlaku pada tanggal pensiun)", ket:"Jalur B" },
-    { t:"Fotokopi Kartu Taspen" },
-    { t:"Fotokopi Akta Perkawinan / Buku Nikah (jika ada tanggungan suami/istri)", ket:"Jika berlaku" },
-    { t:"Fotokopi Akta Kelahiran anak yang masih menjadi tanggungan (usia < 25 tahun / belum bekerja)", ket:"Jika berlaku" },
+    { t:"Fotokopi Akta Perkawinan / Buku Nikah (jika ada tanggungan suami/istri)" },
+    { t:"Fotokopi Akta Kelahiran anak yang masih menjadi tanggungan (usia < 25 tahun / belum bekerja)" },
   ]},
   { grup:"III. DOKUMEN TAMBAHAN — PINDAH / MUTASI", items:[
     { t:"SK Pindah / Mutasi dari instansi yang berwenang" },
     { t:"Surat Pernyataan Melaksanakan Tugas (SPMT) di instansi tujuan" },
-    { t:"Surat Keterangan Bebas Temuan dari Inspektorat (jika dipersyaratkan)", ket:"Jika berlaku" },
   ]},
-  { grup:"IV. DOKUMEN TAMBAHAN — BERHENTI ATAS PERMINTAAN SENDIRI (APS)", items:[
+  { grup:"IV. DOKUMEN TAMBAHAN — PEMBERHENTIAN", items:[
     { t:"SK Pemberhentian yang telah ditetapkan oleh pejabat berwenang" },
-    { t:"Surat Pernyataan Tidak Menuntut Hak atas Pensiun (jika APS sebelum BUP)", ket:"Jika berlaku" },
   ]},
-  { grup:"V. DOKUMEN TAMBAHAN — JANDA / DUDA", items:[
+  { grup:"V. DOKUMEN TAMBAHAN — AHLI WARIS (MENINGGAL DUNIA)", items:[
+    { t:"SK Pemberhentian yang telah ditetapkan oleh pejabat berwenang" },
     { t:"Akta Kematian Pegawai yang bersangkutan (asli atau dilegalisir)" },
     { t:"Fotokopi Akta Perkawinan / Buku Nikah (dilegalisir)" },
-    { t:"Fotokopi KTP Janda/Duda yang masih berlaku" },
+    { t:"Fotokopi KTP Ahli Waris" },
   ]},
 ];
 const DP_DOKUMEN_FLAT = DP_DOKUMEN_GRUP.flatMap(g => g.items);
@@ -165,14 +164,18 @@ const DP_DOKUMEN_FLAT = DP_DOKUMEN_GRUP.flatMap(g => g.items);
 // meski sebagian grup disembunyikan sesuai Jenis SKPP).
 const DP_GRUP_OFFSET = (() => { let o=0; return DP_DOKUMEN_GRUP.map(g => { const s=o; o+=g.items.length; return s; }); })();
 // Grup mana yang relevan untuk sebuah Jenis SKPP. Grup 0 (Umum) selalu tampil;
-// 1=Pensiun, 2=Pindah, 3=Berhenti/APS, 4=Janda/Duda.
+// 1=Pensiun, 2=Pindah, 3=Pemberhentian, 4=Ahli Waris. Disinkronkan dengan
+// src/refdata.js#dpGrupTampil di skpp-tracker.
 function dpGrupTampil(alasan) {
   const al = alasan||"";
-  const isJD = al.includes("Janda")||al.includes("Duda")||al.includes("Meninggal");
-  const isBH = al.includes("Berhenti")||al.includes("Pemberhentian");
+  const isMeninggal = al.includes("Meninggal");
+  const isTanpaAW = al.includes("Tanpa Ahli Waris");
+  const isDenganAW = al.includes("Dengan Ahli Waris")||al.includes("Janda")||al.includes("Duda");
+  const isBH = al.includes("Berhenti")||al.includes("Pemberhentian")||(isMeninggal&&isTanpaAW);
   const isPD = al.includes("Pindah");
-  const isPS = al.includes("Pensiun")&&!isJD;
-  return [true, isPS, isPD, isBH, isJD];
+  const isPS = al.includes("Pensiun")&&!isMeninggal&&!isDenganAW;
+  const isAW = isDenganAW;
+  return [true, isPS, isPD, isBH, isAW];
 }
 const DP_HUTANG = [
   "Kelebihan pembayaran gaji dan tunjangan",
@@ -192,18 +195,37 @@ const KODE_ALASAN = {
   "Pensiun":"PS","Pensiun Janda":"PJ","Pensiun Duda":"PD","Pindah":"Pdh",
   "Pemberhentian dengan Hormat":"PDH","Pemberhentian dengan Hormat PPPK":"PDHPPPK",
   "Pemberhentian Tidak dengan Hormat":"PTDH","Meninggal Dunia":"MD","Lainnya":"LN",
+  // Kategori ahli waris selain Janda/Duda (meninggal dunia, penerima bukan
+  // istri/suami) -- kode dibuat sendiri, dipakai jg utk penomoran.
+  "Anak":"AWA","Orang Tua":"AWO","Ahli Waris Lain":"AWL",
 };
 
 // Kode keperluan untuk penomoran (menerima objek {alasan, subjenis, kodeLain}):
-// - "Meninggal Dunia": pakai jenis pensiun turunannya (Pensiun Janda -> PJ,
-//   Pensiun Duda -> PD), bukan kode "MD".
+// - "Meninggal Dunia": pakai jenis/kategori ahli waris turunannya (Pensiun
+//   Janda -> PJ, Pensiun Duda -> PD, Anak -> AWA, dst), bukan kode "MD".
+//   Dicek dgn startsWith krn pengajuan online menyimpan alasan lebih rinci,
+//   mis. "Meninggal Dunia (Dengan Ahli Waris) — Ahli Waris: ... — Anak".
 // - "Lainnya": kode diketik manual saat input (kodeLain).
 function kodeAlasan(p) {
   const { alasan, subjenis, kodeLain } = p || {};
-  if (alasan === "Meninggal Dunia" && KODE_ALASAN[subjenis]) return KODE_ALASAN[subjenis];
+  if ((alasan || "").startsWith("Meninggal Dunia") && KODE_ALASAN[subjenis]) return KODE_ALASAN[subjenis];
   if (alasan === "Lainnya") return (kodeLain || "").trim().toUpperCase() || "LN";
   if (KODE_ALASAN[alasan]) return KODE_ALASAN[alasan];
   return (kodeLain || "").trim().toUpperCase() || "XX";
+}
+
+// Tebak kategori ahli waris (utk saran default dropdown saat "Terima" pengajuan
+// online) dari hubungan yang ditulis pemohon di alasan, mis. "... — Istri".
+// Istri surviving -> almarhum suami -> Pensiun Janda; Suami surviving -> Pensiun Duda.
+function tebakSubjenisMD(alasan) {
+  const al = alasan || "";
+  if (!al.startsWith("Meninggal Dunia")) return "";
+  if (/—\s*Istri\s*$/i.test(al)) return "Pensiun Janda";
+  if (/—\s*Suami\s*$/i.test(al)) return "Pensiun Duda";
+  if (/—\s*Anak\s*$/i.test(al)) return "Anak";
+  if (/—\s*Orang Tua\s*$/i.test(al)) return "Orang Tua";
+  if (/—\s*Ahli Waris Lain\s*$/i.test(al)) return "Ahli Waris Lain";
+  return "";
 }
 
 function generateTemplateNomor(nomorUrut, p) {
@@ -334,19 +356,19 @@ function cetakTandaTerimaBulk({ namaOPD, kode, grupId, items = [], daftarId = []
         <tbody>${rows}</tbody>
       </table>
       <div class="instructions">
-        <div class="inst-title">📱 Cara Melacak Status Pengajuan SKPP Secara Daring</div>
+        <div class="inst-title">Cara Melacak Status Pengajuan SKPP Secara Daring</div>
         <div class="inst-item"><div class="inst-num">1</div><span>Buka portal: <strong>sipasti.my.id</strong> dari HP atau komputer</span></div>
         <div class="inst-item"><div class="inst-num">2</div><span>Masukkan <strong>Nomor Pengajuan</strong> dan <strong>Kode Akses Bersama</strong> di atas</span></div>
         <div class="inst-item"><div class="inst-num">3</div><span>Satu kode akses ini dapat memantau status <strong>seluruh ${items.length} SKPP</strong> sekaligus</span></div>
       </div>
-      <div class="warn"><span>⚠️</span><span><strong>Serahkan kode akses ini kepada Bendahara OPD</strong> bersama tanda terima. Kode bersifat rahasia dan dipakai untuk memantau status seluruh pengajuan di atas.</span></div>
+      <div class="warn"><span><strong>Serahkan kode akses ini kepada Bendahara OPD</strong> bersama tanda terima. Kode bersifat rahasia dan dipakai untuk memantau status seluruh pengajuan di atas.</span></div>
       <div class="ttd">
         <div class="box"><b>Yang Menyerahkan,</b><div class="role">Bendahara / Perwakilan OPD</div><div class="sl"></div><div style="margin-top:6px">(________________________)</div></div>
       </div>
     </div>
     <div class="footer">
       <div>Bidang Perbendaharaan – Badan Keuangan Daerah Provinsi NTT</div>
-      <div>Tanda terima diterbitkan otomatis oleh SI-PASTI</div>
+      <div>Tanda terima diterbitkan otomatis oleh KATONG SKPP</div>
     </div>
   </div>
   <script>window.onload=function(){setTimeout(function(){window.print()},300)}</script>
@@ -356,7 +378,23 @@ function cetakTandaTerimaBulk({ namaOPD, kode, grupId, items = [], daftarId = []
   win.document.close();
 }
 
-const TAHAPAN_A = [
+// Urutan tahap B/A9-A10 berbeda antara pengajuan ONLINE dan LURING (input
+// manual staf loket, berkas fisik): utk online, Penempelan Foto & Penomoran
+// mendahului Verifikasi & TTD Pimpinan (foto sudah ditempel via portal sblm
+// dicetak); utk luring, urutan asli tetap dipakai (TTD dulu, baru foto &
+// nomor ditempel manual di kantor). Isi tiap tahap (id/label/pelaksana)
+// identik di kedua versi -- yang beda cuma URUTAN elemen "TTD" & "Foto".
+// Pakai tahapanUntuk(p) utk memilih versi yang sesuai, JANGAN akses array
+// ini langsung kecuali sekadar cari label by id (order tak relevan).
+const TAHAPAN_A_ONLINE = [
+  { id:"A1", label:"Berkas Diterima di Loket",      icon:"📥", pelaksana:"Staf Loket" },
+  { id:"A2", label:"Verifikasi Kelengkapan Berkas", icon:"🔍", pelaksana:"Staf Pengampu OPD" },
+  { id:"A4", label:"Pembuatan Draft SKPP",          icon:"📝", pelaksana:"Staf Perbendaharaan" },
+  { id:"A6", label:"Penempelan Foto & Penomoran",   icon:"📸", pelaksana:"Staf Loket" },
+  { id:"A5", label:"Verifikasi & Proses Tanda Tangan Pimpinan", icon:"✅", pelaksana:"Staf Pengampu OPD → Kasubid → Kuasa BUD" },
+  { id:"A7", label:"SKPP Siap Diserahkan",          icon:"🎉", pelaksana:"Staf Loket", final:true },
+];
+const TAHAPAN_A_OFFLINE = [
   { id:"A1", label:"Berkas Diterima di Loket",      icon:"📥", pelaksana:"Staf Loket" },
   { id:"A2", label:"Verifikasi Kelengkapan Berkas", icon:"🔍", pelaksana:"Staf Pengampu OPD" },
   { id:"A4", label:"Pembuatan Draft SKPP",          icon:"📝", pelaksana:"Staf Perbendaharaan" },
@@ -364,7 +402,19 @@ const TAHAPAN_A = [
   { id:"A6", label:"Penempelan Foto & Penomoran",   icon:"📸", pelaksana:"Staf Loket" },
   { id:"A7", label:"SKPP Siap Diserahkan",          icon:"🎉", pelaksana:"Staf Loket", final:true },
 ];
-const TAHAPAN_B = [
+const TAHAPAN_B_ONLINE = [
+  { id:"B1",  label:"Berkas Diterima di Loket",            icon:"📥", pelaksana:"Staf Loket" },
+  { id:"B2",  label:"Verifikasi Kelengkapan Berkas",       icon:"🔍", pelaksana:"Staf Pengampu OPD" },
+  { id:"B4",  label:"Perhitungan Kekurangan (SIMgaji)",    icon:"🖥️", pelaksana:"Staf Pengampu OPD" },
+  { id:"B5",  label:"Rincian Perhitungan Kekurangan Pembayaran Pangkat Pengabdian diserahkan ke Bendahara OPD", icon:"📤", pelaksana:"Staf Pengampu OPD" },
+  { id:"B6",  label:"SPP-SPM Diterima dari OPD",          icon:"📋", pelaksana:"Staf Perbendaharaan" },
+  { id:"B7",  label:"Proses SP2D Kekurangan Pembayaran Pangkat Pengabdian", icon:"💳", pelaksana:"Staf Perbendaharaan" },
+  { id:"B8",  label:"Pembuatan Draft SKPP",               icon:"📝", pelaksana:"Staf Perbendaharaan" },
+  { id:"B10", label:"Penempelan Foto & Penomoran",        icon:"📸", pelaksana:"Staf Loket" },
+  { id:"B9",  label:"Verifikasi & Proses Tanda Tangan Pimpinan", icon:"✅", pelaksana:"Staf Pengampu OPD → Kasubid → Kuasa BUD" },
+  { id:"B11", label:"SKPP Siap Diserahkan",               icon:"🎉", pelaksana:"Staf Loket", final:true },
+];
+const TAHAPAN_B_OFFLINE = [
   { id:"B1",  label:"Berkas Diterima di Loket",            icon:"📥", pelaksana:"Staf Loket" },
   { id:"B2",  label:"Verifikasi Kelengkapan Berkas",       icon:"🔍", pelaksana:"Staf Pengampu OPD" },
   { id:"B4",  label:"Perhitungan Kekurangan (SIMgaji)",    icon:"🖥️", pelaksana:"Staf Pengampu OPD" },
@@ -376,6 +426,14 @@ const TAHAPAN_B = [
   { id:"B10", label:"Penempelan Foto & Penomoran",        icon:"📸", pelaksana:"Staf Loket" },
   { id:"B11", label:"SKPP Siap Diserahkan",               icon:"🎉", pelaksana:"Staf Loket", final:true },
 ];
+// Array gabungan hanya utk LOOKUP by id (label/pelaksana sama di kedua versi,
+// jadi order tidak relevan di sini) -- JANGAN dipakai utk timeline/progress.
+const TAHAPAN_A = TAHAPAN_A_OFFLINE;
+const TAHAPAN_B = TAHAPAN_B_OFFLINE;
+// Pilih urutan tahap yang sesuai sumber pengajuan (online vs luring/manual).
+const tahapanUntuk = p => p.jalur==="A"
+  ? (p.sumber==="online" ? TAHAPAN_A_ONLINE : TAHAPAN_A_OFFLINE)
+  : (p.sumber==="online" ? TAHAPAN_B_ONLINE : TAHAPAN_B_OFFLINE);
 
 const cekIzinProses = (userRole, pelaksanaTahapan) => {
   if (userRole === "admin") return true;
@@ -392,13 +450,129 @@ const cekIzinProses = (userRole, pelaksanaTahapan) => {
 
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
+// Ekstensi file dari path storage (mis. ".pdf") -- dipakai agar nama berkas
+// unduhan lebih rapi (label dokumen + ekstensi asli) ketimbang nama acak.
+const extFromPath = (path) => {
+  const m = /\.[a-zA-Z0-9]+$/.exec(path || "");
+  return m ? m[0] : "";
+};
+
 const norm = p => ({
   ...p,
   tahapSelesai: Array.isArray(p.tahapSelesai) ? p.tahapSelesai : (p.tahapSelesai||"").split(",").filter(Boolean),
   riwayat: p.riwayat || [],
+  berkas: p.berkas || [],
 });
+
+// Mekanisme penyelesaian hutang yang diminta pada pengembalian TERAKHIR (jika
+// ada) -- null bila bukan pengembalian karena hutang. Sengaja hanya melihat
+// entri TERAKHIR (bukan cari mundur) krn dipakai utk menentukan apa yang perlu
+// ditinjau staf UNTUK PUTARAN PENGEMBALIAN YANG SEDANG AKTIF SAAT INI (mis.
+// BuktiHutangBox) -- kalau putaran terakhir krn sebab lain, bagian ini memang
+// seharusnya tidak tampil lagi. Sama persis dgn logika di portal publik
+// (src/lacak.js repo skpp-tracker), disalin krn beda repo.
+const mekanismeHutangAktif = (riwayat) => {
+  const logs = (riwayat || []).filter(r => r && r.isKembali && r.catatan);
+  const last = logs[logs.length - 1];
+  if (!last) return null;
+  let d;
+  try { d = JSON.parse(last.catatan); } catch { return null; }
+  if (!d || d._type !== "FORMULIR_KEMBALI" || !d.alasan?.hutang) return null;
+  return d.mekanisme || {};
+};
+
+// Sama seperti mekanismeHutangAktif, tapi cari MUNDUR ke pengembalian
+// beralasan hutang PALING BARU (bukan cuma entri terakhir apapun alasannya).
+// Dipakai KHUSUS oleh hutangSudahLunas, supaya status "sudah lunas" tetap
+// diingat walau putaran pengembalian berikutnya karena sebab lain (mis.
+// dokumen kurang) -- sekali beres, jangan diminta verifikasi ulang.
+const mekanismeHutangPernahAktif = (riwayat) => {
+  const logs = (riwayat || []).filter(r => r && r.isKembali && r.catatan);
+  for (let i = logs.length - 1; i >= 0; i--) {
+    let d;
+    try { d = JSON.parse(logs[i].catatan); } catch { continue; }
+    if (d && d._type === "FORMULIR_KEMBALI" && d.alasan?.hutang) return d.mekanisme || {};
+  }
+  return null;
+};
+
+// Dokumen persyaratan yang diminta dilengkapi ulang pada pengembalian TERAKHIR
+// (jika ada) -- null bila bukan pengembalian karena dokumen kurang. Sama
+// persis dgn logika di portal publik (src/lacak.js repo skpp-tracker).
+const dokumenKurangAktif = (riwayat) => {
+  const logs = (riwayat || []).filter(r => r && r.isKembali && r.catatan);
+  const last = logs[logs.length - 1];
+  if (!last) return null;
+  let d;
+  try { d = JSON.parse(last.catatan); } catch { return null; }
+  if (!d || d._type !== "FORMULIR_KEMBALI" || !d.alasan?.dokumen) return null;
+  const rincian = (d.rincian || []).filter(r => r && r.dokumen);
+  return rincian.length ? rincian : null;
+};
+
+// Label dokumen bukti per mekanisme pelunasan hutang yang aktif -- urutan &
+// teks harus sama dgn BuktiHutangBox / jenis berkas yang diunggah pemohon.
+const hutangItemsAktif = (mek) => {
+  if (!mek) return [];
+  return [
+    mek.setor && "Bukti Setoran RKUD",
+    mek.cicilan && "Berita Acara Kesepakatan Pelunasan",
+    mek.potong && "Surat Pernyataan Bermaterai (Potong Gaji)",
+  ].filter(Boolean);
+};
+
+// Cari log penolakan dokumen (dari RPC tolak_bukti_hutang, dipakai jg utk
+// menolak dokumen persyaratan) utk sebuah label di riwayat -- dipakai agar
+// status "Ditolak" tetap terlihat walau modal ditutup & dibuka lagi (bukan
+// disimpan di state lokal yang hilang saat sesi verifikasi berakhir).
+const dokTolakLog = (p, label) => {
+  const prefix = `Bukti "${label}" ditolak: `;
+  const suffix = ". Pemohon perlu mengunggah ulang.";
+  const logs = (p.riwayat||[]).filter(r => r.catatan && r.catatan.startsWith(prefix));
+  if (!logs.length) return null;
+  const last = logs[logs.length-1];
+  let alasan = last.catatan.slice(prefix.length);
+  if (alasan.endsWith(suffix)) alasan = alasan.slice(0, -suffix.length);
+  return { alasan };
+};
+
+// True bila pengembalian sebelumnya karena hutang DAN seluruh bukti pelunasan
+// yang diminta sudah diunggah pemohon (belum ditolak) -- artinya hutang sudah
+// terselesaikan, jadi Bagian B (Pengecekan Hutang) tidak perlu diperiksa ulang
+// pada putaran verifikasi berikutnya.
+const hutangSudahLunas = (p) => {
+  const items = hutangItemsAktif(mekanismeHutangPernahAktif(p.riwayat));
+  if (!items.length) return false;
+  return items.every(label => (p.berkas||[]).some(b => b.jenis === label));
+};
+
+// True bila pengajuan berstatus "kembali" karena hutang DAN pemohon sudah
+// mengunggah bukti baru (setelah permintaan terakhir) yang belum diverifikasi
+// staf -- dipakai utk badge notifikasi lonceng.
+const buktiHutangBaru = (p) => {
+  if (p.status !== "kembali") return false;
+  if (!mekanismeHutangAktif(p.riwayat)) return false;
+  const logs = (p.riwayat || []).filter(r => r.isKembali);
+  const last = logs[logs.length - 1];
+  if (!last?.created_at) return false;
+  const t = new Date(last.created_at).getTime();
+  return (p.berkas || []).some(b => new Date(b.created_at).getTime() > t);
+};
+
+// True bila pengajuan berstatus "kembali" karena dokumen kurang DAN pemohon
+// sudah mengunggah ulang berkas baru (setelah permintaan terakhir) yang
+// belum diverifikasi staf -- dipakai utk badge notifikasi lonceng.
+const dokumenBaruDiunggah = (p) => {
+  if (p.status !== "kembali") return false;
+  if (!dokumenKurangAktif(p.riwayat)) return false;
+  const logs = (p.riwayat || []).filter(r => r.isKembali);
+  const last = logs[logs.length - 1];
+  if (!last?.created_at) return false;
+  const t = new Date(last.created_at).getTime();
+  return (p.berkas || []).some(b => new Date(b.created_at).getTime() > t);
+};
 const getProgress = p => {
-  const t = p.jalur==="A" ? TAHAPAN_A : TAHAPAN_B;
+  const t = tahapanUntuk(p);
   const s = Array.isArray(p.tahapSelesai) ? p.tahapSelesai : (p.tahapSelesai||"").split(",").filter(Boolean);
   return Math.round((s.length / t.length) * 100);
 };
@@ -406,12 +580,12 @@ const fmtDate = d => { if(!d) return "-"; const dt=d instanceof Date?d:new Date(
 const fmtFull = d => { if(!d) return "-"; const dt=d instanceof Date?d:new Date(d); return isNaN(dt)?d:dt.toLocaleString("id-ID",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}); };
 
 function exportCSV(data) {
-  const headers = ["No. Pengajuan","Nama","NIP","OPD","Jabatan","Pangkat","Keperluan","Jalur","Status","Progress","Tgl Masuk","Tgl Selesai","No. SKPP"];
+  const headers = ["No. Pengajuan","Nama","NIP","OPD","Jabatan","Pangkat","Keperluan","Jalur","Status","Progress","Umur (hari)","Tgl Masuk","Tgl Selesai","No. SKPP"];
   const rows = data.map(p => [
     p.id, p.nama, p.nip, p.opd, p.jabatan, p.pangkat, p.alasan,
     p.jalur==="A"?"Tanpa Pangkat Pengabdian":"Ada Pangkat Pengabdian",
     (p.status==="selesai"||getProgress(p)===100)?"Selesai":p.status==="kembali"?"Dikembalikan":"Diproses",
-    getProgress(p)+"%", p.tanggalMasuk||"", p.tanggalSelesai||"", p.nomorSKPP||""
+    getProgress(p)+"%", (agingPengajuan(p)?.hari ?? ""), p.tanggalMasuk||"", p.tanggalSelesai||"", p.nomorSKPP||""
   ]);
   const csv = [headers,...rows].map(r=>r.map(c=>`"${(c||"").toString().replace(/"/g,'""')}"`).join(",")).join("\n");
   const blob = new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
@@ -1441,7 +1615,7 @@ const S = `
   /* ════════════════════════════════════════════
      FORM CONTROLS
   ════════════════════════════════════════════ */
-  .form-group { margin-bottom: 13px; }
+  .form-group { margin-bottom: 11px; }
   .form-label {
     display: block;
     font-size: 10.5px;
@@ -1455,7 +1629,7 @@ const S = `
     width: 100%;
     padding: 8px 12px;
     border: 1.5px solid var(--outline-variant);
-    border-radius: var(--r-md);
+    border-radius: 10px;
     font-family: var(--font);
     font-size: 13px;
     color: var(--on-surface);
@@ -1532,6 +1706,7 @@ const S = `
     margin: auto;
     animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
     border: 1px solid var(--outline-variant);
+    zoom: 0.75; /* selaraskan skala modal dengan dasbor (.d2-root zoom:0.75) */
   }
   .modal-header {
     padding: 16px 20px;
@@ -1675,10 +1850,10 @@ const S = `
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.07em;
-    min-width: 120px;
+    min-width: 100px;
     flex-shrink: 0;
   }
-  .info-val { font-size: 13.5px; color: var(--on-surface); font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+  .info-val { font-size: 13.5px; color: var(--on-surface); font-weight: 500; min-width: 0; overflow-wrap: break-word; word-break: normal; }
 
   /* ════════════════════════════════════════════
      STEP BUTTONS
@@ -1702,7 +1877,7 @@ const S = `
   .step-btn.wait   { opacity: 0.4; cursor: not-allowed; color: var(--on-surface-variant); }
 
   /* ════════════════════════════════════════════
-     LOGIN PAGE — SI-PASTI Design System (split-screen)
+     LOGIN PAGE — KATONG SKPP Design System (split-screen)
      Tokens scoped to .login-root / .d2-root so they don't affect the rest of the app.
   ════════════════════════════════════════════ */
   .login-root, .d2-root {
@@ -1806,7 +1981,7 @@ const S = `
   }
 
   /* ════════════════════════════════════════════
-     DASHBOARD — SI-PASTI Design System (d2)
+     DASHBOARD — KATONG SKPP Design System (d2)
   ════════════════════════════════════════════ */
   /* Tampilan default diperkecil ke 75% agar lebih ringkas.
      Latar bergradasi lembut (biru-lavender pucat) agar tidak silau serba putih,
@@ -1904,11 +2079,13 @@ const S = `
   .d2-admin-av { flex: none; }
   .d2-collapse-btn { margin-left: auto; flex: none; width: 32px; height: 32px; display: grid; place-content: center; border: none; background: transparent; border-radius: 8px; color: var(--grey-500); cursor: pointer; transition: background .15s, color .15s; }
   .d2-collapse-btn:hover { background: var(--grey-100); color: var(--navy-700); }
-  /* Saat ciut: tombol toggle diganti logo SI-PASTI (logo jadi tombol perluas) */
+  /* Saat ciut: tombol toggle diganti logo KATONG SKPP (logo jadi tombol perluas) */
   .d2-side.d2-rail .d2-collapse-btn { display: none; }
   /* Teks: fade halus (bukan hilang seketika) */
   .d2-brand-txt, .d2-admin-txt, .d2-navtxt { transition: opacity .2s ease; }
-  .d2-navtxt { min-width: 0; overflow: hidden; white-space: nowrap; }
+  .d2-navtxt { min-width: 0; overflow: hidden; white-space: nowrap; line-height: 1.5; }
+  .d2-navtxt-in { display: inline-block; white-space: nowrap; line-height: 1.5; padding-bottom: 1px; transition: transform .9s ease; will-change: transform; }
+  @media (prefers-reduced-motion: reduce) { .d2-navtxt-in { transition: none; } }
   .d2-navlabel { white-space: nowrap; overflow: hidden; max-height: 30px; transition: opacity .18s ease, max-height .26s cubic-bezier(.4,0,.2,1), padding .26s ease; }
 
   /* Saat diciutkan: grid & sidebar menyempit serempak (halus) */
@@ -2109,6 +2286,7 @@ const S = `
 
   @media (max-width: 920px) {
     .d2-root, .d2-root.side-collapsed { grid-template-columns: 1fr; zoom: 1; min-height: 100vh; }
+    .modal { zoom: 1; }  /* dasbor kembali 100% di layar kecil -> modal ikut 100% */
     /* Sidebar menjadi drawer geser dari kiri */
     .d2-side, .d2-root.side-collapsed .d2-side {
       display: flex; position: fixed; top: 0; left: 0; height: 100vh; width: 280px;
@@ -2361,7 +2539,7 @@ function TickerMotivasi() {
 
   return (
     <div className="ticker-wrap">
-      <span className="ticker-greeting">{sapaan} 👋</span>
+      <span className="ticker-greeting">{sapaan}</span>
       <span className="ticker-divider"/>
       <div className="ticker-text-clip">
         <span key={key} className="ticker-text animating">{text}</span>
@@ -2377,7 +2555,7 @@ function Toast({ msg, onDone }) {
 }
 
 // ─── LOGIN ───────────────────────────────────────────────────────────────────
-/* SI-PASTI design-system primitives (ported from Claude Design handoff bundle).
+/* KATONG SKPP design-system primitives (ported from Claude Design handoff bundle).
    Tokens (--navy-*, --font-*, etc.) are provided by the .login-root scope in S. */
 
 const SipUserIcon = () => (
@@ -2407,10 +2585,10 @@ function SipLogo({ tone="light" }) {
         onError={e=>{e.target.style.display="none";}}/>
       <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",lineHeight:1}}>
         <span style={{font:"var(--fw-extrabold) 36px/1 var(--font-display)",letterSpacing:"-0.01em",color:wordColor}}>
-          SI<span style={{color:"var(--gold-500)"}}>-</span>PASTI
+          KATONG <span style={{color:"var(--gold-500)"}}>SKPP</span>
         </span>
         <span style={{marginTop:6,fontSize:12.5,fontWeight:500,letterSpacing:"0.02em",color:tone==="light"?"rgba(255,255,255,0.8)":"var(--on-surface-variant)"}}>
-          Sistem Pemantauan Alur SKPP Terintegrasi
+          Kanal Administrasi Telusur Online dan Pengajuan SKPP
         </span>
       </div>
     </div>
@@ -2544,8 +2722,8 @@ function SipFeatureRow({ children }) {
 // Nomor 081338077908 → format internasional 6281338077908.
 const ADMIN_WA = "6281338077908";
 const ADMIN_WA_TEXT =
-  "Halo Administrator SI-PASTI,\n\n" +
-  "Saya membutuhkan bantuan terkait akun login dashboard SKPP (SI-PASTI). Mohon dibantu.\n\n" +
+  "Halo Administrator KATONG SKPP,\n\n" +
+  "Saya membutuhkan bantuan terkait akun login dashboard SKPP (KATONG SKPP). Mohon dibantu.\n\n" +
   "Nama Lengkap : \n" +
   "NIP / Username : \n" +
   "OPD / Instansi : \n" +
@@ -2603,14 +2781,13 @@ function ForgotPasswordModal({ onClose, prefillUser = "" }) {
         <div style={head}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <span style={{fontSize:20}}>🔑</span>
               <strong style={{fontSize:16,letterSpacing:"-0.3px"}}>Lupa Kata Sandi</strong>
             </div>
             <button onClick={onClose} aria-label="Tutup"
               style={{border:"none",background:"transparent",color:"rgba(255,255,255,0.75)",fontSize:20,cursor:"pointer",lineHeight:1}}>×</button>
           </div>
           <p style={{margin:"8px 0 0",fontSize:12.5,lineHeight:1.5,color:"rgba(255,255,255,0.78)"}}>
-            Ajukan permintaan reset kata sandi. Administrator SI-PASTI akan memverifikasi
+            Ajukan permintaan reset kata sandi. Administrator KATONG SKPP akan memverifikasi
             dan menetapkan kata sandi baru untuk Anda.
           </p>
         </div>
@@ -2631,7 +2808,7 @@ function ForgotPasswordModal({ onClose, prefillUser = "" }) {
             {err && (
               <div style={{display:"flex",gap:9,alignItems:"flex-start",padding:"10px 12px",marginBottom:14,
                 background:"#fdecec",border:"1px solid #f3b4b4",borderRadius:10,color:"#a11212",fontSize:12.5}}>
-                <span>⚠</span><span>{err}</span>
+                <span>{err}</span>
               </div>
             )}
             <div style={{marginBottom:16}}>
@@ -2735,7 +2912,7 @@ function Login({ onLogin }) {
             </ul>
           </div>
 
-          <div className="login-foot">© {new Date().getFullYear()} Badan Keuangan Daerah Provinsi NTT · SI-PASTI</div>
+          <div className="login-foot">© {new Date().getFullYear()} Badan Keuangan Daerah Provinsi NTT · KATONG SKPP</div>
         </div>
       </aside>
 
@@ -2808,6 +2985,7 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
     { id:"pengajuan", icon:<IcoList/>,      label:"Daftar Pengajuan", badge: counts.proses },
     { id:"input",     icon:<IcoPlus/>,      label:"Input Pengajuan Baru" },
     { id:"riwayat",   icon:<IcoClock/>,     label:"Riwayat & Arsip" },
+    { id:"survei",    icon:<span style={{fontSize:15}}>★</span>, label:"Survei Kepuasan (IKM)" },
   ];
   const adminItems = [
     { id:"users", icon:<IcoUsers/>, label:"Manajemen Staf" },
@@ -2824,11 +3002,11 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
 
       {/* ── Header ── */}
       <div className="sidebar-header">
-        {/* Logo SI-PASTI (fallback ke inisial bila gambar tak ada) */}
+        {/* Logo KATONG SKPP (fallback ke inisial bila gambar tak ada) */}
         <div className="sidebar-logo">
           <img
             src="/logo-sipasti.png"
-            alt="SI-PASTI"
+            alt="KATONG SKPP"
             onError={e=>{
               const p=e.target.parentElement;
               p.style.background="linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%)";
@@ -2840,8 +3018,8 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
 
         {/* Teks brand (fade out saat collapsed) */}
         <div className="sidebar-brand-text">
-          <div className="sidebar-brand-name">SI-PASTI</div>
-          <div className="sidebar-brand-sub">Sistem Pemantauan Alur SKPP Terintegrasi</div>
+          <div className="sidebar-brand-name">KATONG SKPP</div>
+          <div className="sidebar-brand-sub">Kanal Administrasi Telusur Online dan Pengajuan SKPP</div>
         </div>
 
         {/* Tombol toggle — selalu terlihat, menggantikan logo saat collapsed */}
@@ -2917,9 +3095,9 @@ function Sidebar({ user, active, onChange, counts, onLogout }) {
 function SBadge({ s, p }) {
   const status = s || (p && p.status) || "proses";
   const prog = p ? getProgress(p) : null;
-  if (prog === 100 || status === "selesai") return <span className="badge badge-green">✓ Selesai</span>;
-  if (status === "kembali") return <span className="badge badge-amber">↩ Dikembalikan</span>;
-  return <span className="badge badge-blue">⟳ Diproses</span>;
+  if (prog === 100 || status === "selesai") return <span className="badge badge-green">Selesai</span>;
+  if (status === "kembali") return <span className="badge badge-amber">Dikembalikan</span>;
+  return <span className="badge badge-blue">Diproses</span>;
 }
 
 // Tampilan rapi untuk catatan Formulir Pengembalian (menggantikan dump JSON mentah).
@@ -2935,7 +3113,7 @@ function CatatanKembali({ data }) {
   return (
     <div style={wrap}>
       <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>
-        <span style={{fontWeight:800,fontSize:12.5,color:"#92400e"}}>↩ Formulir Pengembalian Berkas</span>
+        <span style={{fontWeight:800,fontSize:12.5,color:"#92400e"}}>Formulir Pengembalian Berkas</span>
         {data.nomorFormulir && <span style={{fontSize:10.5,fontFamily:"var(--mono)",color:"#b45309"}}>{data.nomorFormulir}</span>}
       </div>
       {data.tanggalKembali && <div style={{fontSize:11,color:"#b45309",marginTop:1}}>Tanggal pengembalian: {data.tanggalKembali}</div>}
@@ -2988,7 +3166,7 @@ function CatatanKembali({ data }) {
 
 // ─── TIMELINE ────────────────────────────────────────────────────────────────
 function Timeline({ p }) {
-  const tahapan = p.jalur==="A" ? TAHAPAN_A : TAHAPAN_B;
+  const tahapan = tahapanUntuk(p);
   const selesai = p.tahapSelesai || [];
   const riwayat = p.riwayat || [];
   return (
@@ -3009,18 +3187,18 @@ function Timeline({ p }) {
         return (
           <div key={step.id} className="timeline-item">
             <div className="timeline-left">
-              <div className={`t-dot ${dot}`}>{done?"✓":retNow?"↩":step.icon}</div>
+              <div className={`t-dot ${dot}`}>{idx+1}</div>
               {!isLast && <div className={`t-line ${done?"done":""}`} />}
             </div>
             <div className="timeline-content" style={{paddingBottom:isLast?0:20}}>
               <div style={{fontWeight:700,fontSize:13,color:!done&&!aktif?"var(--outline)":"var(--on-surface)",marginBottom:2}}>{step.label}</div>
               <div style={{fontSize:11.5,color:"var(--on-surface-variant)",marginBottom:4}}>{step.pelaksana}</div>
               {aktif&&!done && <span className="badge badge-blue" style={{marginBottom:4,fontSize:11}}>Sedang diproses</span>}
-              {done&&pernahRet && <span className="badge badge-green" style={{marginBottom:4,fontSize:11}}>✓ Telah dilengkapi &amp; selesai</span>}
+              {done&&pernahRet && <span className="badge badge-green" style={{marginBottom:4,fontSize:11}}>Telah dilengkapi &amp; selesai</span>}
               {log && <div style={{fontSize:11,color:"var(--outline)",fontFamily:"var(--mono)"}}>{log.waktu}</div>}
               {log && (log.olehNama || log.oleh) && (
                 <div style={{display:"inline-flex",alignItems:"center",gap:4,marginTop:4,padding:"2px 8px",borderRadius:999,background:"var(--surface-container-low)",border:"1px solid var(--outline-variant)",fontSize:11,color:"var(--on-surface-variant)"}}>
-                  <span>👤</span><span style={{fontWeight:600}}>{log.olehNama||log.oleh}</span>{log.olehNama&&log.oleh&&<span style={{fontFamily:"var(--mono)",opacity:0.7}}>· {log.oleh}</span>}
+                  <span style={{fontWeight:600}}>{log.olehNama||log.oleh}</span>{log.olehNama&&log.oleh&&<span style={{fontFamily:"var(--mono)",opacity:0.7}}>· {log.oleh}</span>}
                 </div>
               )}
               {log?.catatan && (() => {
@@ -3035,13 +3213,13 @@ function Timeline({ p }) {
                     borderRadius:8, padding:"7px 11px", fontSize:12,
                     color: isRet?"#92400e":"var(--on-surface-variant)", marginTop:6
                   }}>
-                    {isRet?"⚠️ ":""}{log.catatan}
+                    {log.catatan}
                   </div>
                 );
               })()}
               {catatanInternal && (
                 <div style={{marginTop:6,background:"var(--surface-container-low)",border:"1px dashed var(--outline-variant)",borderRadius:8,padding:"7px 11px",fontSize:12,color:"var(--on-surface-variant)"}}>
-                  <span style={{display:"inline-block",fontSize:10,fontWeight:700,letterSpacing:0.5,textTransform:"uppercase",color:"var(--primary)",marginBottom:3}}>🔒 Catatan internal</span>
+                  <span style={{display:"inline-block",fontSize:10,fontWeight:700,letterSpacing:0.5,textTransform:"uppercase",color:"var(--primary)",marginBottom:3}}>Catatan internal</span>
                   <div>{catatanInternal}</div>
                 </div>
               )}
@@ -3054,7 +3232,7 @@ function Timeline({ p }) {
 }
 
 // ─── CETAK FORMULIR PENGEMBALIAN ──────────────────────────────────────────────
-function cetakFormulirKembali({ p, fkData, stafLoketNama, stafLoketNIP, nomorFormulir, tanggalKembali }) {
+function cetakFormulirKembali({ p, fkData, nomorFormulir, tanggalKembali }) {
   const al = p.alasan||"";
   const isJD = al.includes("Janda")||al.includes("Duda")||al.includes("Meninggal");
   const isBH = al.includes("Berhenti")||al.includes("Pemberhentian");
@@ -3113,7 +3291,7 @@ function cetakFormulirKembali({ p, fkData, stafLoketNama, stafLoketNIP, nomorFor
     .sh td{font-weight:bold;font-size:10.5pt;text-align:center;background:#e5e7eb;color:#000;border:1px solid #999}
     .lr td:first-child{font-weight:bold;background:#f0f0f0;width:35%}
     .nb{border:none!important;background:transparent!important}
-    .fg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:16px;text-align:center}
+    .fg{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;text-align:center}
     .sp{margin-top:55px}
     @media print{body{margin:0;padding:16px 20px}}
   </style></head><body>
@@ -3154,7 +3332,6 @@ function cetakFormulirKembali({ p, fkData, stafLoketNama, stafLoketNIP, nomorFor
   </table>
   <p style="text-align:right;margin:4px 0">Kupang, ${tanggalKembali}</p>
   <div class="fg">
-    <div><b>Staf Loket,</b><div class="sp"></div><p>Nama : ${stafLoketNama||"___________________"}<br/>NIP &nbsp;&nbsp;: ${stafLoketNIP||"___________________"}</p></div>
     <div><b>Pengampu OPD,</b><div class="sp"></div><p>Nama : ${fkData.pengampuNama||"___________________"}<br/>NIP &nbsp;&nbsp;: ${fkData.pengampuNIP||"___________________"}</p></div>
     <div><b>Pemohon / Bendahara OPD,</b><div class="sp"></div><p>Nama : ${fkData.pemohonNama||"___________________"}<br/>NIP &nbsp;&nbsp;: ${fkData.pemohonNIP||"___________________"}</p></div>
   </div>
@@ -3181,22 +3358,32 @@ function cetakDaftarPeriksa({ p, dpData }) {
   const tgl = dpData.tanggal ? fmtTglSingkat(dpData.tanggal) : "";
 
   // Bagian A — checklist dokumen, hanya grup yang relevan dengan Jenis SKPP.
+  // Untuk pengajuan online, status Ada/Tidak Ada/Perbaiki dihitung dari data
+  // nyata (berkas ter-upload + log penolakan riwayat), sama seperti di modal
+  // Daftar Periksa, supaya cetakan akurat walau modal sempat ditutup-buka.
   const tampil = dpGrupTampil(al);
+  const isOnlineCetak = p.sumber === "online";
   let no = 0;
   const barisDok = DP_DOKUMEN_GRUP.map((g,gi) => {
     if (!tampil[gi]) return "";
-    const head = `<tr class="gh"><td colspan="5">${g.grup}</td></tr>`;
+    const head = `<tr class="gh"><td colspan="6">${g.grup}</td></tr>`;
     const rows = g.items.map((it,j) => {
       const gIndex = DP_GRUP_OFFSET[gi] + j;   // indeks state
       const num = ++no;                        // nomor cetak berurutan
       const st = dpData.dok[gIndex] || {};
-      const ketCetak = st.ket || it.ket || "";
+      const punyaBerkas = isOnlineCetak && (p.berkas||[]).some(x=>x.jenis===it.t);
+      const tolakLog = isOnlineCetak && !punyaBerkas ? dokTolakLog(p, it.t) : null;
+      const ada = isOnlineCetak ? punyaBerkas : st.status==="ada";
+      const perbaiki = isOnlineCetak ? !!tolakLog : false;
+      const tidakAda = isOnlineCetak ? (!punyaBerkas && !tolakLog) : st.status==="tidak";
+      const ketCetak = (perbaiki ? (tolakLog?.alasan||st.ket) : st.ket) || it.ket || "";
       return `<tr>
         <td style="text-align:center;${td}">${num}</td>
         <td style="${td}">${it.t}</td>
-        <td style="${tc};${td}">${cb(st.status==="ada")}</td>
-        <td style="${tc};${td}">${cb(st.status==="tidak")}</td>
-        <td style="${td};font-style:${st.ket?'normal':'italic'}">${ketCetak}</td>
+        <td style="${tc};${td}">${cb(ada)}</td>
+        <td style="${tc};${td}">${cb(tidakAda)}</td>
+        <td style="${tc};${td}">${cb(perbaiki)}</td>
+        <td style="${td};font-style:${ketCetak?'normal':'italic'}">${ketCetak}</td>
       </tr>`;
     }).join("");
     return head + rows;
@@ -3259,8 +3446,8 @@ function cetakDaftarPeriksa({ p, dpData }) {
     <tr class="lr"><td>Tanggal Pengajuan</td><td>:</td><td>${p.tanggalMasuk||"—"}</td></tr>
   </table>
   <table>
-    <tr class="sh"><td colspan="5">A. KELENGKAPAN DOKUMEN PERSYARATAN</td></tr>
-    <tr><th style="width:34px">No.</th><th>Dokumen Persyaratan</th><th style="width:62px">Ada</th><th style="width:62px">Tidak Ada</th><th style="width:150px">Keterangan</th></tr>
+    <tr class="sh"><td colspan="6">A. KELENGKAPAN DOKUMEN PERSYARATAN</td></tr>
+    <tr><th style="width:34px">No.</th><th>Dokumen Persyaratan</th><th style="width:56px">Ada</th><th style="width:56px">Tidak Ada</th><th style="width:56px">Perbaiki</th><th style="width:150px">Keterangan</th></tr>
     ${barisDok}
   </table>
   <table>
@@ -3291,12 +3478,334 @@ function cetakDaftarPeriksa({ p, dpData }) {
   win.document.close();
 }
 
+// Tahap "Pembuatan Draft SKPP" (A4/B8): staf mengunggah draft SKPP (PDF).
+// Sistem membaca teks PDF di sisi klien lalu mengecek otomatis apakah nama
+// (tanpa gelar, toleransi ≥90% krn typo/OCR) & NIP pada berkas sesuai data
+// pengajuan -- pengaman sebelum draft ini lanjut ke tahap berikutnya.
+function DraftSkppBlock({ p, stepAktif, disabledKirim, onSelesai }) {
+  const [file, setFile] = useState(null);
+  const [checking, setChecking] = useState(false);
+  const [hasil, setHasil] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [override, setOverride] = useState(false);
+  const ref = useRef(null);
+  const existing = (p.berkas||[]).find(b => b.jenis === "Draft SKPP");
+
+  const pilihFile = async (f) => {
+    if (f.type !== "application/pdf" && !/\.pdf$/i.test(f.name)) {
+      alert("Berkas harus berformat PDF.");
+      return;
+    }
+    setFile(f);
+    setHasil(null);
+    setOverride(false);
+    setChecking(true);
+    try {
+      const { extractPdfText, cocokkanNama, cocokkanNip } = await import("./pdfCheck");
+      const teks = await extractPdfText(f);
+      const adaTeks = teks.trim().length > 0;
+      setHasil({
+        adaTeks,
+        nama: adaTeks ? cocokkanNama(p.nama, teks) : { match:false, skor:0 },
+        nip: adaTeks ? cocokkanNip(p.nip, teks) : false,
+      });
+    } catch {
+      setHasil({ error: true });
+    }
+    setChecking(false);
+  };
+
+  // Tombol simpan aktif kalau berkas sudah diunggah DAN nama & NIP-nya cocok
+  // dengan data pengajuan -- pengaman otomatis. Kalau tidak cocok (mis. berkas
+  // hasil pindai tanpa teks, atau gelar/ejaan beda), staf yang sudah memeriksa
+  // manual tetap bisa melanjutkan lewat kotak centang "lewati pemeriksaan" di
+  // bawah -- bukan blokir mutlak, karena pemeriksaan otomatis bisa salah.
+  const cocok = !!(hasil && !hasil.error && hasil.adaTeks && hasil.nama.match && hasil.nip);
+  const bolehSimpan = cocok || !!(hasil && !hasil.error && override);
+
+  const lanjut = async () => {
+    if (!file || !bolehSimpan) return;
+    setUploading(true);
+    const res = await uploadDraftSkpp({ pengajuanId: p.id, file });
+    setUploading(false);
+    if (!res.ok) { alert(res.pesan); return; }
+    onSelesai({ manual: !cocok && override });
+  };
+
+  return (
+    <div className="nbox-teal" style={{borderRadius:12,padding:"16px 18px"}}>
+      <div className="nbox-title" style={{fontWeight:800,fontSize:13.5,marginBottom:12}}>Unggah Draft SKPP</div>
+      {existing && (
+        <div style={{fontSize:11.5,color:"var(--on-surface-variant)",marginBottom:10,fontStyle:"italic"}}>
+          Draft SKPP sebelumnya sudah pernah diunggah untuk pengajuan ini — unggah ulang bila ada revisi.
+        </div>
+      )}
+      <input ref={ref} type="file" accept="application/pdf,.pdf" style={{display:"none"}}
+        onChange={e=>{ const f=e.target.files?.[0]; if (f) pilihFile(f); e.target.value=""; }}/>
+      <button type="button" className="btn btn-secondary btn-sm" disabled={checking||uploading}
+        onClick={()=>ref.current?.click()}>
+        {file ? "Ganti Berkas" : "Pilih Berkas Draft SKPP"}
+      </button>
+      {file && <div style={{fontSize:12,marginTop:8,color:"var(--on-surface-variant)"}}>{file.name}</div>}
+      {checking && <div style={{fontSize:12,marginTop:8,color:"var(--on-surface-variant)"}}>Memeriksa isi berkas…</div>}
+      {hasil && !checking && (
+        <div style={{marginTop:10,padding:"10px 12px",borderRadius:8,background:"var(--surface-container-low)",display:"flex",flexDirection:"column",gap:6}}>
+          {hasil.error ? (
+            <div style={{fontSize:12,color:"#b91c1c"}}>Gagal membaca berkas PDF. Pastikan berkas tidak rusak.</div>
+          ) : !hasil.adaTeks ? (
+            <div style={{fontSize:12,color:"#b45309"}}>Tidak ada teks yang dapat dibaca dari PDF ini (kemungkinan hasil pindai/scan). Periksa manual sebelum melanjutkan.</div>
+          ) : (
+            <>
+              <div style={{fontSize:12,color:hasil.nama.match?"#0E7C7B":"#b91c1c"}}>
+                {hasil.nama.match?"✓":"✕"} Nama "{p.nama}" {hasil.nama.match?"cocok":"tidak cocok"} ({Math.round(hasil.nama.skor*100)}%)
+              </div>
+              <div style={{fontSize:12,color:hasil.nip?"#0E7C7B":"#b91c1c"}}>
+                {hasil.nip?"✓":"✕"} NIP "{p.nip}" {hasil.nip?"ditemukan":"tidak ditemukan"} pada berkas
+              </div>
+            </>
+          )}
+        </div>
+      )}
+      {hasil && !checking && !hasil.error && !cocok && (
+        <label style={{display:"flex",alignItems:"flex-start",gap:8,marginTop:10,padding:"10px 12px",background:"#fff7ed",border:"1px solid #fdba74",borderRadius:8,fontSize:11.5,color:"#9a3412",cursor:"pointer"}}>
+          <input type="checkbox" checked={override} onChange={e=>setOverride(e.target.checked)} style={{marginTop:2,flexShrink:0}}/>
+          <span>Saya (staf) sudah memeriksa manual dan yakin berkas ini benar untuk pemohon <strong>{p.nama}</strong> — lewati pemeriksaan otomatis dan tetap simpan.</span>
+        </label>
+      )}
+      <button className="btn btn-primary" style={{width:"100%",justifyContent:"center",fontWeight:700,marginTop:14,
+        opacity:(disabledKirim||!bolehSimpan)?0.5:1}}
+        disabled={disabledKirim||!file||checking||uploading||!bolehSimpan} onClick={lanjut}>
+        {disabledKirim ? `Khusus: ${stepAktif.pelaksana}`
+          : uploading ? "Menyimpan…"
+          : !file ? "Pilih berkas draft SKPP dahulu"
+          : checking ? "Memeriksa berkas…"
+          : !bolehSimpan ? "Nama/NIP belum cocok — tidak bisa disimpan"
+          : override && !cocok ? "Simpan (pemeriksaan dilewati) & Lanjutkan"
+          : "Simpan Draft SKPP & Lanjutkan"}
+      </button>
+    </div>
+  );
+}
+
+// Tahap "Penempelan Foto & Penomoran" (A6/B10): tempelkan otomatis pas foto
+// pemohon ke Draft SKPP yang diunggah staf pada tahap sebelumnya, di sisi kiri
+// kolom tanda tangan Kuasa BUD (4x6cm). Posisi dicari dari teks "KUASA
+// BENDAHARA UMUM DAERAH" pada PDF -- perkiraan terbaik, karenanya hasil WAJIB
+// dipratinjau dulu sebelum disimpan sbg berkas final.
+function TempelFotoBlock({ p }) {
+  const [processing, setProcessing] = useState(false);
+  const [pesan, setPesan] = useState("");
+  const [hasil, setHasil] = useState(null); // { url, blob }
+  const [menyimpan, setMenyimpan] = useState(false);
+  const [opening, setOpening] = useState(false);
+  const [tersimpan, setTersimpan] = useState(false);
+
+  const fotoPemohon = (p.berkas||[]).find(b => b.jenis === "Pas foto terbaru berlatar merah/biru");
+  const draftSkpp = (p.berkas||[]).find(b => b.jenis === "Draft SKPP");
+  const sudahAda = (p.berkas||[]).find(b => b.jenis === "SKPP (Foto Ditempel)");
+  // Sudah final -- baik dari sesi ini (baru disimpan) maupun sesi sebelumnya
+  // (sudah ada di berkas). Begitu final, seluruh bagian di-dim KECUALI tombol
+  // Lihat Hasil (tidak perlu ditempel ulang, cukup dilihat kembali).
+  const selesai = tersimpan || !!sudahAda;
+
+  const tempel = async () => {
+    setProcessing(true);
+    setPesan("");
+    setHasil(null);
+    try {
+      const [fotoUrl, draftUrl] = await Promise.all([
+        berkasPengajuanUrl(fotoPemohon.path),
+        berkasPengajuanUrl(draftSkpp.path),
+      ]);
+      const [fotoRes, draftRes] = await Promise.all([fetch(fotoUrl), fetch(draftUrl)]);
+      const fotoBlob = await fotoRes.blob();
+      const draftBlob = await draftRes.blob();
+      const { tempelFotoKeDraft } = await import("./pdfStamp");
+      const res = await tempelFotoKeDraft({
+        pdfFile: new File([draftBlob], "draft.pdf", { type: "application/pdf" }),
+        fotoFile: new File([fotoBlob], "foto", { type: fotoBlob.type }),
+        fotoContentType: fotoBlob.type,
+      });
+      if (!res.ok) { setPesan(res.pesan); setProcessing(false); return; }
+      const blobHasil = new Blob([res.bytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blobHasil);
+      setHasil({ url, blob: blobHasil });
+      window.open(url, "_blank", "noopener");
+    } catch (e) {
+      setPesan("Gagal memproses berkas: " + (e?.message || "kesalahan tidak diketahui"));
+    }
+    setProcessing(false);
+  };
+
+  const simpan = async () => {
+    if (!hasil) return;
+    setMenyimpan(true);
+    const file = new File([hasil.blob], `SKPP-Foto-${p.id}.pdf`, { type: "application/pdf" });
+    const res = await uploadSkppFotoDitempel({ pengajuanId: p.id, file });
+    setMenyimpan(false);
+    if (!res.ok) { alert(res.pesan); return; }
+    setPesan("");
+    setTersimpan(true);
+    alert("Berkas SKPP dengan foto berhasil disimpan.");
+  };
+
+  const lihatHasil = async () => {
+    if (hasil) { window.open(hasil.url, "_blank", "noopener"); return; }
+    if (!sudahAda) return;
+    setOpening(true);
+    const url = await berkasPengajuanUrl(sudahAda.path);
+    setOpening(false);
+    if (url) window.open(url, "_blank", "noopener");
+    else alert("Gagal membuka berkas.");
+  };
+
+  if (!fotoPemohon || !draftSkpp) {
+    return (
+      <div className="nbox-warn" style={{borderRadius:12,padding:"14px 16px",marginBottom:14,fontSize:12.5,lineHeight:1.6}}>
+        {!draftSkpp && <div>Draft SKPP belum diunggah pada tahap Pembuatan Draft SKPP.</div>}
+        {!fotoPemohon && <div>Pas foto pemohon belum ditemukan pada berkas pengajuan ini.</div>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="nbox-teal" style={{borderRadius:12,padding:"16px 18px",marginBottom:14}}>
+      <div className="nbox-title" style={{fontWeight:800,fontSize:13.5,marginBottom:6}}>Tempel Foto ke Draft SKPP</div>
+      <div style={{fontSize:12.5,lineHeight:1.6,marginBottom:12,opacity:selesai?0.5:1}}>
+        Periksa hasilnya sebelum disimpan sebagai berkas final.
+      </div>
+      {selesai && (
+        <div style={{fontSize:11.5,color:"#0E7C7B",marginBottom:10,fontWeight:700}}>
+          Sudah disimpan sebagai berkas final.
+        </div>
+      )}
+      <div style={{opacity:selesai?0.5:1,pointerEvents:selesai?"none":"auto"}}>
+        <button type="button" className="btn btn-secondary btn-sm" disabled={processing} onClick={tempel}>
+          {processing ? "Memproses…" : "Tempel Foto"}
+        </button>
+        {pesan && <div style={{fontSize:12,color:"#b91c1c",marginTop:8}}>{pesan}</div>}
+        {hasil && !selesai && (
+          <div style={{marginTop:10}}>
+            <button type="button" className="btn btn-primary btn-sm" disabled={menyimpan} onClick={simpan}>
+              {menyimpan ? "Menyimpan…" : "Simpan sebagai Berkas Final"}
+            </button>
+          </div>
+        )}
+      </div>
+      {(hasil || sudahAda) && (
+        <div style={{marginTop:10}}>
+          <button type="button" className="btn btn-secondary btn-sm" disabled={opening} onClick={lihatHasil}>
+            {opening ? "⟳" : "Lihat Hasil"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Tahap akhir "SKPP Siap Diserahkan" (A7/B11): cetak berkas SKPP final --
+// utamakan "SKPP (Foto Ditempel)" (hasil tempel foto), fallback ke "Draft
+// SKPP" polos bila belum sempat ditempel fotonya.
+function CetakSkppFinalButton({ p }) {
+  const [printing, setPrinting] = useState(false);
+  const berkas = (p.berkas||[]).find(b => b.jenis === "SKPP (Foto Ditempel)")
+    || (p.berkas||[]).find(b => b.jenis === "Draft SKPP");
+
+  const cetak = async () => {
+    if (!berkas) { alert("Berkas SKPP belum ditemukan untuk pengajuan ini."); return; }
+    setPrinting(true);
+    const url = await berkasPengajuanUrl(berkas.path);
+    setPrinting(false);
+    if (!url) { alert("Gagal membuka berkas."); return; }
+    const win = window.open(url, "_blank", "noopener");
+    // Coba picu dialog cetak otomatis setelah PDF termuat (didukung viewer PDF
+    // bawaan browser berbasis Chromium); kalau tidak didukung, staf tetap bisa
+    // klik ikon cetak di viewer PDF-nya sendiri.
+    setTimeout(() => { try { win?.print(); } catch { /* abaikan bila tak didukung */ } }, 1200);
+  };
+
+  return (
+    <button type="button" className="btn btn-secondary" style={{width:"100%",justifyContent:"center",fontWeight:700,marginBottom:14,gap:6}}
+      disabled={printing || !berkas} onClick={cetak}>
+      {printing ? "Membuka berkas…" : !berkas ? "Berkas SKPP belum tersedia" : "Print Draft SKPP Final"}
+    </button>
+  );
+}
+
+// Tahap "Rincian Perhitungan Kekurangan...diserahkan ke Bendahara OPD" (B5),
+// khusus pengajuan ONLINE yang diajukan BENDAHARA OPD: staf unggah berkas
+// rinciannya di sini, lalu Bendahara OPD bisa mengunduhnya sendiri lewat tab
+// "Dokumen" di portal publik -- berkas ini TIDAK disembunyikan dari pemohon
+// (beda dari Draft SKPP yang memang berkas kerja internal).
+const JENIS_RINCIAN_KEKURANGAN = "Rincian Perhitungan Kekurangan Pembayaran Pangkat Pengabdian";
+function RincianKekuranganBlock({ p }) {
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [pesan, setPesan] = useState("");
+  const [openingId, setOpeningId] = useState("");
+  const ref = useRef(null);
+  const existing = (p.berkas||[]).filter(b => b.jenis === JENIS_RINCIAN_KEKURANGAN);
+
+  const pilihFile = (f) => {
+    if (f.type !== "application/pdf" && !/\.pdf$/i.test(f.name)) { alert("Berkas harus berformat PDF."); return; }
+    setFile(f);
+    setPesan("");
+  };
+
+  const unggah = async () => {
+    if (!file) return;
+    setUploading(true);
+    const res = await uploadRincianKekurangan({ pengajuanId: p.id, file });
+    setUploading(false);
+    if (!res.ok) { alert(res.pesan); return; }
+    setFile(null);
+    setPesan("Berkas berhasil diunggah — Bendahara OPD dapat mengunduhnya lewat portal.");
+  };
+
+  const lihat = async (b) => {
+    setOpeningId(b.id);
+    const url = await berkasPengajuanUrl(b.path);
+    setOpeningId("");
+    if (url) window.open(url, "_blank", "noopener");
+    else alert("Gagal membuka berkas.");
+  };
+
+  return (
+    <div className="nbox-blue" style={{borderRadius:12,padding:"14px 16px",marginBottom:14}}>
+      <div className="nbox-title" style={{fontWeight:700,fontSize:13,marginBottom:10}}>Rincian Perhitungan Kekurangan untuk Bendahara OPD</div>
+      {existing.length>0 && (
+        <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:10}}>
+          {existing.map(b => (
+            <div key={b.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",background:"var(--surface-container-low)",borderRadius:8,fontSize:12}}>
+              <span>{new Date(b.created_at).toLocaleString("id-ID")}</span>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={openingId===b.id} onClick={()=>lihat(b)}>
+                {openingId===b.id?"⟳":"Lihat"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <input ref={ref} type="file" accept="application/pdf,.pdf" style={{display:"none"}}
+        onChange={e=>{ const f=e.target.files?.[0]; if (f) pilihFile(f); e.target.value=""; }}/>
+      <button type="button" className="btn btn-secondary btn-sm" disabled={uploading} onClick={()=>ref.current?.click()}>
+        {file ? "Ganti Berkas" : "Pilih Berkas"}
+      </button>
+      {file && <div style={{fontSize:12,marginTop:8,color:"var(--on-surface-variant)"}}>{file.name}</div>}
+      {pesan && <div style={{fontSize:12,marginTop:8,color:"#0E7C7B"}}>{pesan}</div>}
+      <button className="btn btn-primary btn-sm" style={{marginTop:10}} disabled={!file||uploading} onClick={unggah}>
+        {uploading ? "Mengunggah…" : "Unggah untuk Bendahara OPD"}
+      </button>
+    </div>
+  );
+}
+
 // ─── DETAIL MODAL ─────────────────────────────────────────────────────────────
-function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete, user }) {
+function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete, onTolakBukti, user }) {
   const [tab, setTab] = useState("info");
   const [catatan, setCatatan] = useState("");
   const [isKembali, setIsKembali] = useState(false);
   const [nomorUrut, setNomorUrut] = useState("");
+  const [nomorSP2D, setNomorSP2D] = useState("");
   const [showFormKembali, setShowFormKembali] = useState(false);
   // Batas waktu default = H+1 dari tanggal formulir dibuat (format yyyy-mm-dd untuk input kalender).
   const besok = (() => { const d=new Date(Date.now()+86400000); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
@@ -3305,7 +3814,7 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
     rincian:Array(5).fill(null).map(()=>({dokumen:"",dokLain:false,tindakan:"",tinLain:false,batas:besok})),
     rincianHutang:Array(4).fill(null).map(()=>({jenis:"",batas:besok})),
     mPotong:false, mSetor:false, mCicilan:false, jumlahHutang:"", penghitungHutang:"",
-    stafLoket:"", pengampuNama:"", pengampuNIP:"", pemohonNama:"", pemohonNIP:"",
+    pengampuNama:"", pengampuNIP:"", pemohonNama:"", pemohonNIP:"",
   });
   const [stafLoketList, setStafLoketList] = useState([]);
   const [pengampuList, setPengampuList] = useState([]);
@@ -3314,10 +3823,11 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
   // Serah Terima ke pemohon (tahap akhir A7/B11).
   const [showSerahTerima, setShowSerahTerima] = useState(false);
   const hariIni = (() => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
+  const hutangLunasAwal = hutangSudahLunas(p);
   const [dpData, setDpData] = useState({
     dok: DP_DOKUMEN_FLAT.map(()=>({status:"",ket:""})),
-    hutang: DP_HUTANG.map(()=>({status:"",ket:""})),
-    kesimpulanHutang:"", kesimpulan:"", catatan:"",
+    hutang: DP_HUTANG.map(()=>({status: hutangLunasAwal ? "tidak" : "", ket: hutangLunasAwal ? "Sudah dilunasi & diverifikasi pada proses sebelumnya" : ""})),
+    kesimpulanHutang: hutangLunasAwal ? "bebas" : "", kesimpulan:"", catatan:"",
     tempat:"Kupang", tanggal:hariIni,
     stafLoketNama:"", stafLoketNIP:"", stafLoketUser:"",
     // Pengampu OPD otomatis dari akun yang sedang login (NIP = username).
@@ -3326,7 +3836,10 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
   });
   const isPenomoran = (stepId) => stepId === "A6" || stepId === "B10";
   const isVerifikasi = (stepId) => stepId === "A2" || stepId === "B2";
-  const tahapan = p.jalur==="A" ? TAHAPAN_A : TAHAPAN_B;
+  const isDraftSkpp = (stepId) => stepId === "A4" || stepId === "B8";
+  const isSP2D = (stepId) => stepId === "B7";
+  const isRincianKekurangan = (stepId) => stepId === "B5";
+  const tahapan = tahapanUntuk(p);
   // Tahap aktif = tahap yang ditunjuk tahapAktif dan belum selesai.
   // Fallback: jika tahapAktif kosong/sudah selesai (mis. data lama yang
   // sempat rusak akibat bug resume), pakai tahap pertama yang belum selesai.
@@ -3336,7 +3849,7 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
 
   // Kosongkan kembali "Catatan Proses" setiap kali tahap aktif berpindah,
   // agar catatan satu tahap tidak terbawa ke tahap berikutnya.
-  useEffect(() => { setCatatan(""); }, [stepAktif?.id]);
+  useEffect(() => { setCatatan(""); setNomorSP2D(""); }, [stepAktif?.id]);
 
   // Peringatan kemungkinan kelebihan pembayaran gaji (pegawai Pindah yang
   // TMT-nya sudah terlewati saat input) tetap dimunculkan pada tahap
@@ -3357,7 +3870,7 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
   return (
     <>
     <div className="modal-overlay">
-      <div className="modal" style={{maxWidth:740}}>
+      <div className="modal" style={{maxWidth:780}}>
         <div className="modal-header">
           <div>
             <div style={{fontFamily:"var(--mono)",fontSize:10,color:"var(--primary)",fontWeight:700,marginBottom:2,letterSpacing:"0.05em"}}>{p.id}</div>
@@ -3369,7 +3882,7 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
             {user?.role==="admin" && onDelete && (
               <button title="Hapus pengajuan (khusus Admin)" onClick={()=>onDelete(p)} disabled={saving}
                 style={{display:"inline-flex",alignItems:"center",gap:5,padding:"6px 11px",border:"1px solid #fca5a5",borderRadius:8,background:"var(--error-container)",color:"var(--error)",cursor:"pointer",fontSize:12,fontWeight:700}}>
-                🗑 Hapus
+                Hapus
               </button>
             )}
             <button className="modal-close" onClick={onClose} disabled={saving}>✕</button>
@@ -3431,6 +3944,7 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
                 </div>
               </div>
               {p.tanggalSerahTerima && <BuktiSerahBlock p={p}/>}
+              {(p.status==="selesai"||prog===100) && <SkppFinalBox p={p}/>}
               <div style={{marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <span style={{fontSize:12,fontWeight:700,color:"var(--on-surface-variant)",textTransform:"uppercase",letterSpacing:"0.06em"}}>Progress</span>
                 <span style={{fontSize:13,fontWeight:800,color:prog===100?"var(--success)":"var(--primary)",fontFamily:"var(--mono)"}}>{prog}%</span>
@@ -3448,7 +3962,7 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
               ) : p.status==="kembali" ? (
                 <div>
                   <div style={{background:"#fffbeb",border:"2px solid #f59e0b",borderRadius:12,padding:"18px",marginBottom:16}}>
-                    <div style={{fontWeight:800,fontSize:15,color:"#92400e",marginBottom:8}}>⚠️ Berkas Sedang Dikembalikan</div>
+                    <div style={{fontWeight:800,fontSize:15,color:"#92400e",marginBottom:8}}>Berkas Sedang Dikembalikan</div>
                     <div style={{fontSize:13,color:"#b45309",marginBottom:14,lineHeight:1.6}}>
                       Berkas pengajuan ini telah dikembalikan kepada pemohon. Jika berkas perbaikan sudah diterima dan lengkap, klik tombol hijau di bawah untuk melanjutkan proses.
                     </div>
@@ -3466,23 +3980,20 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
                         });
                       }}
                     >
-                      {saving ? "⏳ Memproses..." : "✅ Berkas Telah Dilengkapi — Lanjutkan Proses"}
+                      {saving ? "Memproses..." : "Berkas Telah Dilengkapi — Lanjutkan Proses"}
                     </button>
+                    <DokumenKurangBox p={p} onTolakBukti={onTolakBukti} saving={saving}/>
+                    <BuktiHutangBox p={p} onTolakBukti={onTolakBukti} saving={saving}/>
                   </div>
                 </div>
               ) : stepAktif ? (
                 <div>
                   <div className="alert alert-blue" style={{marginBottom:14}}>
-                    <span>ℹ️</span>
-                    <div><strong>Tahap aktif: {stepAktif.icon} {stepAktif.label}</strong><br/><span style={{fontSize:12}}>Pelaksana: {stepAktif.pelaksana}</span></div>
+                                        <div><strong>Tahap aktif: {stepAktif.label}</strong><br/><span style={{fontSize:12}}>Pelaksana: {stepAktif.pelaksana}</span></div>
                   </div>
                   {isVerifikasi(stepAktif.id) ? (
                     <div className="nbox-teal" style={{borderRadius:12,padding:"16px 18px"}}>
-                      <div className="nbox-title" style={{fontWeight:800,fontSize:13.5,marginBottom:6}}>📋 Verifikasi Berkas dengan Daftar Periksa</div>
-                      <div style={{fontSize:12.5,lineHeight:1.6,marginBottom:14}}>
-                        Periksa kelengkapan dokumen persyaratan dan kewajiban finansial pemohon sesuai Lampiran 1.
-                        Identitas pegawai terisi otomatis. Setelah selesai, <strong>Daftar Periksa langsung dicetak</strong> dan tahap verifikasi ditandai selesai.
-                      </div>
+                      <div className="nbox-title" style={{fontWeight:800,fontSize:13.5,marginBottom:14}}>Verifikasi Berkas dengan Daftar Periksa</div>
                       <button className="btn btn-primary" style={{width:"100%",justifyContent:"center",fontWeight:700,
                         opacity:!cekIzinProses(user?.role, stepAktif.pelaksana)?0.6:1}}
                         disabled={!cekIzinProses(user?.role, stepAktif.pelaksana)}
@@ -3490,13 +4001,31 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
                           if (stafLoketList.length===0 || pengampuList.length===0) daftarAkun().then(res=>{ if(res.ok){ setStafLoketList(res.data.filter(a=>a.role==="operator")); setPengampuList(res.data.filter(a=>a.role==="staf")); } });
                           setShowDaftarPeriksa(true);
                         }}>
-                        {!cekIzinProses(user?.role, stepAktif.pelaksana) ? `🔒 Khusus: ${stepAktif.pelaksana}` : "📋 Buka Daftar Periksa Verifikasi"}
+                        {!cekIzinProses(user?.role, stepAktif.pelaksana) ? `Khusus: ${stepAktif.pelaksana}` : "Buka Daftar Periksa Verifikasi"}
                       </button>
                     </div>
+                  ) : isDraftSkpp(stepAktif.id) ? (
+                    <DraftSkppBlock
+                      p={p} stepAktif={stepAktif}
+                      disabledKirim={!cekIzinProses(user?.role, stepAktif.pelaksana)}
+                      onSelesai={({ manual }={})=>{
+                        const idx = tahapan.findIndex(t=>t.id===stepAktif.id);
+                        const nextStepId = idx < tahapan.length-1 ? tahapan[idx+1].id : "";
+                        onUpdate({
+                          pengajuanId: p.id, stepId: stepAktif.id, nextStepId,
+                          catatan: "",
+                          catatanInternal: manual
+                            ? "Draft SKPP diunggah — pemeriksaan otomatis nama/NIP tidak cocok, dilewati manual oleh staf setelah diperiksa."
+                            : "Draft SKPP diunggah — nama & NIP diverifikasi otomatis oleh sistem.",
+                          isKembali: false, isFinal: stepAktif.final===true,
+                        });
+                      }}
+                    />
                   ) : (<>
-                  {isPenomoran(stepAktif.id) && (
+                  {isPenomoran(stepAktif.id) && (<>
+                    <TempelFotoBlock p={p}/>
                     <div className="nbox-blue" style={{borderRadius:12,padding:"14px 16px",marginBottom:14}}>
-                      <div className="nbox-title" style={{fontWeight:700,fontSize:13,marginBottom:10}}>📋 Input Nomor SKPP</div>
+                      <div className="nbox-title" style={{fontWeight:700,fontSize:13,marginBottom:10}}>Input Nomor SKPP</div>
                       <div className="form-group" style={{marginBottom:8}}>
                         <label className="form-label">Nomor Urut (sesuai buku regis) *</label>
                         <input
@@ -3517,6 +4046,26 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
                         </div>
                       )}
                     </div>
+                  </>)}
+                  {isRincianKekurangan(stepAktif.id) && p.sumber==="online" && p.pengajuRole==="bendahara" && (
+                    <RincianKekuranganBlock p={p}/>
+                  )}
+                  {isSP2D(stepAktif.id) && (
+                    <div className="nbox-blue" style={{borderRadius:12,padding:"14px 16px",marginBottom:14}}>
+                      <div className="nbox-title" style={{fontWeight:700,fontSize:13,marginBottom:10}}>Nomor SP2D</div>
+                      <div className="form-group" style={{marginBottom:0}}>
+                        <label className="form-label">Nomor SP2D Pembayaran Kekurangan Pangkat Pengabdian *</label>
+                        <input
+                          className="form-control"
+                          type="text"
+                          value={nomorSP2D}
+                          onChange={e => setNomorSP2D(e.target.value)}
+                          placeholder="Contoh: SP2D/123/BKUD/2026"
+                          style={{fontFamily:"var(--mono)",fontWeight:700,fontSize:14}}
+                        />
+                        {!nomorSP2D.trim() && <div style={{fontSize:11,color:"#dc2626",marginTop:4}}>* Wajib diisi</div>}
+                      </div>
+                    </div>
                   )}
                   <div className="form-group">
                     <label className="form-label">Catatan Proses</label>
@@ -3536,16 +4085,21 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
                   )}
                   {stepAktif.final===true && (
                     <div className="nbox-green" style={{borderRadius:10,padding:"11px 14px",marginBottom:14,fontSize:12}}>
-                      📤 Tahap akhir: serahkan SKPP kepada pemohon. Catat penerima, tanda tangan, dan bukti penyerahan.
+                      Serahkan SKPP kepada pemohon.
                     </div>
                   )}
+                  {stepAktif.final===true && <CetakSkppFinalButton p={p}/>}
+                  {(() => {
+                    const tombolNonaktif = saving || !cekIzinProses(user?.role, stepAktif.pelaksana)
+                      || (isPenomoran(stepAktif.id) && !nomorUrut) || (isSP2D(stepAktif.id) && !nomorSP2D.trim());
+                    return (
                   <button
                     className={"btn "+(isKembali?"btn-danger":"btn-primary")}
                     style={{
                       width:"100%", justifyContent:"center",
-                      opacity: !cekIzinProses(user?.role, stepAktif.pelaksana)?0.6:1
+                      opacity: tombolNonaktif?0.6:1
                     }}
-                    disabled={saving || !cekIzinProses(user?.role, stepAktif.pelaksana) || (isPenomoran(stepAktif.id) && !nomorUrut)}
+                    disabled={tombolNonaktif}
                     onClick={() => {
                       if (stepAktif.final===true) { setShowSerahTerima(true); return; }
                       if (isKembali) {
@@ -3555,28 +4109,33 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
                       }
                       const indexSaatIni = tahapan.findIndex(t => t.id===stepAktif.id);
                       const nextStepId = indexSaatIni < tahapan.length-1 ? tahapan[indexSaatIni+1].id : "";
+                      const catatanInternalFinal = isSP2D(stepAktif.id)
+                        ? `Nomor SP2D: ${nomorSP2D.trim()}.${catatan?` ${catatan}`:""}`
+                        : catatan;
                       onUpdate({
                         pengajuanId: p.id,
                         stepId: stepAktif.id,
                         nextStepId: nextStepId,
                         // Catatan proses biasa = internal saja (tidak tampil di portal publik).
                         catatan: "",
-                        catatanInternal: catatan,
+                        catatanInternal: catatanInternalFinal,
                         isKembali: isKembali,
                         isFinal: stepAktif.final===true,
                         nomorSKPP: isPenomoran(stepAktif.id) ? generateTemplateNomor(nomorUrut, p) : undefined,
                       });
                     }}
                   >
-                    {saving ? "⏳ Menyimpan..." :
-                     !cekIzinProses(user?.role, stepAktif.pelaksana) ? `🔒 Khusus: ${stepAktif.pelaksana}` :
-                     stepAktif.final===true ? "📤 Serahkan ke Pemohon & Catat Bukti" :
-                     isKembali ? "↩ Kembalikan Berkas" : "✔ Tandai Tahap Ini Selesai"}
+                    {saving ? "Menyimpan..." :
+                     !cekIzinProses(user?.role, stepAktif.pelaksana) ? `Khusus: ${stepAktif.pelaksana}` :
+                     stepAktif.final===true ? "Serahkan ke Pemohon & Catat Bukti" :
+                     isKembali ? "Kembalikan Berkas" : "Tandai Tahap Ini Selesai"}
                   </button>
+                    );
+                  })()}
                   </>)}
                 </div>
               ) : (
-                <div className="alert alert-amber"><span>⚠️</span><span>Tidak ada tahap aktif yang bisa diupdate saat ini.</span></div>
+                <div className="alert alert-amber"><span>Tidak ada tahap aktif yang bisa diupdate saat ini.</span></div>
               )}
               <hr style={{margin:"18px 0",border:"none",borderTop:"1px solid var(--outline-variant)"}}/>
               <div style={{fontWeight:700,fontSize:11,color:"var(--on-surface-variant)",marginBottom:10,textTransform:"uppercase",letterSpacing:"0.07em"}}>Semua Tahap</div>
@@ -3585,9 +4144,8 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
                 let cls="step-btn wait"; if(isDone) cls="step-btn done"; else if(isAktif) cls="step-btn aktif";
                 return (
                   <div key={step.id} className={cls}>
-                    <span>{step.icon}</span>
                     <span style={{flex:1}}>{step.label}</span>
-                    {isDone && <span style={{fontSize:11}}>✓ Selesai</span>}
+                    {isDone && <span style={{fontSize:11}}>Selesai</span>}
                     {isAktif && !isDone && <span className="badge badge-blue" style={{fontSize:10}}>Aktif</span>}
                   </div>
                 );
@@ -3603,14 +4161,12 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
       <FormulirKembaliModal
         p={p} user={user}
         fkData={fkData} setFkData={setFkData}
-        stafLoketList={stafLoketList}
         pengampuList={pengampuList}
         saving={saving}
         onClose={()=>setShowFormKembali(false)}
         onSubmit={()=>{
           const idx = tahapan.findIndex(t=>t.id===stepAktif.id);
           const nextStepId = idx < tahapan.length-1 ? tahapan[idx+1].id : "";
-          const stafNama = stafLoketList.find(s=>s.username===fkData.stafLoket)?.nama||fkData.stafLoket;
           const nomorFormulir = `FPB-${p.id}-${new Date().getFullYear()}`;
           const tanggalKembali = new Date().toLocaleDateString("id-ID",{day:"2-digit",month:"long",year:"numeric"});
           const catatanStr = JSON.stringify({
@@ -3619,7 +4175,6 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
             rincian:fkData.rincian.filter(r=>r.dokumen),
             rincianHutang:(fkData.rincianHutang||[]).filter(r=>r.jenis),
             mekanisme:{potong:fkData.mPotong,setor:fkData.mSetor,cicilan:fkData.mCicilan,jumlah:fkData.jumlahHutang,penghitung:fkData.penghitungHutang},
-            stafLoket:stafNama,
             pengampu:{nama:fkData.pengampuNama,nip:fkData.pengampuNIP},
             pemohon:{nama:fkData.pemohonNama,nip:fkData.pemohonNIP},
           });
@@ -3638,13 +4193,14 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
     {showDaftarPeriksa && stepAktif && (
       <DaftarPeriksaModal
         p={p} dpData={dpData} setDpData={setDpData} stafLoketList={stafLoketList} pengampuList={pengampuList} saving={saving}
+        onTolakBukti={onTolakBukti}
         onClose={()=>setShowDaftarPeriksa(false)}
         onCetak={()=>cetakDaftarPeriksa({p, dpData})}
         onSelesai={()=>{
           cetakDaftarPeriksa({p, dpData});
           const idx = tahapan.findIndex(t=>t.id===stepAktif.id);
           const nextStepId = idx < tahapan.length-1 ? tahapan[idx+1].id : "";
-          const catatanStr = `Verifikasi berkas: berkas lengkap & bebas hutang. Daftar Periksa dicetak.${dpData.catatan?` — ${dpData.catatan}`:""}`;
+          const catatanStr = `Verifikasi berkas: berkas lengkap & bebas hutang.${dpData.catatan?` — ${dpData.catatan}`:""}`;
           onUpdate({pengajuanId:p.id, stepId:stepAktif.id, nextStepId, isKembali:false, catatan:catatanStr, isFinal:false});
           setShowDaftarPeriksa(false);
         }}
@@ -3654,18 +4210,28 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
           setShowDaftarPeriksa(false);
           if (stafLoketList.length===0 || pengampuList.length===0) daftarAkun().then(res=>{ if(res.ok){ setStafLoketList(res.data.filter(a=>a.role==="operator")); setPengampuList(res.data.filter(a=>a.role==="staf")); } });
           // Auto-isi Formulir Pengembalian dari hasil Daftar Periksa:
-          // dokumen ber-status "Tidak Ada" -> Rincian Dokumen Kurang;
-          // kewajiban ber-status "Ada" / kesimpulan "Terdapat Hutang" -> Rincian Hutang.
-          // Tindakan & batas waktu sengaja dibiarkan kosong/agar diisi manual.
-          const dokKurang = DP_DOKUMEN_FLAT
-            .map((it,idx)=>({nama:it.t, st:dpData.dok[idx]||{}}))
-            .filter(x=>x.st.status==="tidak");
+          // - Pengajuan online: dokumen dianggap kurang bila belum ada berkas
+          //   ter-upload saat ini (belum pernah unggah, atau sudah ditolak &
+          //   belum diunggah ulang) -- dicek dari data nyata (p.berkas /
+          //   log penolakan riwayat), bukan toggle sesi ini saja, supaya tetap
+          //   akurat walau Daftar Periksa dibuka-tutup lebih dulu.
+          // - Pengajuan luring: tetap dari toggle manual "Tidak Ada".
+          // Alasan tolak (bila ada) otomatis mengisi kolom Tindakan.
+          // Kewajiban ber-status "Ada" / kesimpulan "Terdapat Hutang" -> Rincian Hutang.
+          const tampilGrupFk = dpGrupTampil(p.alasan||"");
+          const relevantDok = [];
+          DP_DOKUMEN_GRUP.forEach((g,gi)=>{ if(!tampilGrupFk[gi]) return; g.items.forEach((it,j)=>{ relevantDok.push({ nama: it.t, idx: DP_GRUP_OFFSET[gi]+j }); }); });
+          const isOnlineP = p.sumber === "online";
+          const dokKurang = relevantDok
+            .map(x=>({ nama:x.nama, st: dpData.dok[x.idx]||{} }))
+            .filter(x => isOnlineP ? !(p.berkas||[]).some(b=>b.jenis===x.nama) : x.st.status==="tidak")
+            .map(x => ({ nama:x.nama, alasan: x.st.ket || (isOnlineP ? dokTolakLog(p,x.nama)?.alasan : "") || "" }));
           const hutangAda = DP_HUTANG
             .map((h,i)=>({nama:h, st:dpData.hutang[i]||{}}))
             .filter(x=>x.st.status==="ada");
           const adaDok = dokKurang.length>0;
           const adaHutang = dpData.kesimpulanHutang==="hutang" || hutangAda.length>0;
-          const barisDok = dokKurang.map(x=>({dokumen:x.nama, dokLain:true, dpAuto:true, tindakan:"", tinLain:false, batas:besok}));
+          const barisDok = dokKurang.map(x=>({dokumen:x.nama, dokLain:true, dpAuto:true, tindakan:x.alasan, tinLain:!!x.alasan, batas:besok}));
           while (barisDok.length<5) barisDok.push({dokumen:"",dokLain:false,tindakan:"",tinLain:false,batas:besok});
           const barisHutang = hutangAda.map(x=>({jenis:x.nama, batas:besok}));
           while (barisHutang.length<4) barisHutang.push({jenis:"",batas:besok});
@@ -3686,7 +4252,6 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
         <div className="modal" style={{maxWidth:440,borderRadius:"22px",overflow:"hidden"}}>
           <div className="modal-header" style={{background:"#fffbeb",borderBottom:"1px solid #fde68a"}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <span style={{fontSize:22}}>⚠️</span>
               <div style={{fontWeight:800,fontSize:14,color:"#92400e"}}>Kemungkinan Kelebihan Pembayaran Gaji</div>
             </div>
           </div>
@@ -3707,7 +4272,7 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
 }
 
 // ─── FORMULIR PENGEMBALIAN MODAL ──────────────────────────────────────────────
-function FormulirKembaliModal({ p, user, fkData, setFkData, stafLoketList, pengampuList, saving, onClose, onSubmit }) {
+function FormulirKembaliModal({ p, user, fkData, setFkData, pengampuList, saving, onClose, onSubmit }) {
   const nomorFormulir = `FPB-${p.id}-${new Date().getFullYear()}`;
   const tanggalKembali = new Date().toLocaleDateString("id-ID",{day:"2-digit",month:"long",year:"numeric"});
   const al = p.alasan||"";
@@ -3719,10 +4284,9 @@ function FormulirKembaliModal({ p, user, fkData, setFkData, stafLoketList, penga
   const updRincian = (i,f,v) => setFkData(d=>({...d,rincian:d.rincian.map((r,ix)=>ix===i?{...r,[f]:v}:r)}));
   const updRincianMulti = (i,patch) => setFkData(d=>({...d,rincian:d.rincian.map((r,ix)=>ix===i?{...r,...patch}:r)}));
   const updHutang = (i,f,v) => setFkData(d=>({...d,rincianHutang:d.rincianHutang.map((r,ix)=>ix===i?{...r,[f]:v}:r)}));
-  const stafNama = stafLoketList.find(s=>s.username===fkData.stafLoket)?.nama||"";
-  const canSubmit = (fkData.alasanDokumen||fkData.alasanHutang) && fkData.stafLoket && fkData.pengampuNIP;
+  const canSubmit = (fkData.alasanDokumen||fkData.alasanHutang) && fkData.pengampuNIP;
 
-  const handleCetak = () => cetakFormulirKembali({p, fkData, stafLoketNama:stafNama, stafLoketNIP:fkData.stafLoket, nomorFormulir, tanggalKembali});
+  const handleCetak = () => cetakFormulirKembali({p, fkData, nomorFormulir, tanggalKembali});
 
   const cellInput = {width:"100%",border:"none",outline:"none",background:"transparent",fontSize:12,padding:"4px 2px"};
   // Sel dropdown dengan opsi "Lainnya" untuk input manual. Dikembalikan sebagai elemen (bukan komponen)
@@ -3928,25 +4492,7 @@ function FormulirKembaliModal({ p, user, fkData, setFkData, stafLoketList, penga
           {/* Penandatangan */}
           <div style={{marginBottom:0}}>
             <SectionTitle>Penandatangan Formulir</SectionTitle>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14}}>
-              {/* Staf Loket */}
-              <div style={{background:"var(--surface-container-low)",borderRadius:14,padding:"13px 15px",border:"1px solid var(--outline-variant)"}}>
-                <div style={{fontWeight:700,fontSize:12,marginBottom:10,color:"var(--on-surface)",display:"flex",alignItems:"center",gap:6}}>
-                  <span style={{width:6,height:6,borderRadius:"50%",background:"#4F6BCD",display:"inline-block"}}/>Staf Loket *
-                </div>
-                <div className="form-group" style={{marginBottom:8}}>
-                  <label className="form-label">Pilih Staf Loket</label>
-                  <select className="form-control" style={{margin:0}} value={fkData.stafLoket} onChange={e=>setFkData(d=>({...d,stafLoket:e.target.value}))}>
-                    <option value="">-- Pilih --</option>
-                    {stafLoketList.map(s=><option key={s.username} value={s.username}>{s.nama}</option>)}
-                  </select>
-                </div>
-                <div className="form-group" style={{marginBottom:0}}>
-                  <label className="form-label">NIP</label>
-                  <input className="form-control" style={{margin:0,background:"var(--surface-container)"}} value={fkData.stafLoket} readOnly/>
-                </div>
-                {!fkData.stafLoket&&<div style={{fontSize:11,color:"#dc2626",marginTop:4}}>* Wajib dipilih</div>}
-              </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
               {/* Pengampu OPD */}
               <div style={{background:"var(--surface-container-low)",borderRadius:14,padding:"13px 15px",border:"1px solid var(--outline-variant)"}}>
                 <div style={{fontWeight:700,fontSize:12,marginBottom:10,color:"var(--on-surface)",display:"flex",alignItems:"center",gap:6}}>
@@ -3994,10 +4540,10 @@ function FormulirKembaliModal({ p, user, fkData, setFkData, stafLoketList, penga
         <div style={{padding:"14px 20px",borderTop:"1px solid var(--outline-variant)",display:"flex",gap:8,justifyContent:"flex-end",flexShrink:0,background:"var(--surface-container-lowest)"}}>
           <button className="btn btn-ghost" onClick={onClose} disabled={saving}>Batal</button>
           <button className="btn" style={{background:"#f97316",color:"white",gap:6}} onClick={handleCetak} disabled={!canSubmit}>
-            🖨️ Cetak Formulir
+            Cetak Formulir
           </button>
           <button className="btn" style={{background:"#dc2626",color:"white",gap:6}} onClick={onSubmit} disabled={saving||!canSubmit}>
-            {saving?"⏳ Menyimpan...":"↩ Simpan & Kembalikan Berkas"}
+            {saving?"Menyimpan...":"Simpan & Kembalikan Berkas"}
           </button>
         </div>
       </div>
@@ -4031,10 +4577,10 @@ function SearchableSelect({ label, value, onChange, options, placeholder="-- Pil
         onClick={() => setOpen(o=>!o)}
         style={{
           display:"flex", alignItems:"center", justifyContent:"space-between",
-          padding:"10px 14px",
+          padding:"8px 12px",
           border:`1.5px solid ${open?"var(--primary)":"var(--outline-variant)"}`,
-          borderRadius:"var(--r-md)", background:"var(--surface-container-lowest)", cursor:"pointer",
-          fontSize:13.5, color:value?"var(--on-surface)":"var(--outline)",
+          borderRadius:"10px", background:"var(--surface-container-lowest)", cursor:"pointer",
+          fontSize:13, color:value?"var(--on-surface)":"var(--outline)",
           userSelect:"none", transition:"border-color .15s",
         }}
       >
@@ -4047,7 +4593,7 @@ function SearchableSelect({ label, value, onChange, options, placeholder="-- Pil
       {open && (
         <div style={{
           position:"absolute",top:"calc(100% + 4px)",left:0,right:0,zIndex:2000,
-          background:"var(--surface-container-lowest)",border:"1.5px solid var(--outline-variant)",borderRadius:"var(--r-md)",
+          background:"var(--surface-container-lowest)",border:"1.5px solid var(--outline-variant)",borderRadius:"10px",
           boxShadow:"0 8px 24px rgba(0,0,0,.28)",overflow:"hidden",
         }}>
           <div style={{padding:"8px 10px",borderBottom:"1px solid var(--outline-variant)",display:"flex",alignItems:"center",gap:6}}>
@@ -4086,14 +4632,131 @@ function SearchableSelect({ label, value, onChange, options, placeholder="-- Pil
   );
 }
 
+// Satu baris dokumen persyaratan di Daftar Periksa. Untuk pengajuan online, berkas
+// asli sudah diunggah pemohon lewat portal — staf melihat & memverifikasi berkas
+// itu langsung (Lihat/Tolak), bukan checklist manual (Ada/Tidak Ada) seperti pada
+// pengajuan luring. Menolak otomatis menandai baris "Tidak Ada" & mengunci
+// kesimpulan verifikasi ke "Berkas Tidak Lengkap" (lihat onDitolak).
+function DokPeriksaRow({ p, it, num, st, isOnline, StatusToggle, ketInput, onSetDok, onTolakBukti, onDitolak, saving }) {
+  const [opening, setOpening] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [menolak, setMenolak] = useState(false);
+  const [alasan, setAlasan] = useState("");
+  const b = isOnline ? (p.berkas||[]).find(x => x.jenis === it.t) : null;
+  const tolakLog = isOnline && !b ? dokTolakLog(p, it.t) : null;
+  const alasanDitolak = st.ket || tolakLog?.alasan || "";
+
+  const lihat = async () => {
+    setOpening(true);
+    const url = await berkasPengajuanUrl(b.path);
+    setOpening(false);
+    if (url) window.open(url, "_blank", "noopener");
+    else alert("Gagal membuka berkas.");
+  };
+
+  const unduh = async () => {
+    setDownloading(true);
+    const ok = await unduhBerkasPengajuan(b.path, it.t + extFromPath(b.path));
+    setDownloading(false);
+    if (!ok) alert("Gagal mengunduh berkas.");
+  };
+
+  const kirimTolak = async () => {
+    if (!alasan.trim()) return;
+    await onTolakBukti({ pengajuanId: p.id, berkasId: b.id, label: it.t, alasan });
+    onSetDok({ status:"tidak", ket:alasan });
+    onDitolak();
+    setMenolak(false);
+    setAlasan("");
+  };
+
+  return (
+    <div style={{display:"flex",alignItems:"flex-start",gap:10,padding:"7px 4px",borderBottom:"1px solid var(--outline-variant,#eef2f7)"}}>
+      <span style={{minWidth:18,fontSize:11.5,color:"var(--on-surface-variant)",fontWeight:700,marginTop:3}}>{num}.</span>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontSize:12,lineHeight:1.4,color:"var(--on-surface)"}}>
+          {it.t} {it.ket && <span style={{fontSize:10,color:"#b45309",fontStyle:"italic"}}>({it.ket})</span>}
+        </div>
+        {isOnline ? (
+          menolak ? (
+            <div style={{marginTop:6}}>
+              <textarea className="form-control" rows={2} placeholder="Alasan penolakan dokumen ini…"
+                value={alasan} onChange={e=>setAlasan(e.target.value)} style={{margin:0,fontSize:11.5}}/>
+              <div style={{display:"flex",gap:6,marginTop:6,justifyContent:"flex-end"}}>
+                <button type="button" className="btn btn-secondary btn-sm" disabled={saving} onClick={()=>{setMenolak(false);setAlasan("");}}>Batal</button>
+                <button type="button" className="btn btn-danger btn-sm" disabled={saving||!alasan.trim()} onClick={kirimTolak}>
+                  {saving?"Mengirim...":"Kirim Penolakan"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            !b && (st.status==="tidak"||tolakLog) && alasanDitolak && (
+              <div style={{fontSize:11,color:"#b91c1c",marginTop:3}}>Alasan ditolak: {alasanDitolak}</div>
+            )
+          )
+        ) : (
+          <input style={{...ketInput,marginTop:5}} placeholder="Keterangan (opsional)"
+            value={st.ket||""} onChange={e=>onSetDok({ket:e.target.value})}/>
+        )}
+      </div>
+      <div style={{marginTop:2,flexShrink:0}}>
+        {isOnline ? (
+          b ? (
+            <div style={{display:"flex",gap:6}}>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={opening||saving} onClick={lihat}>
+                {opening?"⟳":"Lihat"}
+              </button>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={downloading||saving} onClick={unduh}>
+                {downloading?"⟳":"Unduh"}
+              </button>
+              <button type="button" className="btn btn-danger btn-sm" disabled={saving} onClick={()=>setMenolak(v=>!v)}>
+                Tolak
+              </button>
+            </div>
+          ) : (st.status==="tidak"||tolakLog) ? (
+            <span style={{fontSize:11,color:"#dc2626",fontWeight:700}}>Ditolak</span>
+          ) : (
+            <span style={{fontSize:11,color:"#b45309",fontStyle:"italic"}}>Belum diunggah</span>
+          )
+        ) : (
+          <StatusToggle val={st.status} onSet={v=>onSetDok({status:v})}/>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── DAFTAR PERIKSA VERIFIKASI MODAL ──────────────────────────────────────────
-function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuList=[], saving, onClose, onCetak, onSelesai, onKembalikan }) {
+function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuList=[], saving, onClose, onCetak, onSelesai, onKembalikan, onTolakBukti }) {
   const al = p.alasan||"";
-  const isJD = al.includes("Janda")||al.includes("Duda")||al.includes("Meninggal");
-  const isBH = al.includes("Berhenti")||al.includes("Pemberhentian");
-  const isPD = al.includes("Pindah");
-  const isPS = al.includes("Pensiun")&&!isJD;
-  const jenisStr = [isPS&&"Pensiun",isPD&&"Pindah",isBH&&"Berhenti",isJD&&"Janda/Duda"].filter(Boolean).join(" · ")||"—";
+  const tampilJenis = dpGrupTampil(al);
+  const jenisStr = [tampilJenis[1]&&"Pensiun",tampilJenis[2]&&"Pindah",tampilJenis[3]&&"Pemberhentian",tampilJenis[4]&&"Ahli Waris"].filter(Boolean).join(" · ")||"—";
+  const isOnline = p.sumber === "online";
+  const hutangLunas = hutangSudahLunas(p);
+  // Sinkron otomatis (bukan hanya nilai awal saat mount): begitu hutang
+  // terdeteksi sudah lunas dan kesimpulan belum diisi staf, langsung tandai
+  // "Bebas Hutang" + semua item "Tidak Ada". Guard di kondisi mencegah loop --
+  // begitu diterapkan sekali, kondisinya jadi false pada render berikutnya.
+  // Pola "adjust state during render", bukan useEffect (lihat CLAUDE.md).
+  if (hutangLunas && dpData.kesimpulanHutang === "" && dpData.hutang.every(h => !h.status)) {
+    setDpData(d => ({
+      ...d,
+      hutang: DP_HUTANG.map(() => ({ status: "tidak", ket: "Sudah dilunasi & diverifikasi pada proses sebelumnya" })),
+      kesimpulanHutang: "bebas",
+    }));
+  }
+  // Sinkron Kesimpulan Hutang otomatis dari checklist per-item: begitu salah
+  // satu jenis hutang ditandai "Ada", kesimpulan langsung "Terdapat Hutang"
+  // (opsi "Bebas Hutang" dikunci) -- dan sebaliknya, begitu SEMUA item sudah
+  // ditandai "Tidak Ada", kesimpulan langsung "Bebas Hutang" (opsi "Terdapat
+  // Hutang" dikunci). Sama seperti pola render-time adjustment di atas.
+  const adaHutangAda = dpData.hutang.some(h => h && h.status === "ada");
+  const semuaHutangTidak = dpData.hutang.length > 0 && dpData.hutang.every(h => h && h.status === "tidak");
+  if (adaHutangAda && dpData.kesimpulanHutang !== "hutang") {
+    setDpData(d => ({ ...d, kesimpulanHutang: "hutang" }));
+  } else if (!adaHutangAda && semuaHutangTidak && dpData.kesimpulanHutang !== "bebas") {
+    setDpData(d => ({ ...d, kesimpulanHutang: "bebas" }));
+  }
 
   const setDok = (i,patch) => setDpData(d=>({...d,dok:d.dok.map((x,ix)=>ix===i?{...x,...patch}:x)}));
   const setHut = (i,patch) => setDpData(d=>({...d,hutang:d.hutang.map((x,ix)=>ix===i?{...x,...patch}:x)}));
@@ -4113,8 +4776,16 @@ function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuLi
   const ketInput = { width:"100%",border:"1px solid var(--outline-variant,#d6deea)",borderRadius:7,
     padding:"4px 8px",fontSize:11.5,outline:"none",background:"var(--surface-container-lowest)",color:"var(--on-surface)",boxSizing:"border-box" };
 
-  const tampilGrup = dpGrupTampil(al);
+  const tampilGrup = tampilJenis;
   let no = 0;
+  // Untuk pengajuan online, status dokumen berasal dari data nyata (berkas
+  // ter-upload / log penolakan), bukan toggle lokal sesi ini -- agar tetap
+  // akurat walau modal ditutup & dibuka lagi. Untuk luring, tetap dari
+  // penilaian manual staf (toggle Ada/Tidak Ada).
+  const relevantDokItems = DP_DOKUMEN_GRUP.flatMap((g,gi)=> tampilGrup[gi] ? g.items : []);
+  const adaDokTidakAda = isOnline
+    ? relevantDokItems.some(it => !(p.berkas||[]).some(b=>b.jenis===it.t))
+    : dpData.dok.some(d => d && d.status === "tidak");
   const canSelesai = dpData.kesimpulan === "lengkap";
   const canKembali = dpData.kesimpulan === "kembali";
 
@@ -4123,7 +4794,7 @@ function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuLi
       <div className="modal" style={{maxWidth:820}}>
         <div className="modal-header">
           <div>
-            <div style={{fontWeight:800,fontSize:14,color:"var(--primary)",letterSpacing:"-0.3px"}}>📋 Daftar Periksa Verifikasi Berkas</div>
+            <div style={{fontWeight:800,fontSize:14,color:"var(--primary)",letterSpacing:"-0.3px"}}>Daftar Periksa Verifikasi Berkas</div>
             <div style={{fontSize:11,color:"var(--on-surface-variant)",marginTop:2}}>Verifikasi oleh Staf Pengampu OPD</div>
           </div>
           <button className="modal-close" onClick={onClose} disabled={saving}>✕</button>
@@ -4153,17 +4824,14 @@ function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuLi
               {g.items.map((it,j)=>{
                 const gIndex = DP_GRUP_OFFSET[gi] + j; const num = ++no; const st = dpData.dok[gIndex]||{};
                 return (
-                  <div key={gIndex} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"7px 4px",borderBottom:"1px solid var(--outline-variant,#eef2f7)"}}>
-                    <span style={{minWidth:18,fontSize:11.5,color:"var(--on-surface-variant)",fontWeight:700,marginTop:3}}>{num}.</span>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:12,lineHeight:1.4,color:"var(--on-surface)"}}>
-                        {it.t} {it.ket && <span style={{fontSize:10,color:"#b45309",fontStyle:"italic"}}>({it.ket})</span>}
-                      </div>
-                      <input style={{...ketInput,marginTop:5}} placeholder="Keterangan (opsional)"
-                        value={st.ket||""} onChange={e=>setDok(gIndex,{ket:e.target.value})}/>
-                    </div>
-                    <div style={{marginTop:2}}><StatusToggle val={st.status} onSet={v=>setDok(gIndex,{status:v})}/></div>
-                  </div>
+                  <DokPeriksaRow
+                    key={gIndex} p={p} it={it} num={num} st={st} isOnline={isOnline}
+                    StatusToggle={StatusToggle} ketInput={ketInput}
+                    onSetDok={(patch)=>setDok(gIndex,patch)}
+                    onTolakBukti={onTolakBukti}
+                    onDitolak={()=>set("kesimpulan","kembali")}
+                    saving={saving}
+                  />
                 );
               })}
             </div>
@@ -4171,6 +4839,12 @@ function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuLi
 
           {/* B. Pengecekan hutang */}
           <div style={{fontWeight:800,fontSize:12.5,color:"var(--on-surface)",margin:"14px 0 8px"}}>B. Pengecekan Hutang / Kewajiban Finansial</div>
+          {hutangLunas && (
+            <div style={{fontSize:11.5,color:"#0E5A59",background:"rgba(14,124,123,0.08)",border:"1px solid rgba(14,124,123,0.3)",borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+              Sudah dilunasi & bukti diverifikasi pada proses pengembalian sebelumnya — tidak perlu diperiksa ulang.
+            </div>
+          )}
+          <div style={{opacity:hutangLunas?0.5:1,pointerEvents:hutangLunas?"none":"auto"}}>
           {DP_HUTANG.map((h,i)=>{
             const st = dpData.hutang[i]||{};
             return (
@@ -4187,20 +4861,28 @@ function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuLi
           })}
           <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10,padding:"10px 12px",background:"var(--surface-container-low,#f6f8fc)",borderRadius:8}}>
             <span style={{fontSize:11.5,fontWeight:700,color:"var(--on-surface-variant)",alignSelf:"center"}}>Kesimpulan Hutang:</span>
-            <button type="button" style={pill(dpData.kesimpulanHutang==="bebas","#0E7C7B")} onClick={()=>set("kesimpulanHutang","bebas")}>Bebas Hutang</button>
-            <button type="button" style={pill(dpData.kesimpulanHutang==="hutang","#dc2626")} onClick={()=>set("kesimpulanHutang","hutang")}>Terdapat Hutang</button>
+            <button type="button" disabled={adaHutangAda}
+              style={{...pill(dpData.kesimpulanHutang==="bebas","#0E7C7B"),opacity:adaHutangAda?0.4:1,cursor:adaHutangAda?"not-allowed":"pointer"}}
+              onClick={()=>{ if(!adaHutangAda) set("kesimpulanHutang","bebas"); }}>Bebas Hutang</button>
+            <button type="button" disabled={semuaHutangTidak}
+              style={{...pill(dpData.kesimpulanHutang==="hutang","#dc2626"),opacity:semuaHutangTidak?0.4:1,cursor:semuaHutangTidak?"not-allowed":"pointer"}}
+              onClick={()=>{ if(!semuaHutangTidak) set("kesimpulanHutang","hutang"); }}>Terdapat Hutang</button>
+          </div>
           </div>
 
           {/* C. Kesimpulan verifikasi */}
           <div style={{fontWeight:800,fontSize:12.5,color:"var(--on-surface)",margin:"16px 0 8px"}}>C. Kesimpulan Verifikasi & Tindak Lanjut</div>
           <div
-            onClick={()=>set("kesimpulan","lengkap")}
-            style={{display:"flex",gap:10,alignItems:"flex-start",padding:"11px 13px",marginBottom:8,cursor:"pointer",borderRadius:10,
+            onClick={()=>{ if (!adaDokTidakAda) set("kesimpulan","lengkap"); }}
+            style={{display:"flex",gap:10,alignItems:"flex-start",padding:"11px 13px",marginBottom:8,borderRadius:10,
+              cursor:adaDokTidakAda?"not-allowed":"pointer",opacity:adaDokTidakAda?0.5:1,
               border:`1.5px solid ${dpData.kesimpulan==="lengkap"?"#0E7C7B":"var(--outline-variant,#d6deea)"}`,
               background:dpData.kesimpulan==="lengkap"?"rgba(14,124,123,0.07)":"#fff"}}>
-            <input type="radio" checked={dpData.kesimpulan==="lengkap"} readOnly style={{marginTop:2}}/>
+            <input type="radio" checked={dpData.kesimpulan==="lengkap"} disabled={adaDokTidakAda} readOnly style={{marginTop:2}}/>
             <div><div style={{fontWeight:700,fontSize:12.5,color:"#0E5A59"}}>Berkas Lengkap & Bebas Hutang</div>
-              <div style={{fontSize:11,color:"var(--on-surface-variant)"}}>Dapat diproses lebih lanjut — verifikasi diselesaikan, lanjut ke tahap berikutnya.</div></div>
+              <div style={{fontSize:11,color:"var(--on-surface-variant)"}}>
+                {adaDokTidakAda ? "Tidak dapat dipilih — terdapat dokumen yang belum lengkap/ditolak." : "Dapat diproses lebih lanjut — verifikasi diselesaikan, lanjut ke tahap berikutnya."}
+              </div></div>
           </div>
           <div
             onClick={()=>set("kesimpulan","kembali")}
@@ -4244,14 +4926,14 @@ function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuLi
         </div>
 
         <div className="modal-footer" style={{flexWrap:"wrap",gap:8}}>
-          <button className="btn btn-secondary" onClick={onCetak}>🖨 Cetak Daftar Periksa</button>
+          <button className="btn btn-secondary" onClick={onCetak}>Cetak Daftar Periksa</button>
           {canKembali ? (
             <button className="btn" style={{background:"var(--error)",color:"#fff"}} disabled={saving} onClick={onKembalikan}>
-              {saving?"⏳ Memproses…":"↩ Cetak & Kembalikan Berkas"}
+              {saving?"Memproses…":"Cetak & Kembalikan Berkas"}
             </button>
           ) : (
             <button className="btn btn-primary" disabled={saving||!canSelesai} onClick={onSelesai}>
-              {saving?"⏳ Menyimpan…":!dpData.kesimpulan?"Pilih kesimpulan dahulu":"✔ Selesai Verifikasi & Cetak"}
+              {saving?"Menyimpan…":!dpData.kesimpulan?"Pilih kesimpulan dahulu":"Selesai Verifikasi & Cetak"}
             </button>
           )}
         </div>
@@ -4347,7 +5029,7 @@ function SerahTerimaModal({ p, user, saving, onClose, onSubmit }) {
       <div className="modal" style={{maxWidth:560}}>
         <div className="modal-header">
           <div>
-            <div style={{fontWeight:800,fontSize:14,color:"var(--primary)"}}>📤 Serah Terima SKPP ke Pemohon</div>
+            <div style={{fontWeight:800,fontSize:14,color:"var(--primary)"}}>Serah Terima SKPP ke Pemohon</div>
             <div style={{fontSize:11,color:"var(--on-surface-variant)",marginTop:2}}>Catat penerima & bukti penyerahan</div>
           </div>
           <button className="modal-close" onClick={onClose} disabled={saving}>✕</button>
@@ -4382,18 +5064,64 @@ function SerahTerimaModal({ p, user, saving, onClose, onSubmit }) {
             <label className="form-label">Unggah Foto / Scan Bukti (opsional)</label>
             <input className="form-control" type="file" accept="image/*"
               onChange={e=>setFoto(e.target.files?.[0]||null)}/>
-            {foto && <div style={{fontSize:11,color:"var(--on-surface-variant)",marginTop:4}}>📎 {foto.name}</div>}
+            {foto && <div style={{fontSize:11,color:"var(--on-surface-variant)",marginTop:4}}>{foto.name}</div>}
           </div>
           {!adaBukti && <div style={{fontSize:11,color:"#dc2626",marginTop:8}}>* Sertakan minimal satu bukti: tanda tangan digital atau foto/scan</div>}
         </div>
         <div className="modal-footer" style={{flexWrap:"wrap",gap:8}}>
-          <button className="btn btn-secondary" onClick={()=>cetakBuktiSerahTerima({ p, penerima:{nama:data.nama,nip:data.nip,status:data.status}, ttdDataUrl:ttd, petugasNama:user?.nama, waktu:new Date().toLocaleString("id-ID") })}>🖨 Cetak Bukti</button>
+          <button className="btn btn-secondary" onClick={()=>cetakBuktiSerahTerima({ p, penerima:{nama:data.nama,nip:data.nip,status:data.status}, ttdDataUrl:ttd, petugasNama:user?.nama, waktu:new Date().toLocaleString("id-ID") })}>Cetak Bukti</button>
           <button className="btn btn-primary" disabled={saving||!valid}
             onClick={()=>onSubmit({ penerimaNama:data.nama.trim(), penerimaNIP:data.nip.trim(), penerimaStatus:data.status, ttdDataUrl:ttd, fotoFile:foto })}>
-            {saving?"⏳ Menyimpan…":"✔ Serahkan & Tandai Selesai"}
+            {saving?"Menyimpan…":"Serahkan & Tandai Selesai"}
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Kotak unggah/unduh dokumen SKPP final (hasil scan) — muncul di panel detail
+// untuk pengajuan yang sudah selesai. Staf mengunggah PDF; pemohon mengunduhnya
+// di portal. Mengelola path lokal supaya UI langsung ter-update tanpa reload.
+function SkppFinalBox({ p }) {
+  const [path, setPath] = useState(p.skppFinalPath || null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const fileRef = useRef(null);
+
+  const onFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.type !== "application/pdf" && !/\.pdf$/i.test(file.name)) { setMsg("File harus berformat PDF."); return; }
+    if (file.size > 20 * 1024 * 1024) { setMsg("Ukuran file maksimal 20 MB."); return; }
+    setBusy(true); setMsg("");
+    const res = await unggahSkppFinal({ id: p.id, file });
+    setBusy(false);
+    if (res.ok) { setPath(res.path); setMsg("Dokumen SKPP terunggah & siap diunduh pemohon."); }
+    else setMsg(res.pesan || "Gagal mengunggah dokumen.");
+  };
+  const lihat = async () => {
+    const url = await skppFinalUrl(path);
+    if (url) window.open(url, "_blank"); else alert("Dokumen SKPP tidak dapat diakses.");
+  };
+
+  return (
+    <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:12,padding:"14px 16px",marginBottom:16}}>
+      <div style={{fontWeight:800,fontSize:12.5,color:"#1e40af",marginBottom:6}}>Dokumen SKPP</div>
+      <div style={{fontSize:12,color:"#1e40af",marginBottom:10,lineHeight:1.5}}>
+        {path
+          ? "Dokumen tersedia dan dapat diunduh pemohon melalui portal."
+          : "Unggah dokumen SKPP yang telah ditandatangani agar dapat diunduh pemohon."}
+      </div>
+      <input ref={fileRef} type="file" accept="application/pdf,.pdf" style={{display:"none"}} onChange={onFile}/>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        {path && <button className="btn btn-secondary btn-sm" onClick={lihat} disabled={busy}>Lihat / Unduh</button>}
+        <button className="btn btn-primary btn-sm" onClick={()=>fileRef.current?.click()} disabled={busy}>
+          {busy ? "Mengunggah…" : (path ? "Ganti File" : "Unggah SKPP")}
+        </button>
+      </div>
+      {msg && <div style={{fontSize:11.5,color:"#1e40af",marginTop:8,fontWeight:600}}>{msg}</div>}
     </div>
   );
 }
@@ -4406,15 +5134,22 @@ function BuktiSerahBlock({ p }) {
   };
   return (
     <div style={{background:"#ecfdf5",border:"1px solid #a7f3d0",borderRadius:12,padding:"14px 16px",marginBottom:16}}>
-      <div style={{fontWeight:800,fontSize:12.5,color:"#065f46",marginBottom:8}}>📤 Bukti Serah Terima SKPP</div>
-      <div className="grid-2" style={{gap:8,fontSize:12}}>
-        <div className="info-row"><span className="info-lbl">Waktu Serah Terima</span><span className="info-val">{p.tanggalSerahTerima||"—"}</span></div>
-        <div className="info-row"><span className="info-lbl">Penerima</span><span className="info-val">{p.penerimaNama||"—"}{p.penerimaStatus?` (${p.penerimaStatus})`:""}</span></div>
-        <div className="info-row"><span className="info-lbl">NIP / Identitas Penerima</span><span className="info-val">{p.penerimaNIP||"—"}</span></div>
+      <div style={{fontWeight:800,fontSize:12.5,color:"#065f46",marginBottom:12}}>Bukti Serah Terima SKPP</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",gap:"12px 22px"}}>
+        {[
+          ["Waktu Serah Terima", p.tanggalSerahTerima || "—"],
+          ["Penerima", (p.penerimaNama || "—") + (p.penerimaStatus ? ` (${p.penerimaStatus})` : "")],
+          ["NIP / Identitas Penerima", p.penerimaNIP || "—"],
+        ].map(([l, v]) => (
+          <div key={l}>
+            <div style={{fontSize:9.5,fontWeight:700,color:"#059669",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:3}}>{l}</div>
+            <div style={{fontSize:13,color:"#064e3b",fontWeight:600,lineHeight:1.4,overflowWrap:"break-word"}}>{v}</div>
+          </div>
+        ))}
       </div>
-      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
-        {p.ttdSerahPath && <button className="btn btn-secondary btn-sm" onClick={()=>buka(p.ttdSerahPath)}>✍ Lihat Tanda Tangan</button>}
-        {p.buktiSerahPath && <button className="btn btn-secondary btn-sm" onClick={()=>buka(p.buktiSerahPath)}>🖼 Lihat Foto Bukti</button>}
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:14}}>
+        {p.ttdSerahPath && <button className="btn btn-secondary btn-sm" onClick={()=>buka(p.ttdSerahPath)}>Lihat Tanda Tangan</button>}
+        {p.buktiSerahPath && <button className="btn btn-secondary btn-sm" onClick={()=>buka(p.buktiSerahPath)}>Lihat Foto Bukti</button>}
         {!p.ttdSerahPath && !p.buktiSerahPath && <span style={{fontSize:11,color:"#065f46"}}>Tidak ada berkas bukti terlampir.</span>}
       </div>
     </div>
@@ -4474,10 +5209,11 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
   return (
     <>
     <div className="modal-overlay">
-      <div className="modal" style={{maxWidth:mode==="bulk"?860:600}}>
+      <div className="modal" style={{maxWidth:mode==="bulk"?860:640}}>
         <div className="modal-header">
           <div>
-            <div style={{fontWeight:800,fontSize:14,color:"var(--primary)",letterSpacing:"-0.4px"}}>Input Pengajuan SKPP</div>
+            <div style={{fontFamily:"var(--mono)",fontSize:10,color:"var(--primary)",fontWeight:700,marginBottom:2,letterSpacing:"0.05em"}}>PENGAJUAN BARU</div>
+            <div style={{fontWeight:800,fontSize:15,color:"var(--on-surface)",letterSpacing:"-0.4px"}}>Input Pengajuan SKPP</div>
             <div style={{display:"flex",gap:6,marginTop:8}}>
               {["tunggal","bulk"].map(m=>(
                 <button key={m} onClick={()=>setMode(m)} style={{
@@ -4485,7 +5221,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
                   background:mode===m?"var(--primary)":"var(--surface-container-low)",
                   color:mode===m?"white":"var(--on-surface-variant)",
                 }}>
-                  {m==="tunggal"?"👤 Tunggal":"📦 Bulk (Bendahara OPD)"}
+                  {m==="tunggal"?"Tunggal":"Bulk (Bendahara OPD)"}
                 </button>
               ))}
             </div>
@@ -4495,6 +5231,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
 
         {mode==="tunggal" && (<>
           <div className="modal-body">
+            <div style={{background:"var(--surface-container-low)",borderRadius:12,padding:"16px 16px 6px",border:"1px solid var(--outline-variant)"}}>
             <div className="grid-2">
               <div className="form-group"><label className="form-label">Nama Lengkap *</label><input className="form-control" value={form.nama} onChange={e=>set("nama",e.target.value)} placeholder="Sesuai SK"/></div>
               <div className="form-group"><label className="form-label">NIP *</label><input className="form-control" value={form.nip} onChange={e=>set("nip",e.target.value)} placeholder="18 digit" style={{fontFamily:"var(--mono)"}}/></div>
@@ -4566,12 +5303,13 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
                 <div style={{marginTop:6,fontSize:11,color:"var(--on-surface-variant)"}}>Tanggal mulai berlaku (TMT) pindah sesuai SK.</div>
               </div>
             )}
-            {form.jalur==="B" && <div className="alert alert-amber"><span>ℹ️</span><span style={{fontSize:12}}>Jalur B memerlukan proses kekurangan pangkat via SIMgaji dan SP2D sebelum SKPP dibuat.</span></div>}
+            {form.jalur==="B" && <div className="alert alert-amber"><span style={{fontSize:12}}>Jalur B memerlukan proses kekurangan pangkat via SIMgaji dan SP2D sebelum SKPP dibuat.</span></div>}
+            </div>
           </div>
           <div className="modal-footer">
             <button className="btn btn-secondary" onClick={onClose} disabled={saving}>Batal</button>
             <button className="btn btn-primary" disabled={saving||!form.nama||!form.nip||!form.opd||!form.kasubid||!form.jalur||(form.alasan==="Meninggal Dunia"&&!form.subjenis)||(form.alasan==="Lainnya"&&(!form.alasanLain.trim()||!form.kodeLain.trim()))} onClick={handleSimpanTunggal}>
-              {saving?"⟳ Menyimpan...":"Simpan & Mulai Proses"}
+              {saving?"Menyimpan...":"Simpan & Mulai Proses"}
             </button>
           </div>
         </>)}
@@ -4579,7 +5317,6 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
         {mode==="bulk" && (<>
           <div className="modal-body">
             <div className="alert alert-blue" style={{marginBottom:16}}>
-              <span>📦</span>
               <div style={{fontSize:12}}><strong>Mode Bulk — Pengajuan dari Bendahara OPD.</strong> Isi data umum OPD di atas, lalu tambahkan daftar pegawai di bawah. Semua pengajuan akan mendapatkan <strong>satu kode akses bersama</strong>.</div>
             </div>
             <div style={{background:"var(--surface-container-low)",borderRadius:12,padding:"14px 16px",marginBottom:18,border:"1.5px solid var(--outline-variant)"}}>
@@ -4602,10 +5339,10 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
                     </span>
                     <div style={{display:"flex",gap:6}}>
                       <button type="button" title="Duplikat data pegawai ini" onClick={()=>duplicateItem(idx)}
-                        style={{display:"inline-flex",alignItems:"center",gap:5,padding:"6px 11px",border:"1px solid var(--outline-variant)",borderRadius:8,background:"var(--surface-container-low)",cursor:"pointer",fontSize:11.5,fontWeight:600,color:"var(--on-surface-variant)"}}>⧉ Duplikat</button>
+                        style={{display:"inline-flex",alignItems:"center",gap:5,padding:"6px 11px",border:"1px solid var(--outline-variant)",borderRadius:8,background:"var(--surface-container-low)",cursor:"pointer",fontSize:11.5,fontWeight:600,color:"var(--on-surface-variant)"}}>Duplikat</button>
                       {items.length>1 && (
                         <button type="button" title="Hapus pegawai ini" onClick={()=>removeItem(idx)}
-                          style={{display:"inline-flex",alignItems:"center",gap:5,padding:"6px 11px",border:"1px solid #fca5a5",borderRadius:8,background:"var(--error-container)",cursor:"pointer",fontSize:11.5,fontWeight:600,color:"var(--error)"}}>✕ Hapus</button>
+                          style={{display:"inline-flex",alignItems:"center",gap:5,padding:"6px 11px",border:"1px solid #fca5a5",borderRadius:8,background:"var(--error-container)",cursor:"pointer",fontSize:11.5,fontWeight:600,color:"var(--error)"}}>Hapus</button>
                       )}
                     </div>
                   </div>
@@ -4704,7 +5441,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
           <div className="modal-footer">
             <button className="btn btn-secondary" onClick={onClose} disabled={saving}>Batal</button>
             <button className="btn btn-primary" disabled={saving||!bulkValid} onClick={handleSaveBulk}>
-              {saving?"⟳ Menyimpan...":`📦 Simpan ${items.length} Pengajuan Bulk`}
+              {saving?"Menyimpan...":`Simpan ${items.length} Pengajuan Bulk`}
             </button>
           </div>
         </>)}
@@ -4716,7 +5453,6 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
         <div className="modal" style={{maxWidth:440,borderRadius:"22px",overflow:"hidden"}}>
           <div className="modal-header" style={{background:"#fffbeb",borderBottom:"1px solid #fde68a"}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <span style={{fontSize:22}}>⚠️</span>
               <div style={{fontWeight:800,fontSize:14,color:"#92400e"}}>Kemungkinan Kelebihan Pembayaran Gaji</div>
             </div>
           </div>
@@ -4729,7 +5465,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
           <div className="modal-footer">
             <button className="btn btn-secondary" onClick={()=>setShowPindahPopup(false)} disabled={saving}>Periksa Dulu</button>
             <button className="btn btn-primary" disabled={saving} onClick={()=>{setShowPindahPopup(false);simpanTunggal();}}>
-              {saving?"⟳ Menyimpan...":"Mengerti, Tetap Simpan"}
+              {saving?"Menyimpan...":"Mengerti, Tetap Simpan"}
             </button>
           </div>
         </div>
@@ -4741,7 +5477,6 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
         <div className="modal" style={{maxWidth:480,borderRadius:"22px",overflow:"hidden"}}>
           <div className="modal-header" style={{background:"#fffbeb",borderBottom:"1px solid #fde68a"}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <span style={{fontSize:22}}>⚠️</span>
               <div style={{fontWeight:800,fontSize:14,color:"#92400e"}}>Kemungkinan Kelebihan Pembayaran Gaji</div>
             </div>
           </div>
@@ -4762,7 +5497,7 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
           <div className="modal-footer">
             <button className="btn btn-secondary" onClick={()=>setShowBulkPindahPopup(false)} disabled={saving}>Periksa Dulu</button>
             <button className="btn btn-primary" disabled={saving} onClick={()=>{setShowBulkPindahPopup(false);doSaveBulk();}}>
-              {saving?"⟳ Menyimpan...":"Mengerti, Tetap Simpan"}
+              {saving?"Menyimpan...":"Mengerti, Tetap Simpan"}
             </button>
           </div>
         </div>
@@ -4799,13 +5534,13 @@ function AgingBadge({ tanggalMasuk, status, progress }) {
       color: isKritis ? "var(--error)" : "#92400e",
       display:"inline-flex",alignItems:"center",gap:4,
     }}>
-      {isKritis ? "🔴" : "🟡"} Hari ke-{hari+1}
+      Hari ke-{hari+1}
     </span>
   );
 }
 
 // ─── PAGE DASHBOARD ───────────────────────────────────────────────────────────
-/* ── d2 inline icons (from SI-PASTI design handoff) ── */
+/* ── d2 inline icons (from KATONG SKPP design handoff) ── */
 function D2Ico({ d, size=18 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -4828,6 +5563,7 @@ const D2ICONS = {
   returned: <><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 5 5v2"/></>,
   eye: <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></>,
   report: <><path d="M3 3v18h18"/><path d="M7 16v-5M12 16V8M17 16v-3"/></>,
+  star: <><path d="M12 2l2.9 6.26 6.86.55-5.2 4.52 1.57 6.7L12 16.98 5.87 20.53l1.57-6.7-5.2-4.52 6.86-.55z"/></>,
   activity: <><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></>,
   inbox: <><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></>,
   moon: <><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></>,
@@ -5212,7 +5948,6 @@ function PagePengajuan({ data, loading, onRefresh, onDetail, onInputBaru, onExpo
                 {filtered.length===0 && (
                   <tr><td colSpan={9}>
                     <div className="empty-box">
-                      <div className="empty-icon">🔍</div>
                       <div className="empty-text">Tidak ada data ditemukan</div>
                       <div className="empty-sub">Coba ubah filter atau kata kunci pencarian</div>
                     </div>
@@ -5248,7 +5983,7 @@ function cetakLaporan({ jenis, items }) {
     if (jenis==="semua") return statusLabel(p);
     if (jenis==="selesai") return p.tanggalSelesai || "—";
     if (jenis==="kembali") return "Dikembalikan ke pemohon";
-    const tahapan = p.jalur==="A" ? TAHAPAN_A : TAHAPAN_B;
+    const tahapan = tahapanUntuk(p);
     const step = tahapan.find(t=>t.id===p.tahapAktif);
     return `${getProgress(p)}% — ${step?step.label:"—"}`;
   };
@@ -5262,6 +5997,7 @@ function cetakLaporan({ jenis, items }) {
     <td>${p.alasan||"—"}</td>
     <td style="text-align:center">${p.jalur||"—"}</td>
     <td>${p.tanggalMasuk||"—"}</td>
+    <td style="text-align:center">${agingPengajuan(p)?.hari!=null?agingPengajuan(p).hari+" hr":"—"}</td>
     <td>${ket(p)}</td>
   </tr>`).join("");
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
@@ -5302,9 +6038,9 @@ function cetakLaporan({ jenis, items }) {
     <thead><tr>
       <th style="width:34px">No.</th><th style="width:110px">No. Pengajuan</th><th>Nama Pegawai</th>
       <th style="width:110px">NIP</th><th>OPD</th><th>Keperluan</th><th style="width:42px">Jalur</th>
-      <th style="width:90px">Tgl Masuk</th><th style="width:170px">${ketHead}</th>
+      <th style="width:90px">Tgl Masuk</th><th style="width:56px">Umur</th><th style="width:170px">${ketHead}</th>
     </tr></thead>
-    <tbody>${rows || `<tr><td colspan="9" style="text-align:center;padding:18px">Tidak ada data</td></tr>`}</tbody>
+    <tbody>${rows || `<tr><td colspan="10" style="text-align:center;padding:18px">Tidak ada data</td></tr>`}</tbody>
   </table>
   <div class="ft"><div>Dicetak: ${tglCetak}</div><div>Jumlah: ${items.length} pengajuan</div></div>
   <div class="sign">
@@ -5331,12 +6067,193 @@ function parseTglMasuk(s){
   return new Date(Number(m[3]), bln, Number(m[1]));
 }
 
+// ─── LAPORAN: PALET & KOMPONEN CHART (mandiri, tanpa dependency) ──────────────
+const LAP_BLN = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+const LAP_WARNA = {
+  masuk:"#4F6BCD", selesai:"#059669", proses:"#2563eb", kembali:"#f59e0b",
+  diajukan:"#64748b", verifikasi:"#4F6BCD", penerbitan:"#7c3aed", ditolak:"#ba1a1a",
+};
+
+// Diagram batang kolom (1–2 seri) berbasis CSS: responsif, interaktif (hover),
+// ikut tema lewat CSS variable. rows: [{label,[key]:number}]; series:[{key,label,color}].
+function LapColumns({ rows, series, height = 180 }) {
+  const [hi, setHi] = useState(null);
+  const max = Math.max(1, ...rows.flatMap(r => series.map(s => r[s.key] || 0)));
+  const gap = rows.length > 8 ? 4 : 8;
+  return (
+    <div>
+      {/* Baris info: berubah saat kursor menyorot sebuah kolom */}
+      <div style={{minHeight:22,marginBottom:8,fontSize:12.5,color:"var(--on-surface-variant)",display:"flex",gap:14,justifyContent:"center",flexWrap:"wrap"}}>
+        {hi!=null ? (
+          <><strong style={{color:"var(--on-surface)"}}>{rows[hi].label}</strong>
+            {series.map(s => <span key={s.key}><span style={{color:s.color}}>●</span> {s.label}: <strong style={{fontFamily:"var(--mono)"}}>{rows[hi][s.key]||0}</strong></span>)}</>
+        ) : (
+          series.map(s => <span key={s.key}><span style={{color:s.color}}>●</span> {s.label}</span>)
+        )}
+      </div>
+      <div style={{display:"flex",alignItems:"flex-end",gap,height,padding:"0 2px 0 6px",borderLeft:"1px solid var(--outline-variant)",borderBottom:"1px solid var(--outline-variant)"}}>
+        {rows.map((r,i) => (
+          <div key={i} onMouseEnter={()=>setHi(i)} onMouseLeave={()=>setHi(null)}
+            style={{flex:1,minWidth:0,height:"100%",display:"flex",alignItems:"flex-end",justifyContent:"center",gap:3,
+              background:hi===i?"var(--surface-container)":"transparent",borderRadius:"6px 6px 0 0",transition:"background .1s",cursor:"default"}}>
+            {series.map(s => {
+              const v = r[s.key] || 0, h = (v / max) * 100;
+              return <div key={s.key} title={`${s.label}: ${v}`}
+                style={{width:series.length>1?14:"58%",maxWidth:34,height:`${h}%`,minHeight:v>0?3:0,
+                  background:s.color,borderRadius:"4px 4px 0 0",opacity:hi==null||hi===i?1:0.4,transition:"opacity .1s"}}/>;
+            })}
+          </div>
+        ))}
+      </div>
+      <div style={{display:"flex",gap,padding:"6px 2px 0 6px"}}>
+        {rows.map((r,i) => (
+          <div key={i} style={{flex:1,minWidth:0,textAlign:"center",fontSize:10.5,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
+            color:hi===i?"var(--on-surface)":"var(--outline)",fontWeight:hi===i?700:500}}>{r.label}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Donut SVG interaktif + legenda. segments: [{label,value,color}].
+function LapDonut({ segments, size = 190 }) {
+  const [hi, setHi] = useState(null);
+  const sum = segments.reduce((a,s)=>a+s.value,0);
+  const R = size/2 - 16, cx = size/2, cy = size/2, sw = 18;
+  const aktif = hi!=null ? segments[hi] : null;
+  let acc = 0;
+  return (
+    <div style={{display:"flex",gap:18,alignItems:"center",flexWrap:"wrap",justifyContent:"center"}}>
+      <div style={{position:"relative",width:size,height:size,flexShrink:0}}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{transform:"rotate(-90deg)"}}>
+          <circle cx={cx} cy={cy} r={R} fill="none" stroke="var(--surface-container)" strokeWidth={sw}/>
+          {segments.map((s,i) => {
+            if (!s.value) return null;
+            const pct = sum ? s.value/sum*100 : 0;
+            const el = (
+              <circle key={i} cx={cx} cy={cy} r={R} fill="none" stroke={s.color}
+                strokeWidth={hi===i?sw+6:sw} pathLength="100" strokeLinecap="butt"
+                strokeDasharray={`${pct} ${100-pct}`} strokeDashoffset={-acc}
+                style={{cursor:"pointer",transition:"stroke-width .15s"}}
+                onMouseEnter={()=>setHi(i)} onMouseLeave={()=>setHi(null)}>
+                <title>{s.label}: {s.value}</title>
+              </circle>
+            );
+            acc += pct;
+            return el;
+          })}
+        </svg>
+        <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
+          <div style={{fontSize:30,fontWeight:800,fontFamily:"var(--mono)",color:aktif?aktif.color:"var(--on-surface)",lineHeight:1}}>{aktif?aktif.value:sum}</div>
+          <div style={{fontSize:11,color:"var(--on-surface-variant)",marginTop:4,textAlign:"center",maxWidth:120,padding:"0 6px"}}>{aktif?aktif.label:"Total Berkas"}</div>
+        </div>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:5,flex:1,minWidth:158}}>
+        {segments.map((s,i) => s.value>0 && (
+          <div key={i} onMouseEnter={()=>setHi(i)} onMouseLeave={()=>setHi(null)}
+            style={{display:"flex",alignItems:"center",gap:9,padding:"4px 7px",borderRadius:8,cursor:"default",
+              background:hi===i?"var(--surface-container)":"transparent",transition:"background .1s"}}>
+            <span style={{width:11,height:11,borderRadius:3,background:s.color,flexShrink:0}}/>
+            <span style={{fontSize:12.5,color:"var(--on-surface)",flex:1}}>{s.label}</span>
+            <span style={{fontSize:13,fontWeight:700,fontFamily:"var(--mono)",color:"var(--on-surface)"}}>{s.value}</span>
+            <span style={{fontSize:10.5,color:"var(--outline)",width:36,textAlign:"right"}}>{sum?Math.round(s.value/sum*100):0}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Hitung seluruh agregat laporan dari daftar pengajuan yang sudah terfilter.
+function hitungLaporan(base) {
+  const isSel = p => p.status==="selesai" || getProgress(p)===100;
+  const stage = { diajukan:0, verifikasi:0, penerbitan:0, kembali:0, selesai:0, ditolak:0 };
+  const leads = [];
+  const byMonth = new Map();
+  const mk = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+  const bump = (k, f) => { const o = byMonth.get(k) || { masuk:0, selesai:0 }; o[f]++; byMonth.set(k, o); };
+  const today0 = new Date(); today0.setHours(0,0,0,0);
+  const overdue = [];
+  base.forEach(p => {
+    const dM = parseTglMasuk(p.tanggalMasuk);
+    if (dM) bump(mk(dM), "masuk");
+    if (isSel(p)) {
+      stage.selesai++;
+      const dS = parseTglMasuk(p.tanggalSelesai);
+      if (dS) bump(mk(dS), "selesai");
+      if (dM && dS) { const d = Math.round((dS - dM) / 86400000); if (d >= 0) leads.push(d); }
+    } else if (p.status === "kembali") stage.kembali++;
+    else if (p.status === "ditolak") stage.ditolak++;
+    else if (p.status === "diajukan") stage.diajukan++;
+    else if (getProgress(p) > 50) stage.penerbitan++;
+    else stage.verifikasi++;
+    if (!isSel(p) && p.status !== "ditolak" && p.status !== "kembali") {
+      const dE = parseTglMasuk(p.estimasiSelesai);
+      if (dE && dE < today0) overdue.push({ p, lewat: Math.round((today0 - dE) / 86400000), est: dE });
+    }
+  });
+  const bulan = [...byMonth.keys()].sort().slice(-12).map(k => {
+    const [y, m] = k.split("-"); const o = byMonth.get(k);
+    return { key:k, label:`${LAP_BLN[+m-1]} '${y.slice(2)}`, masuk:o.masuk, selesai:o.selesai };
+  });
+  const sorted = [...leads].sort((a,b)=>a-b); const n = sorted.length;
+  const avg = n ? Math.round(leads.reduce((a,b)=>a+b,0)/n) : null;
+  const med = n ? (n%2 ? sorted[(n-1)/2] : Math.round((sorted[n/2-1]+sorted[n/2])/2)) : null;
+  const bkt = [
+    { label:"≤3 hr", value:0 }, { label:"4–7 hr", value:0 }, { label:"8–14 hr", value:0 },
+    { label:"15–30 hr", value:0 }, { label:">30 hr", value:0 },
+  ];
+  leads.forEach(d => { bkt[d<=3?0:d<=7?1:d<=14?2:d<=30?3:4].value++; });
+  overdue.sort((a,b)=>b.lewat-a.lewat);
+  return {
+    stage, leads, bulan, bkt, overdue,
+    avg, med, min: n?sorted[0]:null, max: n?sorted[n-1]:null,
+    total: base.length, selesai: stage.selesai, kembali: stage.kembali, ditolak: stage.ditolak,
+    prosesTotal: stage.diajukan + stage.verifikasi + stage.penerbitan,
+  };
+}
+
+// Umur/aging berkas: yang SUDAH SELESAI = total hari proses (masuk→selesai);
+// yang MASIH BERJALAN = hari sejak berkas masuk hingga hari ini.
+function agingPengajuan(p) {
+  const dM = parseTglMasuk(p.tanggalMasuk);
+  if (!dM) return null;
+  const sel = p.status==="selesai" || getProgress(p)===100;
+  const akhir = sel ? parseTglMasuk(p.tanggalSelesai) : new Date();
+  if (!akhir) return null;
+  const a0 = new Date(dM);    a0.setHours(0,0,0,0);
+  const b0 = new Date(akhir); b0.setHours(0,0,0,0);
+  return { hari: Math.max(0, Math.round((b0 - a0) / 86400000)), selesai: sel };
+}
+
+// Badge umur berwarna: selesai (hijau) · overdue (merah) · menua >7 hr (kuning) · normal.
+function AgingCell({ p }) {
+  const a = agingPengajuan(p);
+  if (!a) return <span style={{color:"var(--outline)"}}>—</span>;
+  let bg = "var(--surface-container)", col = "var(--on-surface-variant)";
+  if (a.selesai) { bg = "var(--success-pale)"; col = "var(--success)"; }
+  else {
+    const dE = parseTglMasuk(p.estimasiSelesai);
+    const t0 = new Date(); t0.setHours(0,0,0,0);
+    if (dE && dE < t0) { bg = "#fee2e2"; col = "#b91c1c"; }
+    else if (a.hari > 7) { bg = "#fef3c7"; col = "#b45309"; }
+  }
+  return (
+    <span title={a.selesai ? "Total waktu proses hingga selesai" : "Umur berkas sejak masuk"}
+      style={{fontSize:12.5,fontWeight:700,fontFamily:"var(--mono)",padding:"3px 10px",borderRadius:999,whiteSpace:"nowrap",background:bg,color:col}}>
+      {a.hari} hr
+    </span>
+  );
+}
+
 function PageLaporan({ data, loading, onDetail }) {
-  const [jenis, setJenis] = useState("selesai");
+  const [jenis, setJenis] = useState("semua");
   const [filterOPD, setFilterOPD] = useState("semua");
   const [filterJalur, setFilterJalur] = useState("semua");
   const [dari, setDari] = useState("");
   const [sampai, setSampai] = useState("");
+  const [cari, setCari] = useState("");
+  const [sortAging, setSortAging] = useState(null); // null | "asc" | "desc"
 
   const isSelesai = p => p.status==="selesai"||getProgress(p)===100;
   const kategori = p => isSelesai(p) ? "selesai" : p.status==="kembali" ? "kembali" : "proses";
@@ -5366,79 +6283,194 @@ function PageLaporan({ data, loading, onDetail }) {
   const meta = LAPORAN_JENIS[jenis];
   const adaFilter = filterOPD!=="semua" || filterJalur!=="semua" || dari || sampai;
 
+  const L = useMemo(() => hitungLaporan(base), [base]);
+
+  const donutSeg = [
+    { label:"Diajukan (antre loket)", value:L.stage.diajukan,   color:LAP_WARNA.diajukan },
+    { label:"Verifikasi Berkas",      value:L.stage.verifikasi, color:LAP_WARNA.verifikasi },
+    { label:"Penerbitan SKPP",        value:L.stage.penerbitan, color:LAP_WARNA.penerbitan },
+    { label:"Dikembalikan",           value:L.stage.kembali,    color:LAP_WARNA.kembali },
+    { label:"Selesai",                value:L.stage.selesai,    color:LAP_WARNA.selesai },
+  ];
+  if (L.ditolak>0) donutSeg.push({ label:"Ditolak", value:L.ditolak, color:LAP_WARNA.ditolak });
+
+  const kpi = [
+    { label:"Total Permohonan", value:L.total,                       warna:LAP_WARNA.masuk,      emoji:"📋", ket:"berkas masuk (sesuai filter)" },
+    { label:"Selesai",          value:L.selesai,                     warna:LAP_WARNA.selesai,    emoji:"✅", ket:L.total?`${Math.round(L.selesai/L.total*100)}% dari total`:"—" },
+    { label:"Dalam Proses",     value:L.prosesTotal,                 warna:LAP_WARNA.proses,     emoji:"⏳", ket:"sedang berjalan" },
+    { label:"Dikembalikan",     value:L.kembali,                     warna:LAP_WARNA.kembali,    emoji:"↩️", ket:L.total?`${Math.round(L.kembali/L.total*100)}% tingkat pengembalian`:"—" },
+    { label:"Rata-rata Selesai",value:L.avg!=null?`${L.avg} hr`:"—", warna:LAP_WARNA.penerbitan, emoji:"⏱️", ket:L.leads.length?`dari ${L.leads.length} SKPP selesai`:"belum ada data" },
+  ];
+
+  const emptyMini = (txt) => (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:190,color:"var(--outline)",fontSize:13}}>{txt||"Belum ada data pada rentang ini"}</div>
+  );
+  const seriesVolume = [
+    { key:"masuk",   label:"Masuk",   color:LAP_WARNA.masuk },
+    { key:"selesai", label:"Selesai", color:LAP_WARNA.selesai },
+  ];
+
+  // Baris tabel "Rincian Data": mulai dari items (sudah difilter OPD/jalur/tanggal
+  // + status), lalu saring pencarian teks & (opsional) urutkan berdasarkan umur.
+  const q = cari.trim().toLowerCase();
+  let rincian = q ? items.filter(p =>
+    (p.id||"").toLowerCase().includes(q) || (p.nama||"").toLowerCase().includes(q) ||
+    String(p.nip||"").toLowerCase().includes(q) || (p.opd||"").toLowerCase().includes(q)
+  ) : items;
+  if (sortAging) {
+    rincian = [...rincian].sort((a,b) => {
+      const av = agingPengajuan(a)?.hari ?? -1, bv = agingPengajuan(b)?.hari ?? -1;
+      return sortAging==="asc" ? av-bv : bv-av;
+    });
+  }
+
   return (
     <div>
-      {/* Kartu ringkasan / pemilih jenis laporan */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:16}}>
-        {Object.entries(LAPORAN_JENIS).map(([k,m])=>{
-          const aktif = jenis===k;
-          return (
-            <button key={k} onClick={()=>setJenis(k)} style={{
-              textAlign:"left",cursor:"pointer",borderRadius:16,padding:"16px 18px",
-              border:`2px solid ${aktif?m.warna:"var(--outline-variant)"}`,
-              background:aktif?`${m.warna}12`:"var(--surface-container-lowest)",
-              transition:"all .15s",display:"flex",flexDirection:"column",gap:6}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                <span style={{fontSize:13,fontWeight:700,color:"var(--on-surface-variant)"}}>{m.icon} SKPP {m.label}</span>
-              </div>
-              <div style={{fontSize:30,fontWeight:800,fontFamily:"var(--mono)",color:m.warna,lineHeight:1}}>{cnt[k]}</div>
-              <div style={{fontSize:11.5,color:"var(--outline)"}}>pengajuan</div>
-            </button>
-          );
-        })}
+      {/* ── Toolbar filter: berlaku utk SELURUH laporan (kartu, chart, tabel) ── */}
+      <div className="card" style={{padding:"12px 16px",marginBottom:16,display:"flex",gap:12,flexWrap:"wrap",alignItems:"flex-end"}}>
+        <div style={{display:"flex",flexDirection:"column",gap:4,minWidth:210}}>
+          <label style={{fontSize:11,fontWeight:700,color:"var(--on-surface-variant)"}}>OPD / Instansi</label>
+          <select className="form-control" style={{width:"auto",fontSize:13}} value={filterOPD} onChange={e=>setFilterOPD(e.target.value)}>
+            <option value="semua">Semua OPD</option>
+            {daftarOPD.map(o=><option key={o} value={o}>{o}</option>)}
+          </select>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:4}}>
+          <label style={{fontSize:11,fontWeight:700,color:"var(--on-surface-variant)"}}>Jalur</label>
+          <select className="form-control" style={{width:"auto",fontSize:13}} value={filterJalur} onChange={e=>setFilterJalur(e.target.value)}>
+            <option value="semua">Semua Jalur</option>
+            <option value="A">Jalur A</option>
+            <option value="B">Jalur B</option>
+          </select>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:4}}>
+          <label style={{fontSize:11,fontWeight:700,color:"var(--on-surface-variant)"}}>Tgl Masuk — Dari</label>
+          <input type="date" className="form-control" style={{width:"auto",fontSize:13}} value={dari} onChange={e=>setDari(e.target.value)}/>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:4}}>
+          <label style={{fontSize:11,fontWeight:700,color:"var(--on-surface-variant)"}}>Sampai</label>
+          <input type="date" className="form-control" style={{width:"auto",fontSize:13}} value={sampai} onChange={e=>setSampai(e.target.value)}/>
+        </div>
+        {adaFilter && (
+          <button className="btn btn-ghost btn-sm" onClick={()=>{setFilterOPD("semua");setFilterJalur("semua");setDari("");setSampai("");}}>Reset</button>
+        )}
+        <div style={{marginLeft:"auto",display:"flex",gap:8}}>
+          <button className="btn btn-ghost btn-sm" onClick={()=>exportCSV(base)} disabled={base.length===0} style={{gap:6}}><IcoDownload size={14}/> Export CSV</button>
+          <button className="btn btn-primary btn-sm" onClick={()=>cetakLaporan({jenis:"semua",items:base})} disabled={base.length===0} style={{gap:6}}><IcoPrint size={14}/> Cetak Rekap</button>
+        </div>
       </div>
 
-      <div className="card">
-        <div className="card-header">
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <div className="card-header-title">{meta.judul}</div>
-            <span className="chip chip-blue" style={{fontSize:11}}>{items.length} entri</span>
+      {loading ? (
+        <div className="card"><div className="loading-box"><div className="spinner"/><span>Memuat data laporan...</span></div></div>
+      ) : (
+      <>
+        {/* ── A1 · Kartu angka ringkasan ── */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(185px,1fr))",gap:14,marginBottom:16}}>
+          {kpi.map((k,i)=>(
+            <div key={i} className="card" style={{padding:"15px 17px",display:"flex",flexDirection:"column",gap:7,borderLeft:`4px solid ${k.warna}`}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                <span style={{fontSize:11.5,fontWeight:700,color:"var(--on-surface-variant)",textTransform:"uppercase",letterSpacing:".03em"}}>{k.label}</span>
+              </div>
+              <div style={{fontSize:30,fontWeight:800,fontFamily:"var(--mono)",color:k.warna,lineHeight:1}}>{k.value}</div>
+              <div style={{fontSize:11,color:"var(--outline)"}}>{k.ket}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── A1 · Volume permohonan per bulan ── */}
+        <div className="card" style={{padding:"18px 20px",marginBottom:16}}>
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:15,fontWeight:800,color:"var(--on-surface)"}}>Volume Permohonan per Bulan</div>
+            <div style={{fontSize:12,color:"var(--outline)",marginTop:2}}>Berkas masuk dibanding SKPP selesai — arahkan kursor ke batang untuk detail (maks. 12 bulan terakhir)</div>
           </div>
-          <div style={{display:"flex",gap:8}}>
-            <button className="btn btn-ghost btn-sm" onClick={()=>exportCSV(items)} disabled={items.length===0} style={{gap:6}}>
-              <IcoDownload size={14}/> Export CSV
-            </button>
-            <button className="btn btn-primary btn-sm" onClick={()=>cetakLaporan({jenis,items})} disabled={items.length===0} style={{gap:6}}>
-              <IcoPrint size={14}/> Cetak Laporan
-            </button>
+          {L.bulan.length ? <LapColumns rows={L.bulan} series={seriesVolume} height={200}/> : emptyMini()}
+        </div>
+
+        {/* ── A2 status agregat · A3 lead time ── */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(330px,1fr))",gap:16,marginBottom:16}}>
+          <div className="card" style={{padding:"18px 20px"}}>
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:15,fontWeight:800,color:"var(--on-surface)"}}>Status Berkas Agregat</div>
+              <div style={{fontSize:12,color:"var(--outline)",marginTop:2}}>Sebaran berkas menurut tahapan saat ini</div>
+            </div>
+            {L.total ? <LapDonut segments={donutSeg}/> : emptyMini()}
+          </div>
+          <div className="card" style={{padding:"18px 20px"}}>
+            <div style={{marginBottom:12}}>
+              <div style={{fontSize:15,fontWeight:800,color:"var(--on-surface)"}}>Waktu Penyelesaian (Lead Time)</div>
+              <div style={{fontSize:12,color:"var(--outline)",marginTop:2}}>Lama proses dari berkas masuk hingga SKPP selesai</div>
+            </div>
+            <div style={{display:"flex",gap:9,flexWrap:"wrap",marginBottom:16}}>
+              {[["Rata-rata",L.avg],["Median",L.med],["Tercepat",L.min],["Terlama",L.max]].map(([lab,val])=>(
+                <div key={lab} style={{flex:1,minWidth:74,background:"var(--surface-container)",borderRadius:11,padding:"9px 8px",textAlign:"center"}}>
+                  <div style={{fontSize:20,fontWeight:800,fontFamily:"var(--mono)",color:"var(--on-surface)",lineHeight:1}}>{val!=null?val:"—"}</div>
+                  <div style={{fontSize:10,color:"var(--outline)",marginTop:4,lineHeight:1.3}}>{lab}<br/>(hari)</div>
+                </div>
+              ))}
+            </div>
+            {L.leads.length ? <LapColumns rows={L.bkt} series={[{key:"value",label:"Jumlah SKPP",color:LAP_WARNA.penerbitan}]} height={150}/> : emptyMini("Belum ada SKPP selesai pada rentang ini")}
           </div>
         </div>
 
-        {/* Filter: OPD, Jalur, rentang tanggal masuk */}
-        <div style={{padding:"12px 20px",borderBottom:"1px solid var(--outline-variant)",display:"flex",gap:10,flexWrap:"wrap",alignItems:"flex-end"}}>
-          <div style={{display:"flex",flexDirection:"column",gap:4,minWidth:200}}>
-            <label style={{fontSize:11,fontWeight:700,color:"var(--on-surface-variant)"}}>OPD / Instansi</label>
-            <select className="form-control" style={{width:"auto",fontSize:13}} value={filterOPD} onChange={e=>setFilterOPD(e.target.value)}>
-              <option value="semua">Semua OPD</option>
-              {daftarOPD.map(o=><option key={o} value={o}>{o}</option>)}
-            </select>
+        {/* ── A4 · Berkas overdue ── */}
+        <div className="card" style={{marginBottom:16}}>
+          <div className="card-header">
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div className="card-header-title">Berkas Melewati Batas Waktu (Overdue)</div>
+              <span className="chip" style={{fontSize:11,background:L.overdue.length?"#fee2e2":"var(--success-pale)",color:L.overdue.length?"#b91c1c":"var(--success)"}}>{L.overdue.length} berkas</span>
+            </div>
+            <span style={{fontSize:11.5,color:"var(--outline)"}}>Belum selesai &amp; melewati estimasi selesai</span>
           </div>
-          <div style={{display:"flex",flexDirection:"column",gap:4}}>
-            <label style={{fontSize:11,fontWeight:700,color:"var(--on-surface-variant)"}}>Jalur</label>
-            <select className="form-control" style={{width:"auto",fontSize:13}} value={filterJalur} onChange={e=>setFilterJalur(e.target.value)}>
-              <option value="semua">Semua Jalur</option>
-              <option value="A">Jalur A</option>
-              <option value="B">Jalur B</option>
-            </select>
-          </div>
-          <div style={{display:"flex",flexDirection:"column",gap:4}}>
-            <label style={{fontSize:11,fontWeight:700,color:"var(--on-surface-variant)"}}>Tgl Masuk — Dari</label>
-            <input type="date" className="form-control" style={{width:"auto",fontSize:13}} value={dari} onChange={e=>setDari(e.target.value)}/>
-          </div>
-          <div style={{display:"flex",flexDirection:"column",gap:4}}>
-            <label style={{fontSize:11,fontWeight:700,color:"var(--on-surface-variant)"}}>Sampai</label>
-            <input type="date" className="form-control" style={{width:"auto",fontSize:13}} value={sampai} onChange={e=>setSampai(e.target.value)}/>
-          </div>
-          {adaFilter && (
-            <button className="btn btn-ghost btn-sm" onClick={()=>{setFilterOPD("semua");setFilterJalur("semua");setDari("");setSampai("");}}>
-              ✕ Reset Filter
-            </button>
+          {L.overdue.length===0 ? (
+            <div className="empty-box"><div className="empty-text">Tidak ada berkas yang melewati estimasi selesai</div><div className="empty-sub">Seluruh berkas berjalan masih dalam batas waktu.</div></div>
+          ) : (
+            <div className="table-wrap" style={{maxHeight:340,overflowY:"auto"}}>
+              <table>
+                <thead><tr>
+                  <th>No. Pengajuan</th><th>Nama Pegawai</th><th>OPD</th><th>Estimasi Selesai</th><th>Keterlambatan</th><th>Tahap Berjalan</th>
+                </tr></thead>
+                <tbody>
+                  {L.overdue.map(({p,lewat,est})=>{
+                    const tahapan = tahapanUntuk(p);
+                    const step = tahapan.find(t=>t.id===p.tahapAktif);
+                    return (
+                      <tr key={p.id} className="tr-clickable" onClick={()=>onDetail(p)}>
+                        <td style={{fontFamily:"var(--mono)",fontSize:13,fontWeight:700,color:"var(--primary)"}}>{p.id}</td>
+                        <td style={{fontWeight:600,fontSize:14}}>{p.nama}</td>
+                        <td style={{fontSize:13,color:"var(--on-surface-variant)",maxWidth:170}}>{p.opd}</td>
+                        <td style={{fontSize:13}}>{fmtDate(est)}</td>
+                        <td><span style={{fontSize:12.5,fontWeight:800,padding:"3px 11px",borderRadius:999,whiteSpace:"nowrap",background:"#fee2e2",color:"#b91c1c"}}>+{lewat} hari</span></td>
+                        <td style={{fontSize:12.5,color:"var(--on-surface-variant)"}}>{getProgress(p)}% · {step?step.label:"—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
-        {loading ? (
-          <div className="loading-box"><div className="spinner"/><span>Memuat data...</span></div>
-        ) : (
+        {/* ── Rincian data + cetak laporan resmi per status ── */}
+        <div className="card">
+          <div className="card-header">
+            <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+              <div className="card-header-title">Rincian Data SKPP</div>
+              <div style={{display:"flex",gap:3,background:"var(--surface-container)",padding:3,borderRadius:10}}>
+                {Object.entries(LAPORAN_JENIS).map(([k,m])=>(
+                  <button key={k} onClick={()=>setJenis(k)} style={{
+                    border:"none",cursor:"pointer",padding:"5px 12px",borderRadius:7,fontSize:12.5,fontWeight:700,transition:"all .12s",
+                    background:jenis===k?"var(--surface)":"transparent",color:jenis===k?m.warna:"var(--on-surface-variant)",
+                    boxShadow:jenis===k?"0 1px 3px rgba(0,0,0,.14)":"none"}}>{m.label} · {cnt[k]}</button>
+                ))}
+              </div>
+              <input className="form-control" placeholder="Cari nama / NIP / No. / OPD…" value={cari} onChange={e=>setCari(e.target.value)} style={{width:220,fontSize:12.5}}/>
+              <span style={{fontSize:11.5,color:"var(--outline)"}}>{rincian.length} baris</span>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <button className="btn btn-ghost btn-sm" onClick={()=>exportCSV(rincian)} disabled={rincian.length===0} style={{gap:6}}><IcoDownload size={14}/> CSV</button>
+              <button className="btn btn-primary btn-sm" onClick={()=>cetakLaporan({jenis,items:rincian})} disabled={rincian.length===0} style={{gap:6}}><IcoPrint size={14}/> Cetak {meta.label}</button>
+            </div>
+          </div>
           <div className="table-wrap">
             <table>
               <thead>
@@ -5446,11 +6478,14 @@ function PageLaporan({ data, loading, onDetail }) {
                   <th style={{width:40}}>No.</th><th>No. Pengajuan</th><th>Nama Pegawai</th><th>NIP</th><th>OPD</th>
                   <th>Keperluan</th><th>Jalur</th>
                   <th>{jenis==="selesai"?"Tgl Selesai":jenis==="kembali"||jenis==="semua"?"Status":"Tahap Berjalan"}</th>
+                  <th onClick={()=>setSortAging(s=>s==="desc"?"asc":s==="asc"?null:"desc")} style={{cursor:"pointer",whiteSpace:"nowrap",userSelect:"none"}} title="Klik untuk urutkan menurut umur berkas">
+                    Aging (Umur) {sortAging==="desc"?"▼":sortAging==="asc"?"▲":"⇅"}
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((p,i)=>{
-                  const tahapan = p.jalur==="A" ? TAHAPAN_A : TAHAPAN_B;
+                {rincian.map((p,i)=>{
+                  const tahapan = tahapanUntuk(p);
                   const step = tahapan.find(t=>t.id===p.tahapAktif);
                   return (
                     <tr key={p.id} className="tr-clickable" onClick={()=>onDetail(p)}>
@@ -5466,27 +6501,156 @@ function PageLaporan({ data, loading, onDetail }) {
                           : jenis==="kembali"||jenis==="semua" ? <SBadge p={p}/>
                           : <span style={{fontSize:12.5}}>{getProgress(p)}% · {step?step.label:"—"}</span>}
                       </td>
+                      <td><AgingCell p={p}/></td>
                     </tr>
                   );
                 })}
-                {items.length===0 && (
-                  <tr><td colSpan={8}>
+                {rincian.length===0 && (
+                  <tr><td colSpan={9}>
                     <div className="empty-box">
-                      <div className="empty-icon">{meta.icon}</div>
-                      <div className="empty-text">{jenis==="semua"?"Belum ada data SKPP":`Belum ada SKPP ${meta.label.toLowerCase()}`}</div>
+                      <div className="empty-text">{cari ? `Tidak ada hasil untuk "${cari}"` : jenis==="semua"?"Belum ada data SKPP":`Belum ada SKPP ${meta.label.toLowerCase()}`}</div>
                     </div>
                   </td></tr>
                 )}
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      </>
+      )}
     </div>
   );
 }
 
 // ─── PAGE RIWAYAT ─────────────────────────────────────────────────────────────
+// ─── SURVEI KEPUASAN MASYARAKAT (SKM / IKM) ───────────────────────────────────
+const SKM_UNSUR_LABEL = [
+  "Persyaratan", "Sistem, Mekanisme & Prosedur", "Waktu Penyelesaian",
+  "Biaya / Tarif", "Produk Layanan", "Kompetensi Pelaksana",
+  "Perilaku Pelaksana", "Sarana & Prasarana", "Penanganan Pengaduan",
+];
+function mutuWarna(m) {
+  return m === "A" ? "#059669" : m === "B" ? "#2563eb" : m === "C" ? "#d97706" : "#dc2626";
+}
+function PageSurvei() {
+  const [dari, setDari] = useState("");
+  const [sampai, setSampai] = useState("");
+  const [rekap, setRekap] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+
+  const muat = useCallback(async () => {
+    setLoading(true); setErr("");
+    const r = await rekapSurvei(dari || null, sampai || null);
+    setLoading(false);
+    if (!r.ok) { setErr(r.pesan); setRekap(null); return; }
+    setRekap(r.data);
+  }, [dari, sampai]);
+
+  useEffect(() => { muat(); }, [muat]);
+
+  const nrr = rekap?.nrr || null;
+  const ikm = rekap?.ikm;
+  const mutu = rekap?.mutu;
+  const responden = rekap?.responden || 0;
+  const saran = rekap?.saran || [];
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:16}}>
+      <div className="card">
+        <div className="card-header">
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div className="card-header-title">Survei Kepuasan Masyarakat (IKM)</div>
+            <span className="chip chip-blue" style={{fontSize:11}}>{responden} responden</span>
+          </div>
+        </div>
+        <div style={{padding:"14px 20px",borderBottom:"1px solid var(--outline-variant)",display:"flex",gap:12,alignItems:"flex-end",flexWrap:"wrap"}}>
+          <div>
+            <label style={{fontSize:11,fontWeight:700,color:"var(--text-muted)",display:"block",marginBottom:4}}>Dari tanggal</label>
+            <input type="date" className="search-input" style={{width:180,height:40,padding:"0 14px",boxSizing:"border-box"}} value={dari} onChange={e=>setDari(e.target.value)}/>
+          </div>
+          <div>
+            <label style={{fontSize:11,fontWeight:700,color:"var(--text-muted)",display:"block",marginBottom:4}}>Sampai tanggal</label>
+            <input type="date" className="search-input" style={{width:180,height:40,padding:"0 14px",boxSizing:"border-box"}} value={sampai} onChange={e=>setSampai(e.target.value)}/>
+          </div>
+          <button className="btn btn-primary" style={{height:40}} onClick={muat}>Terapkan</button>
+          {(dari||sampai) && <button className="btn btn-ghost" style={{height:40}} onClick={()=>{setDari("");setSampai("");}}>Reset</button>}
+          <span style={{fontSize:11,color:"var(--text-muted)",marginLeft:"auto"}}>Kerangka Permenpan-RB No. 14 Tahun 2017 · skala 1–4</span>
+        </div>
+
+        {loading ? (
+          <div className="loading-box"><div className="spinner"/><span>Memuat rekap survei...</span></div>
+        ) : err ? (
+          <div style={{padding:20,color:"#dc2626",fontSize:13}}>{err}</div>
+        ) : responden === 0 ? (
+          <div style={{padding:28,textAlign:"center",color:"var(--text-muted)",fontSize:13}}>
+            Belum ada survei pada periode ini.
+          </div>
+        ) : (
+          <div style={{padding:"18px 20px",display:"grid",gridTemplateColumns:"220px 1fr",gap:20,alignItems:"start"}}>
+            {/* Kartu IKM */}
+            <div style={{background:"var(--surface-container-low)",border:"1px solid var(--outline-variant)",borderRadius:14,padding:"20px 18px",textAlign:"center"}}>
+              <div style={{fontSize:11,fontWeight:800,letterSpacing:"0.08em",textTransform:"uppercase",color:"var(--text-muted)"}}>Nilai IKM</div>
+              <div style={{fontSize:44,fontWeight:800,lineHeight:1.05,marginTop:6,color:mutuWarna(mutu)}}>{ikm}</div>
+              <div style={{marginTop:6,display:"inline-flex",alignItems:"center",gap:6,fontWeight:800,fontSize:13,color:"#fff",background:mutuWarna(mutu),borderRadius:999,padding:"3px 14px"}}>
+                Mutu {mutu}
+              </div>
+              <div style={{marginTop:14}}>
+                <div style={{fontSize:9.5,fontWeight:700,letterSpacing:"0.05em",color:"var(--text-muted)",marginBottom:8}}>KATEGORI MUTU · SKALA 0–100</div>
+                <div style={{display:"inline-flex",flexDirection:"column",gap:6,textAlign:"left"}}>
+                  {[["A","88,31 – 100","#059669"],["B","76,61 – 88,30","#2563eb"],["C","65,00 – 76,60","#d97706"],["D","< 65,00","#dc2626"]].map(([g,rng,c])=>(
+                    <div key={g} style={{display:"flex",alignItems:"center",gap:9}}>
+                      <span style={{flex:"none",width:19,height:19,borderRadius:5,background:c,color:"#fff",fontWeight:800,fontSize:11,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{g}</span>
+                      <span style={{color:"var(--text-muted)",fontFamily:"var(--font-mono, monospace)",fontSize:11.5,fontVariantNumeric:"tabular-nums"}}>{rng}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {/* NRR per unsur */}
+            <div>
+              <div style={{fontSize:12,fontWeight:800,color:"var(--on-surface,#111)",marginBottom:10}}>Nilai Rata-rata (NRR) per Unsur</div>
+              <div style={{display:"flex",flexDirection:"column",gap:9}}>
+                {SKM_UNSUR_LABEL.map((label, i) => {
+                  const v = nrr ? Number(nrr["u"+(i+1)]) : 0;
+                  const pct = Math.max(0, Math.min(100, (v/4)*100));
+                  const warna = v >= 3.53 ? "#059669" : v >= 3.06 ? "#2563eb" : v >= 2.60 ? "#d97706" : "#dc2626";
+                  return (
+                    <div key={i} style={{display:"grid",gridTemplateColumns:"210px 1fr 42px",gap:10,alignItems:"center"}}>
+                      <div style={{fontSize:12,color:"var(--on-surface,#333)"}}><b style={{color:"var(--text-muted)",fontFamily:"monospace"}}>{i+1}.</b> {label}</div>
+                      <div style={{height:8,background:"var(--outline-variant,#e5e7eb)",borderRadius:999,overflow:"hidden"}}>
+                        <div style={{height:"100%",width:pct+"%",background:warna,borderRadius:999,transition:"width .4s"}}/>
+                      </div>
+                      <div style={{fontSize:12.5,fontWeight:800,fontFamily:"monospace",color:warna,textAlign:"right"}}>{v.toFixed(2)}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Saran & masukan */}
+      {!loading && !err && saran.length > 0 && (
+        <div className="card">
+          <div className="card-header"><div className="card-header-title">Saran &amp; Masukan ({saran.length})</div></div>
+          <div style={{padding:"12px 20px",display:"flex",flexDirection:"column",gap:8,maxHeight:360,overflowY:"auto"}}>
+            {saran.map((s, i) => (
+              <div key={i} style={{border:"1px solid var(--outline-variant)",borderRadius:10,padding:"10px 12px"}}>
+                <div style={{fontSize:13,color:"var(--on-surface,#222)",lineHeight:1.5}}>{s.saran}</div>
+                <div style={{fontSize:10.5,color:"var(--text-muted)",marginTop:5,fontFamily:"monospace"}}>
+                  {s.tipe ? s.tipe + " · " : ""}{s.waktu ? new Date(s.waktu).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}) : ""}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PageRiwayat({ data, loading, onDetail }) {
   const selesai = data.filter(d => d.status==="selesai"||getProgress(d)===100);
   const [search, setSearch] = useState("");
@@ -5538,7 +6702,6 @@ function PageRiwayat({ data, loading, onDetail }) {
               {filtered.length===0 && (
                 <tr><td colSpan={7}>
                   <div className="empty-box">
-                    <div className="empty-icon">📁</div>
                     <div className="empty-text">Belum ada SKPP yang selesai</div>
                     <div className="empty-sub">Data arsip akan muncul di sini setelah pengajuan selesai diproses</div>
                   </div>
@@ -5557,6 +6720,8 @@ function PageUsers({ onToast }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errLoad, setErrLoad] = useState("");
+  const [tab, setTab] = useState("internal");         // "internal" | "pemohon"
+  const [subTab, setSubTab] = useState("bendahara");  // "bendahara" | "pegawai" (dalam tab Pemohon)
 
   const muat = useCallback(async () => {
     setLoading(true); setErrLoad("");
@@ -5678,18 +6843,27 @@ function PageUsers({ onToast }) {
     setSavingRp(false);
   };
 
+  // Pisahkan akun: Staf Internal (admin/operator/staf) vs Pemohon (bendahara/pemohon).
+  const roleLabelU = (r) => r==="admin"?"Admin":r==="operator"?"Staf Loket":r==="staf"?"Staf Pengampu OPD":r==="bendahara"?"Bendahara OPD":"Pegawai";
+  const roleBadgeU = (r) => r==="admin"?"badge-purple":r==="operator"?"badge-gold":r==="staf"?"badge-blue":r==="bendahara"?"badge-green":"badge-blue";
+  const internalUsers  = users.filter(u=>["admin","operator","staf"].includes(u.role));
+  const bendaharaUsers = users.filter(u=>u.role==="bendahara");
+  const pegawaiUsers   = users.filter(u=>u.role==="pemohon");
+  const isPemohonTab   = tab==="pemohon";
+  const shownUsers = !isPemohonTab ? internalUsers : (subTab==="bendahara" ? bendaharaUsers : pegawaiUsers);
+
   return (
     <>
     {/* ── Permintaan Reset Kata Sandi ── */}
     <div className="card" style={{marginBottom:18}}>
       <div className="card-header">
         <div className="card-header-title" style={{display:"flex",alignItems:"center",gap:9}}>
-          🔑 Permintaan Reset Kata Sandi
+          Permintaan Reset Kata Sandi
           {reqPending.length>0 && (
             <span className="badge badge-gold" style={{fontSize:11}}>{reqPending.length} menunggu</span>
           )}
         </div>
-        <button className="btn btn-secondary btn-sm" onClick={muatReq} disabled={loadingReq}>↻ Muat Ulang</button>
+        <button className="btn btn-secondary btn-sm" onClick={muatReq} disabled={loadingReq}>Muat Ulang</button>
       </div>
       <div className="table-wrap" style={{padding:"0 0 16px"}}>
         <table>
@@ -5698,7 +6872,7 @@ function PageUsers({ onToast }) {
             {loadingReq ? (
               <tr><td colSpan={5}><div className="empty-box"><div className="empty-text">Memuat permintaan…</div></div></td></tr>
             ) : resetReqs.length===0 ? (
-              <tr><td colSpan={5}><div className="empty-box"><div className="empty-icon">✅</div><div className="empty-text">Tidak ada permintaan reset</div></div></td></tr>
+              <tr><td colSpan={5}><div className="empty-box"><div className="empty-text">Tidak ada permintaan reset</div></div></td></tr>
             ) : resetReqs.map((r)=>(
               <tr key={r.id} style={r.status==="pending"?{background:"rgba(201,168,76,0.07)"}:{opacity:0.7}}>
                 <td style={{fontFamily:"var(--mono)",fontSize:12,fontWeight:600}}>{r.username}</td>
@@ -5729,10 +6903,18 @@ function PageUsers({ onToast }) {
 
     <div className="card">
       <div className="card-header">
-        <div className="card-header-title">Manajemen Akun Staf</div>
+        <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+          <div className="card-header-title">Manajemen Akun</div>
+          <div style={{display:"flex",gap:3,background:"var(--surface-container)",padding:3,borderRadius:10}}>
+            {[["internal",`Staf Internal · ${internalUsers.length}`],["pemohon",`Pemohon · ${bendaharaUsers.length+pegawaiUsers.length}`]].map(([k,lbl])=>(
+              <button key={k} onClick={()=>setTab(k)} style={{border:"none",cursor:"pointer",padding:"5px 14px",borderRadius:7,fontSize:12.5,fontWeight:700,transition:"all .12s",whiteSpace:"nowrap",
+                background:tab===k?"var(--surface)":"transparent",color:tab===k?"var(--primary)":"var(--on-surface-variant)",boxShadow:tab===k?"0 1px 3px rgba(0,0,0,.14)":"none"}}>{lbl}</button>
+            ))}
+          </div>
+        </div>
         <div style={{display:"flex",gap:8}}>
-          <button className="btn btn-secondary btn-sm" onClick={muat} disabled={loading}>↻ Muat Ulang</button>
-          <button className="btn btn-primary btn-sm" onClick={()=>setShowForm(true)} style={{gap:6}}><IcoPlus size={14}/> Tambah Staf</button>
+          <button className="btn btn-secondary btn-sm" onClick={muat} disabled={loading}>Muat Ulang</button>
+          {!isPemohonTab && <button className="btn btn-primary btn-sm" onClick={()=>setShowForm(true)} style={{gap:6}}><IcoPlus size={14}/> Tambah Staf</button>}
         </div>
       </div>
 
@@ -5743,22 +6925,31 @@ function PageUsers({ onToast }) {
         </div>
       )}
 
+      {isPemohonTab && (
+        <div style={{padding:"12px 20px 0",display:"flex",gap:8,flexWrap:"wrap"}}>
+          {[["bendahara",`Bendahara OPD · ${bendaharaUsers.length}`],["pegawai",`Pegawai · ${pegawaiUsers.length}`]].map(([k,lbl])=>(
+            <button key={k} className={"btn btn-sm "+(subTab===k?"btn-primary":"btn-secondary")} onClick={()=>setSubTab(k)}>{lbl}</button>
+          ))}
+        </div>
+      )}
+
       <div className="table-wrap" style={{padding:"0 0 16px"}}>
         <table>
-          <thead><tr><th>Nama Lengkap</th><th>Username</th><th>Role</th><th style={{textAlign:"right"}}>Aksi</th></tr></thead>
+          <thead><tr><th>Nama Lengkap</th><th>Username</th>{isPemohonTab && <th>OPD / Instansi</th>}<th>Role</th><th style={{textAlign:"right"}}>Aksi</th></tr></thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={4}><div className="empty-box"><div className="empty-text">Memuat akun…</div></div></td></tr>
-            ) : users.length===0 && !errLoad ? (
-              <tr><td colSpan={4}><div className="empty-box"><div className="empty-icon">👥</div><div className="empty-text">Belum ada akun</div></div></td></tr>
-            ) : users.map((u,i)=>(
+              <tr><td colSpan={isPemohonTab?5:4}><div className="empty-box"><div className="empty-text">Memuat akun…</div></div></td></tr>
+            ) : shownUsers.length===0 && !errLoad ? (
+              <tr><td colSpan={isPemohonTab?5:4}><div className="empty-box"><div className="empty-text">{isPemohonTab?(subTab==="bendahara"?"Belum ada akun Bendahara OPD":"Belum ada akun Pegawai"):"Belum ada akun staf internal"}</div></div></td></tr>
+            ) : shownUsers.map((u,i)=>(
               <tr key={u.id||u.username||i}>
                 <td style={{fontWeight:600}}>{u.nama}</td>
                 <td style={{fontFamily:"var(--mono)",fontSize:12}}>{u.username}</td>
-                <td><span className={`badge ${u.role==="admin"?"role-admin badge-purple":u.role==="operator"?"role-operator badge-gold":"role-staf badge-blue"}`}>{u.role==="admin"?"Admin":u.role==="operator"?"Staf Loket":"Staf Pengampu OPD"}</span></td>
+                {isPemohonTab && <td style={{fontSize:13,color:"var(--on-surface-variant)",maxWidth:240}}>{u.opd||"—"}</td>}
+                <td><span className={`badge ${roleBadgeU(u.role)}`}>{roleLabelU(u.role)}</span></td>
                 <td>
                   <div style={{display:"flex",gap:6,justifyContent:"flex-end"}}>
-                    <button className="btn btn-secondary btn-sm" onClick={()=>bukaEdit(u)}>Edit</button>
+                    {!isPemohonTab && <button className="btn btn-secondary btn-sm" onClick={()=>bukaEdit(u)}>Edit</button>}
                     <button className="btn btn-secondary btn-sm" onClick={()=>bukaReset(u)}>Reset Password</button>
                     <button className="btn btn-danger btn-sm" onClick={()=>hapus(u)} disabled={u.role==="admin"&&jmlAdmin<=1}>Hapus</button>
                   </div>
@@ -5810,13 +7001,13 @@ function PageUsers({ onToast }) {
             </div>
             <div className="modal-body">
               <div className="alert alert-amber" style={{marginTop:0}}>
-                <span>🔑</span><span style={{fontSize:12}}>Menetapkan kata sandi baru untuk <strong>{resetTarget.nama}</strong> (<span style={{fontFamily:"var(--mono)"}}>{resetTarget.username}</span>). Kata sandi lama tidak diperlukan.</span>
+                <span style={{fontSize:12}}>Menetapkan kata sandi baru untuk <strong>{resetTarget.nama}</strong> (<span style={{fontFamily:"var(--mono)"}}>{resetTarget.username}</span>). Kata sandi lama tidak diperlukan.</span>
               </div>
               <div className="form-group">
                 <label className="form-label">Kata Sandi Baru</label>
                 <div style={{position:"relative"}}>
                   <input className="form-control" style={{paddingRight:40}} type={showRp?"text":"password"} value={rp.baru} onChange={e=>setRp(p=>({...p,baru:e.target.value}))} placeholder="6+ karakter, 1 huruf kapital" autoComplete="new-password"/>
-                  <button type="button" onClick={()=>setShowRp(s=>!s)} style={{position:"absolute",right:6,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"var(--outline)",padding:6}}>{showRp?"🙈":"👁"}</button>
+                  <button type="button" onClick={()=>setShowRp(s=>!s)} style={{position:"absolute",right:6,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"var(--outline)",padding:6,fontSize:11,fontWeight:700}}>{showRp?"Sembunyikan":"Lihat"}</button>
                 </div>
               </div>
               <div className="form-group">
@@ -6038,7 +7229,7 @@ function PageProfil({ user, onToast, onUpdateUser }) {
             </div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               <input ref={fotoInputRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>onPickFoto(e.target.files?.[0])}/>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={()=>fotoInputRef.current?.click()}>📷 Ganti Foto</button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={()=>fotoInputRef.current?.click()}>Ganti Foto</button>
               {form.foto && <button type="button" className="btn btn-ghost btn-sm" onClick={()=>set("foto","")}>Hapus</button>}
             </div>
           </div>
@@ -6116,8 +7307,8 @@ function PageAktivitas({ data, loading }) {
   return (
     <>
       <div className="tabs" style={{marginBottom:16}}>
-        <div className={`tab ${tab==="aktivitas"?"active":""}`} onClick={()=>setTab("aktivitas")}>📋 Aktivitas</div>
-        <div className={`tab ${tab==="status"?"active":""}`} onClick={()=>setTab("status")}>🟢 Status Login</div>
+        <div className={`tab ${tab==="aktivitas"?"active":""}`} onClick={()=>setTab("aktivitas")}>Aktivitas</div>
+        <div className={`tab ${tab==="status"?"active":""}`} onClick={()=>setTab("status")}>Status Login</div>
       </div>
       {tab==="aktivitas" ? <TabAktivitas data={data} loading={loading}/> : <TabStatusLogin/>}
     </>
@@ -6222,7 +7413,7 @@ function TabAktivitas({ data, loading }) {
                     <td style={{whiteSpace:"nowrap",fontFamily:"var(--mono)",fontSize:12}}>{fmtWaktu(a)}</td>
                     <td style={{fontWeight:600,whiteSpace:"nowrap"}}>{a._user||"—"}</td>
                     <td>
-                      <div>{labelTahap(a.tahap)}{a.isKembali && <span className="badge badge-amber" style={{marginLeft:6}}>↩ Dikembalikan</span>}</div>
+                      <div>{labelTahap(a.tahap)}{a.isKembali && <span className="badge badge-amber" style={{marginLeft:6}}>Dikembalikan</span>}</div>
                       {a._note && <div style={{fontSize:11,color:"var(--on-surface-variant)",marginTop:2}}>{a._note}</div>}
                     </td>
                     <td style={{whiteSpace:"nowrap"}}>
@@ -6301,11 +7492,10 @@ function TabStatusLogin() {
     <>
       {needsMig && (
         <div className="alert alert-amber" style={{marginBottom:16}}>
-          <span>⚠️</span>
-          <div>Kolom pelacakan login belum ada. Jalankan <strong>supabase/14_profiles_login_tracking.sql</strong> di Supabase SQL Editor. Sampai itu dijalankan, data login belum terisi.</div>
+                    <div>Kolom pelacakan login belum ada. Jalankan <strong>supabase/14_profiles_login_tracking.sql</strong> di Supabase SQL Editor. Sampai itu dijalankan, data login belum terisi.</div>
         </div>
       )}
-      {err && <div className="alert alert-red" style={{marginBottom:16}}><span>⛔</span><span>{err}</span></div>}
+      {err && <div className="alert alert-red" style={{marginBottom:16}}><span>{err}</span></div>}
       <StatCards items={[
         ["Sedang Online", cOnline, "var(--success)"],
         ["Belum Pernah Login", cNever, cNever>0?"var(--error)":"var(--navy-800)"],
@@ -6314,7 +7504,7 @@ function TabStatusLogin() {
       <div className="card">
         <div className="card-header">
           <div className="card-header-title">Status Login Pengguna</div>
-          <button className="btn btn-secondary btn-sm" onClick={muat}>↻ Muat Ulang</button>
+          <button className="btn btn-secondary btn-sm" onClick={muat}>Muat Ulang</button>
         </div>
         <div className="card-body" style={{padding:0}}>
           <div className="table-wrap">
@@ -6376,7 +7566,7 @@ function PageAkunPersetujuan({ onToast, onCount }) {
     try {
       const res = await setAkunStatus({ userId: row.id, akunStatus });
       if (res.ok) {
-        onToast?.(akunStatus === "approved" ? `✓ Akun ${row.nama} disetujui` : `⛔ Akun ${row.nama} ditolak`);
+        onToast?.(akunStatus === "approved" ? `Akun ${row.nama} disetujui` : `Akun ${row.nama} ditolak`);
         setRows(prev => { const next = prev.filter(r => r.id !== row.id); onCount?.(next.length); return next; });
       } else alert("Gagal: " + res.pesan);
     } catch { alert("Gagal terhubung ke server."); }
@@ -6390,7 +7580,7 @@ function PageAkunPersetujuan({ onToast, onCount }) {
       <div className="card">
         <div className="card-header">
           <div className="card-header-title">Pendaftaran Akun Pemohon / Bendahara</div>
-          <button className="btn btn-secondary btn-sm" onClick={muat}>↻ Muat Ulang</button>
+          <button className="btn btn-secondary btn-sm" onClick={muat}>Muat Ulang</button>
         </div>
         <div className="card-body" style={{padding:0}}>
           <div className="table-wrap">
@@ -6426,9 +7616,133 @@ function PageAkunPersetujuan({ onToast, onCount }) {
   );
 }
 
+// Satu baris bukti: label + tombol Lihat/Tolak BERSEBELAHAN (hemat tempat).
+// Klik Tolak membuka kotak catatan alasan penolakan tepat di bawah baris ini.
+function BuktiHutangRow({ p, label, b, onTolakBukti, saving }) {
+  const [opening, setOpening] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [menolak, setMenolak] = useState(false);
+  const [alasan, setAlasan] = useState("");
+
+  const lihat = async () => {
+    setOpening(true);
+    const url = await berkasPengajuanUrl(b.path);
+    setOpening(false);
+    if (url) window.open(url, "_blank", "noopener");
+    else alert("Gagal membuka berkas.");
+  };
+
+  const unduh = async () => {
+    setDownloading(true);
+    const ok = await unduhBerkasPengajuan(b.path, label + extFromPath(b.path));
+    setDownloading(false);
+    if (!ok) alert("Gagal mengunduh berkas.");
+  };
+
+  const kirimTolak = async () => {
+    if (!alasan.trim()) return;
+    await onTolakBukti({ pengajuanId: p.id, berkasId: b.id, label, alasan });
+    setMenolak(false);
+    setAlasan("");
+  };
+
+  return (
+    <div style={{padding:"8px 10px",background:"#fff",border:"1px solid #fde68a",borderRadius:8}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+        <span style={{fontSize:12.5,fontWeight:600,color:"#7c2d12"}}>{label}</span>
+        {b ? (
+          <div style={{display:"flex",gap:6,flexShrink:0}}>
+            <button className="btn btn-secondary btn-sm" disabled={opening||saving} onClick={lihat}>
+              {opening?"⟳":"Lihat"}
+            </button>
+            <button className="btn btn-secondary btn-sm" disabled={downloading||saving} onClick={unduh}>
+              {downloading?"⟳":"Unduh"}
+            </button>
+            <button className="btn btn-danger btn-sm" disabled={saving} onClick={()=>setMenolak(v=>!v)}>
+              Tolak
+            </button>
+          </div>
+        ) : (
+          <span style={{fontSize:11,color:"#b45309",fontStyle:"italic",flexShrink:0}}>Belum diunggah</span>
+        )}
+      </div>
+      {menolak && (
+        <div style={{marginTop:8,paddingTop:8,borderTop:"1px dashed #fde68a"}}>
+          <textarea className="form-control" rows={2} placeholder="Alasan penolakan bukti ini…"
+            value={alasan} onChange={e=>setAlasan(e.target.value)} style={{margin:0}}/>
+          <div style={{display:"flex",gap:6,marginTop:6,justifyContent:"flex-end"}}>
+            <button className="btn btn-secondary btn-sm" disabled={saving} onClick={()=>{setMenolak(false);setAlasan("");}}>Batal</button>
+            <button className="btn btn-danger btn-sm" disabled={saving||!alasan.trim()} onClick={kirimTolak}>
+              {saving?"Mengirim...":"Kirim Penolakan"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Bukti pelunasan hutang yang diunggah pemohon lewat portal publik (mis. bukti
+// setoran RKUD) -- dirender di dalam kotak "Berkas Sedang Dikembalikan" agar
+// Staf Pengampu OPD bisa langsung membuka, memverifikasi, atau menolaknya.
+function BuktiHutangBox({ p, onTolakBukti, saving }) {
+  const mek = mekanismeHutangAktif(p.riwayat);
+  if (!mek) return null;
+
+  const items = [];
+  if (mek.setor) items.push(["Bukti Setoran RKUD", "setor"]);
+  if (mek.cicilan) items.push(["Berita Acara Kesepakatan Pelunasan", "cicilan"]);
+  if (mek.potong) items.push(["Surat Pernyataan Bermaterai (Potong Gaji)", "potong"]);
+  if (!items.length) return null;
+
+  return (
+    <div style={{marginTop:14,paddingTop:14,borderTop:"1px dashed #fde68a"}}>
+      <div style={{fontSize:11,fontWeight:800,letterSpacing:"0.04em",textTransform:"uppercase",color:"#b45309",marginBottom:8}}>
+        Bukti dari Pemohon
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+        {items.map(([label,key]) => (
+          <BuktiHutangRow
+            key={key} p={p} label={label}
+            b={(p.berkas||[]).find(x => x.jenis === label)}
+            onTolakBukti={onTolakBukti} saving={saving}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Dokumen persyaratan yang diunggah ulang pemohon lewat portal publik saat
+// berkas dikembalikan karena dokumen kurang/tidak sesuai -- dirender di dalam
+// kotak "Berkas Sedang Dikembalikan" agar Staf Pengampu OPD bisa langsung
+// membuka, memverifikasi, atau menolaknya (sama seperti bukti hutang).
+function DokumenKurangBox({ p, onTolakBukti, saving }) {
+  const items = dokumenKurangAktif(p.riwayat);
+  if (!items || !items.length) return null;
+
+  return (
+    <div style={{marginTop:14,paddingTop:14,borderTop:"1px dashed #fde68a"}}>
+      <div style={{fontSize:11,fontWeight:800,letterSpacing:"0.04em",textTransform:"uppercase",color:"#b45309",marginBottom:8}}>
+        Dokumen dari Pemohon
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+        {items.map((r,i) => (
+          <BuktiHutangRow
+            key={r.dokumen+i} p={p} label={r.dokumen}
+            b={(p.berkas||[]).find(x => x.jenis === r.dokumen)}
+            onTolakBukti={onTolakBukti} saving={saving}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Antrean Pengajuan Online (loket: Terima / Kembalikan / Tolak) ──
 function AntreanBerkasList({ berkas }) {
   const [loadingId, setLoadingId] = useState("");
+  const [downloadingId, setDownloadingId] = useState("");
   const lihat = async (b) => {
     setLoadingId(b.id);
     const url = await berkasPengajuanUrl(b.path);
@@ -6436,13 +7750,22 @@ function AntreanBerkasList({ berkas }) {
     if (url) window.open(url, "_blank", "noopener");
     else alert("Gagal membuka berkas.");
   };
+  const unduh = async (b) => {
+    setDownloadingId(b.id);
+    const ok = await unduhBerkasPengajuan(b.path, (b.jenis || "Berkas") + extFromPath(b.path));
+    setDownloadingId("");
+    if (!ok) alert("Gagal mengunduh berkas.");
+  };
   if (!berkas?.length) return <div style={{fontSize:12,color:"var(--on-surface-variant)"}}>Belum ada berkas diunggah.</div>;
   return (
     <div style={{display:"flex",flexDirection:"column",gap:6}}>
       {berkas.map(b => (
         <div key={b.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",background:"var(--surface-container-low)",borderRadius:8}}>
           <span style={{fontSize:12,fontWeight:600}}>{b.jenis || "Berkas"}</span>
-          <button className="btn btn-secondary btn-sm" disabled={loadingId===b.id} onClick={()=>lihat(b)}>{loadingId===b.id?"⟳":"👁 Lihat"}</button>
+          <div style={{display:"flex",gap:6}}>
+            <button className="btn btn-secondary btn-sm" disabled={loadingId===b.id} onClick={()=>lihat(b)}>{loadingId===b.id?"⟳":"Lihat"}</button>
+            <button className="btn btn-secondary btn-sm" disabled={downloadingId===b.id} onClick={()=>unduh(b)}>{downloadingId===b.id?"⟳":"Unduh"}</button>
+          </div>
         </div>
       ))}
     </div>
@@ -6452,7 +7775,19 @@ function AntreanBerkasList({ berkas }) {
 function AntreanDetailModal({ p, onClose, onTerima, onKembalikan, onTolak, saving }) {
   const [aksi, setAksi] = useState(""); // "" | "terima" | "kembalikan" | "tolak"
   const [jalur, setJalur] = useState("");
+  const [kasubid, setKasubid] = useState(p.kasubid || "");
+  const [subjenis, setSubjenis] = useState(p.subjenis || "");
   const [catatan, setCatatan] = useState("");
+
+  const isMD = (p.alasan || "").startsWith("Meninggal Dunia");
+  const saranSubjenis = isMD ? tebakSubjenisMD(p.alasan) : "";
+  const pengajuLabel = p.pengajuRole === "bendahara" ? "Bendahara OPD" : p.pengajuRole === "pemohon" ? "Perorangan" : "—";
+
+  const statusBadge = p.status==="ditolak" ? <span className="badge badge-red">Ditolak</span>
+    : p.status==="diajukan" ? <span className="badge badge-gold">Menunggu Verifikasi</span>
+    : p.status==="selesai" ? <span className="badge badge-green">Selesai</span>
+    : p.status==="kembali" ? <span className="badge badge-amber">Dikembalikan</span>
+    : <span className="badge badge-green">Diterima — Diproses</span>;
 
   return (
     <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget && !saving) onClose();}}>
@@ -6460,9 +7795,7 @@ function AntreanDetailModal({ p, onClose, onTerima, onKembalikan, onTolak, savin
         <div className="modal-header">
           <div>
             <div style={{fontWeight:800,fontSize:14,color:"var(--primary)",letterSpacing:"-0.4px"}}>{p.id}</div>
-            <div style={{marginTop:6}}>
-              {p.status==="ditolak" ? <span className="badge badge-red">⛔ Ditolak</span> : <span className="badge badge-gold">⏳ Menunggu Verifikasi</span>}
-            </div>
+            <div style={{marginTop:6}}>{statusBadge}</div>
           </div>
           <button className="modal-close" onClick={onClose} disabled={saving}>✕</button>
         </div>
@@ -6473,9 +7806,54 @@ function AntreanDetailModal({ p, onClose, onTerima, onKembalikan, onTolak, savin
             <div className="form-group"><label className="form-label">OPD</label><div>{p.opd||"—"}</div></div>
             <div className="form-group"><label className="form-label">Jabatan</label><div>{p.jabatan||"—"}</div></div>
             <div className="form-group"><label className="form-label">Pangkat / Golongan</label><div>{p.pangkat||"—"}</div></div>
-            <div className="form-group"><label className="form-label">Kasubid Pembayaran</label><div>{p.kasubid||"—"}</div></div>
+            {p.status!=="diajukan" && <div className="form-group"><label className="form-label">Kasubid Pembayaran</label><div>{p.kasubid||"—"}</div></div>}
+            <div className="form-group"><label className="form-label">Pengaju</label><div>{pengajuLabel}</div></div>
           </div>
           <div className="form-group"><label className="form-label">Keperluan SKPP</label><div>{p.alasan||"—"}</div></div>
+
+          {p.status==="diajukan" && (
+            <div style={{marginTop:4,marginBottom:14,padding:"12px 14px",background:"var(--surface-container-low)",borderRadius:10,border:"1px solid var(--outline-variant)"}}>
+              <div className="form-group" style={{marginBottom:12}}>
+                <label className="form-label">Jalur Proses *</label>
+                <select className="form-control" value={jalur} onChange={e=>setJalur(e.target.value)}>
+                  <option value="">— Pilih jalur proses —</option>
+                  <option value="A">Jalur A – Tanpa Pangkat Pengabdian</option>
+                  <option value="B">Jalur B – Ada Pangkat Pengabdian</option>
+                </select>
+                {!jalur && <div style={{fontSize:11,color:"#dc2626",marginTop:4}}>* Wajib dipilih</div>}
+              </div>
+
+              <div className="form-group" style={{marginBottom:0}}>
+                <label className="form-label">Kasubid Pembayaran *</label>
+                <select className="form-control" value={kasubid} onChange={e=>setKasubid(e.target.value)}>
+                  <option value="">— Pilih kasubid pembayaran —</option>
+                  {DAFTAR_KASUBID.map((k,i)=><option key={i} value={k}>{k}</option>)}
+                </select>
+                {!kasubid && <div style={{fontSize:11,color:"#dc2626",marginTop:4}}>* Wajib dipilih</div>}
+                <div style={{marginTop:6,padding:"6px 10px",background:"var(--surface-container-lowest)",borderRadius:8,fontSize:11,color:"var(--on-surface-variant)",fontFamily:"var(--mono)"}}>Kode: {KODE_KASUBID[kasubid]||"—"}</div>
+              </div>
+
+              {isMD ? (
+                <div style={{marginTop:12}}>
+                  <label className="form-label">Kategori Ahli Waris / Jenis Pensiun Turunan *</label>
+                  {saranSubjenis && (
+                    <div style={{fontSize:11,color:"var(--on-surface-variant)",marginBottom:4}}>
+                      Saran: <strong>{saranSubjenis}</strong>
+                    </div>
+                  )}
+                  <select className="form-control" value={subjenis} onChange={e=>setSubjenis(e.target.value)}>
+                    <option value="">— Pilih kategori —</option>
+                    {SUBJENIS_MD.map(s=><option key={s} value={s}>{s} ({KODE_ALASAN[s]})</option>)}
+                  </select>
+                  {!subjenis && <div style={{fontSize:11,color:"#dc2626",marginTop:4}}>* Wajib dipilih</div>}
+                </div>
+              ) : (
+                <div style={{marginTop:12,padding:"6px 10px",background:"var(--surface-container-lowest)",borderRadius:8,fontSize:11,color:"var(--on-surface-variant)"}}>
+                  Kode keperluan: <strong style={{fontFamily:"var(--mono)"}}>{KODE_ALASAN[p.alasan]||"—"}</strong>
+                </div>
+              )}
+            </div>
+          )}
 
           {p.catatan && (
             <div className={"alert "+(p.status==="ditolak"?"alert-red":"alert-amber")} style={{marginBottom:4}}>
@@ -6494,23 +7872,19 @@ function AntreanDetailModal({ p, onClose, onTerima, onKembalikan, onTolak, savin
           {p.status==="diajukan" && (
             <div style={{marginTop:18,paddingTop:14,borderTop:"1px solid var(--outline-variant)"}}>
               {aksi==="" && (
-                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                  <button className="btn btn-success btn-sm" onClick={()=>setAksi("terima")}>✓ Terima</button>
-                  <button className="btn btn-secondary btn-sm" onClick={()=>setAksi("kembalikan")}>↩ Kembalikan</button>
-                  <button className="btn btn-danger btn-sm" onClick={()=>setAksi("tolak")}>⛔ Tolak</button>
-                </div>
-              )}
-              {aksi==="terima" && (
-                <div className="form-group">
-                  <label className="form-label">Jalur Proses *</label>
-                  <select className="form-control" value={jalur} onChange={e=>setJalur(e.target.value)}>
-                    <option value="">— Pilih jalur proses —</option>
-                    <option value="A">Jalur A – Tanpa Pangkat Pengabdian</option>
-                    <option value="B">Jalur B – Ada Pangkat Pengabdian</option>
-                  </select>
-                  <div style={{display:"flex",gap:8,marginTop:10}}>
-                    <button className="btn btn-secondary btn-sm" onClick={()=>setAksi("")} disabled={saving}>Batal</button>
-                    <button className="btn btn-primary btn-sm" disabled={saving||!jalur} onClick={()=>onTerima(p,jalur)}>{saving?"⟳ Memproses…":"Konfirmasi Terima"}</button>
+                <div>
+                  {(!jalur || !kasubid || (isMD && !subjenis)) && (
+                    <div style={{fontSize:11,color:"#dc2626",marginBottom:6}}>
+                      * Lengkapi dulu Jalur Proses, Kasubid Pembayaran{isMD?", & Kategori Ahli Waris":""} di atas sebelum menerima.
+                    </div>
+                  )}
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    <button className="btn btn-success btn-sm" disabled={saving||!jalur||!kasubid||(isMD&&!subjenis)}
+                      onClick={()=>onTerima(p,{jalur,kasubid,subjenis:isMD?subjenis:""})}>
+                      {saving?"Memproses…":"Terima"}
+                    </button>
+                    <button className="btn btn-secondary btn-sm" onClick={()=>setAksi("kembalikan")}>Kembalikan</button>
+                    <button className="btn btn-danger btn-sm" onClick={()=>setAksi("tolak")}>Tolak</button>
                   </div>
                 </div>
               )}
@@ -6520,7 +7894,7 @@ function AntreanDetailModal({ p, onClose, onTerima, onKembalikan, onTolak, savin
                   <textarea className="form-control" rows={3} value={catatan} onChange={e=>setCatatan(e.target.value)}/>
                   <div style={{display:"flex",gap:8,marginTop:10}}>
                     <button className="btn btn-secondary btn-sm" onClick={()=>setAksi("")} disabled={saving}>Batal</button>
-                    <button className="btn btn-primary btn-sm" disabled={saving||!catatan.trim()} onClick={()=>onKembalikan(p,catatan)}>{saving?"⟳ Memproses…":"Konfirmasi Kembalikan"}</button>
+                    <button className="btn btn-primary btn-sm" disabled={saving||!catatan.trim()} onClick={()=>onKembalikan(p,catatan)}>{saving?"Memproses…":"Konfirmasi Kembalikan"}</button>
                   </div>
                 </div>
               )}
@@ -6530,7 +7904,7 @@ function AntreanDetailModal({ p, onClose, onTerima, onKembalikan, onTolak, savin
                   <textarea className="form-control" rows={3} value={catatan} onChange={e=>setCatatan(e.target.value)}/>
                   <div style={{display:"flex",gap:8,marginTop:10}}>
                     <button className="btn btn-secondary btn-sm" onClick={()=>setAksi("")} disabled={saving}>Batal</button>
-                    <button className="btn btn-danger btn-sm" disabled={saving||!catatan.trim()} onClick={()=>onTolak(p,catatan)}>{saving?"⟳ Memproses…":"Konfirmasi Tolak"}</button>
+                    <button className="btn btn-danger btn-sm" disabled={saving||!catatan.trim()} onClick={()=>onTolak(p,catatan)}>{saving?"Memproses…":"Konfirmasi Tolak"}</button>
                   </div>
                 </div>
               )}
@@ -6545,7 +7919,7 @@ function AntreanDetailModal({ p, onClose, onTerima, onKembalikan, onTolak, savin
   );
 }
 
-function PageAntreanOnline({ onToast, onCount }) {
+function PageAntreanOnline({ onToast, onCount, onRefreshMain }) {
   const [rows, setRows] = useState(null); // null = memuat
   const [err, setErr] = useState("");
   const [selected, setSelected] = useState(null);
@@ -6563,46 +7937,60 @@ function PageAntreanOnline({ onToast, onCount }) {
 
   const menunggu = (rows||[]).filter(r=>r.status==="diajukan");
   const ditolak  = (rows||[]).filter(r=>r.status==="ditolak");
-  const list = tab==="menunggu" ? menunggu : ditolak;
+  const diterima = (rows||[]).filter(r=>r.status!=="diajukan" && r.status!=="ditolak");
+  const list = tab==="menunggu" ? menunggu : tab==="ditolak" ? ditolak : diterima;
 
   const jalankan = async (aksi, p, arg) => {
     setSaving(true);
     try {
-      const res = aksi==="terima" ? await terimaPengajuanOnline({ id:p.id, jalur:arg })
+      const res = aksi==="terima" ? await terimaPengajuanOnline({ id:p.id, jalur:arg.jalur, kasubid:arg.kasubid, subjenis:arg.subjenis })
                 : aksi==="kembalikan" ? await kembalikanPengajuanOnline({ id:p.id, catatan:arg })
                 : await tolakPengajuanOnline({ id:p.id, alasan:arg });
-      if (res.ok) { onToast?.(res.pesan || "Berhasil."); setSelected(null); muat(); }
+      if (res.ok) {
+        onToast?.(res.pesan || "Berhasil.");
+        setSelected(null);
+        muat();
+        // "Terima" memindahkan pengajuan ke status "proses" -> harus muncul di
+        // Daftar Pengajuan/Dashboard, yang datanya dimuat terpisah di App().
+        if (aksi === "terima") onRefreshMain?.();
+      }
       else alert("Gagal: " + res.pesan);
     } catch { alert("Gagal terhubung ke server."); }
     setSaving(false);
   };
 
+  const pengajuLabel = r => r.pengajuRole === "bendahara" ? "Bendahara OPD" : r.pengajuRole === "pemohon" ? "Perorangan" : "—";
+
   return (
     <>
-      <StatCards items={[["Menunggu Verifikasi", menunggu.length, menunggu.length>0?"var(--warning)":undefined], ["Ditolak (riwayat)", ditolak.length]]}/>
+      <StatCards items={[["Menunggu Verifikasi", menunggu.length, menunggu.length>0?"var(--warning)":undefined], ["Diterima", diterima.length], ["Ditolak (riwayat)", ditolak.length]]}/>
       {err && <div className="alert alert-red" style={{marginBottom:16}}><IcoAlert size={14}/><span>{err}</span></div>}
       <div className="tabs" style={{marginBottom:16}}>
-        <div className={`tab ${tab==="menunggu"?"active":""}`} onClick={()=>setTab("menunggu")}>⏳ Menunggu Verifikasi</div>
-        <div className={`tab ${tab==="ditolak"?"active":""}`} onClick={()=>setTab("ditolak")}>⛔ Ditolak</div>
+        <div className={`tab ${tab==="menunggu"?"active":""}`} onClick={()=>setTab("menunggu")}>Menunggu Verifikasi</div>
+        <div className={`tab ${tab==="diterima"?"active":""}`} onClick={()=>setTab("diterima")}>Diterima</div>
+        <div className={`tab ${tab==="ditolak"?"active":""}`} onClick={()=>setTab("ditolak")}>Ditolak</div>
       </div>
       <div className="card">
         <div className="card-header">
           <div className="card-header-title">Antrean Pengajuan Online</div>
-          <button className="btn btn-secondary btn-sm" onClick={muat}>↻ Muat Ulang</button>
+          <button className="btn btn-secondary btn-sm" onClick={muat}>Muat Ulang</button>
         </div>
         <div className="card-body" style={{padding:0}}>
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Nomor</th><th>Nama</th><th>OPD</th><th>Keperluan</th><th>Berkas</th><th>Diajukan</th><th></th></tr></thead>
+              <thead><tr><th>Nomor</th><th>Nama</th><th>Pengaju</th><th>OPD</th><th>Keperluan</th><th>Berkas</th><th>Diajukan</th><th></th></tr></thead>
               <tbody>
                 {rows===null ? (
-                  <tr><td colSpan={7} style={{textAlign:"center",padding:24}}>Memuat…</td></tr>
+                  <tr><td colSpan={8} style={{textAlign:"center",padding:24}}>Memuat…</td></tr>
                 ) : list.length===0 ? (
-                  <tr><td colSpan={7} style={{textAlign:"center",padding:24,color:"var(--on-surface-variant)"}}>{tab==="menunggu"?"Tidak ada pengajuan yang menunggu verifikasi.":"Belum ada pengajuan yang ditolak."}</td></tr>
+                  <tr><td colSpan={8} style={{textAlign:"center",padding:24,color:"var(--on-surface-variant)"}}>
+                    {tab==="menunggu"?"Tidak ada pengajuan yang menunggu verifikasi.":tab==="diterima"?"Belum ada pengajuan yang diterima.":"Belum ada pengajuan yang ditolak."}
+                  </td></tr>
                 ) : list.map(p => (
                   <tr key={p.id} style={{cursor:"pointer"}} onClick={()=>setSelected(p)}>
                     <td style={{fontFamily:"var(--mono)",fontWeight:700,fontSize:11.5}}>{p.id}</td>
                     <td style={{fontWeight:600}}>{p.nama}</td>
+                    <td style={{fontSize:12}}>{pengajuLabel(p)}</td>
                     <td style={{fontSize:12}}>{p.opd||"—"}</td>
                     <td style={{fontSize:12}}>{p.alasan||"—"}</td>
                     <td style={{fontSize:12}}>{p.berkas?.length||0} berkas</td>
@@ -6617,12 +8005,26 @@ function PageAntreanOnline({ onToast, onCount }) {
       </div>
       {selected && (
         <AntreanDetailModal p={selected} saving={saving} onClose={()=>{ if(!saving) setSelected(null); }}
-          onTerima={(p,jalur)=>jalankan("terima",p,jalur)}
+          onTerima={(p,arg)=>jalankan("terima",p,arg)}
           onKembalikan={(p,catatan)=>jalankan("kembalikan",p,catatan)}
           onTolak={(p,alasan)=>jalankan("tolak",p,alasan)}
         />
       )}
     </>
+  );
+}
+
+// Label menu yang menggulir halus ke kiri saat di-hover BILA teksnya terpotong,
+// agar nama menu panjang (mis. "Antrean Pengajuan Online") terbaca seluruhnya.
+function D2NavTxt({ children }) {
+  const ref = useRef(null);
+  const [shift, setShift] = useState(0);
+  return (
+    <span className="d2-navtxt" ref={ref}
+      onMouseEnter={() => { const el = ref.current; if (el) setShift(Math.max(0, el.scrollWidth - el.clientWidth)); }}
+      onMouseLeave={() => setShift(0)}>
+      <span className="d2-navtxt-in" style={{ transform: shift ? `translateX(-${shift}px)` : "none" }}>{children}</span>
+    </span>
   );
 }
 
@@ -6641,6 +8043,7 @@ function D2Sidebar({ user, active, onChange, counts, onLogout, collapsed, onTogg
     ]),
     { key:"riwayat",   label:"Riwayat & Arsip",      ic:"archive" },
     { key:"laporan",   label:"Laporan",              ic:"report" },
+    { key:"survei",    label:"Survei Kepuasan (IKM)", ic:"star" },
   ];
   return (
     <aside className={"d2-side"+(rail?" d2-rail":"")}>
@@ -6655,8 +8058,8 @@ function D2Sidebar({ user, active, onChange, counts, onLogout, collapsed, onTogg
           </svg>
         </span>
         <div className="d2-brand-txt">
-          <b>SI-PASTI</b>
-          <span>Sistem Pemantauan Alur SKPP Terintegrasi</span>
+          <b>KATONG SKPP</b>
+          <span>Kanal Administrasi Telusur Online dan Pengajuan SKPP</span>
         </div>
         <button className="d2-collapse-btn" onClick={onToggleCollapse}
           data-tip={collapsed?"Buka panel samping":"Tutup panel samping"} aria-label={collapsed?"Buka panel samping":"Tutup panel samping"}>
@@ -6677,24 +8080,24 @@ function D2Sidebar({ user, active, onChange, counts, onLogout, collapsed, onTogg
         {main.map(n=>(
           <button key={n.key} data-tip={n.label} className={"d2-navitem"+(active===n.key?" is-active":"")} onClick={()=>onChange(n.key)}>
             <span className="d2-navic"><D2Ico d={D2ICONS[n.ic]} size={19}/></span>
-            <span className="d2-navtxt">{n.label}</span>
+            <D2NavTxt>{n.label}</D2NavTxt>
             {n.badge>0 && <span className="d2-navbadge tnum">{n.badge}</span>}
           </button>
         ))}
         {user?.role==="admin" && (
           <>
             <div className="d2-navlabel" style={{marginTop:18}}>Administrasi</div>
-            <button data-tip="Manajemen Staf" className={"d2-navitem"+(active==="users"?" is-active":"")} onClick={()=>onChange("users")}>
+            <button data-tip="Manajemen Akun" className={"d2-navitem"+(active==="users"?" is-active":"")} onClick={()=>onChange("users")}>
               <span className="d2-navic"><D2Ico d={D2ICONS.staff} size={19}/></span>
-              <span className="d2-navtxt">Manajemen Staf</span>
+              <D2NavTxt>Manajemen Akun</D2NavTxt>
             </button>
             <button data-tip="Aktivitas Pengguna" className={"d2-navitem"+(active==="aktivitas"?" is-active":"")} onClick={()=>onChange("aktivitas")}>
               <span className="d2-navic"><D2Ico d={D2ICONS.activity} size={19}/></span>
-              <span className="d2-navtxt">Aktivitas Pengguna</span>
+              <D2NavTxt>Aktivitas Pengguna</D2NavTxt>
             </button>
             <button data-tip="Persetujuan Akun" className={"d2-navitem"+(active==="persetujuan"?" is-active":"")} onClick={()=>onChange("persetujuan")}>
               <span className="d2-navic"><D2Ico d={D2ICONS.clipboard} size={19}/></span>
-              <span className="d2-navtxt">Persetujuan Akun</span>
+              <D2NavTxt>Persetujuan Akun</D2NavTxt>
               {counts?.akunPending>0 && <span className="d2-navbadge tnum">{counts.akunPending}</span>}
             </button>
           </>
@@ -6733,6 +8136,7 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [showNotif, setShowNotif] = useState(false);
   const [antreanCount, setAntreanCount] = useState(0);
+  const [antrean, setAntrean] = useState([]);   // pengajuan online 'diajukan' (utk badge sidebar & lonceng)
   const [akunPendingCount, setAkunPendingCount] = useState(0);
   const profileRef = useRef(null);
   const notifRef = useRef(null);
@@ -6863,29 +8267,59 @@ export default function App() {
 
   const showToast = msg => { setToast(msg); setTimeout(()=>setToast(""), 3200); };
 
-  const load = useCallback(async () => {
-    setLoading(true); setErrLoad("");
+  const load = useCallback(async (silent) => {
+    if(!silent) setLoading(true);
+    setErrLoad("");
     try {
       const res = await daftarSemua();
       // Pengajuan online yang belum diverifikasi loket (diajukan/ditolak) belum
       // masuk alur normal (jalur/tahap belum ada) -> disembunyikan dari daftar
       // utama, hanya tampil di menu "Antrean Pengajuan Online".
-      if(res.ok) setData(res.data
-        .filter(p => !(p.sumber==="online" && (p.status==="diajukan"||p.status==="ditolak")))
-        .map(norm));
+      if(res.ok) {
+        setData(res.data
+          .filter(p => !(p.sumber==="online" && (p.status==="diajukan"||p.status==="ditolak")))
+          .map(norm));
+        // Antrean (online, 'diajukan') -> badge sidebar & lonceng. Dihitung sejak
+        // LOGIN (bukan hanya saat menu Antrean dibuka), agar penanda langsung tampil.
+        const antre = res.data.filter(p => p.sumber==="online" && p.status==="diajukan").map(norm);
+        setAntrean(antre);
+        setAntreanCount(antre.length);
+      }
       else setErrLoad(res.pesan||"Gagal memuat data.");
     } catch { setErrLoad("Gagal terhubung ke server."); }
-    setLoading(false);
+    if(!silent) setLoading(false);
   }, []);
 
   useEffect(() => { if(user) load(); }, [user, load]);
+
+  // Segarkan data berkala (tanpa indikator memuat) supaya badge Antrean & lonceng
+  // ikut ter-update ketika ada pengajuan online baru masuk.
+  useEffect(() => {
+    if(!user) return;
+    const iv = setInterval(() => load(true), 30000);
+    return () => clearInterval(iv);
+  }, [user, load]);
+
+  // Badge Persetujuan Akun (khusus admin): dimuat sejak LOGIN + disegarkan berkala,
+  // agar penanda tampil tanpa harus membuka menunya lebih dulu.
+  useEffect(() => {
+    if(!user || user.role !== "admin") return;
+    let alive = true;
+    const muatAkun = async () => {
+      const res = await listAkunPending();
+      if(alive && res.ok) setAkunPendingCount((res.data || []).length);
+    };
+    muatAkun();
+    const iv = setInterval(muatAkun, 30000);
+    return () => { alive = false; clearInterval(iv); };
+  }, [user]);
 
   const handleInputBaru = async (formData) => {
     setSaving(true);
     try {
       const res = await inputBaru({ data: formData });
       if(res.ok) {
-        showToast(`✓ ${res.id} berhasil disimpan`);
+        showToast(`${res.id} berhasil disimpan`);
         setShowInput(false);
         await load();
         setPage("pengajuan");
@@ -6904,7 +8338,7 @@ export default function App() {
     try {
       const res = await inputBulk({ data: bulkData });
       if(res.ok) {
-        showToast(`✓ ${res.jumlah} pengajuan bulk berhasil disimpan`);
+        showToast(`${res.jumlah} pengajuan bulk berhasil disimpan`);
         setShowInput(false);
         await load();
         setPage("pengajuan");
@@ -6923,18 +8357,32 @@ export default function App() {
     try {
       const res = await updateTahap({ data: updateData });
       if(res.ok) {
-        showToast(updateData.isKembali?"↩ Berkas dikembalikan":updateData.isResume?"✅ Proses berhasil dilanjutkan kembali":"✓ Tahap berhasil diperbarui");
+        showToast(updateData.isKembali?"Berkas dikembalikan":updateData.isResume?"Proses berhasil dilanjutkan kembali":"Tahap berhasil diperbarui");
         await load();
         if(updateData.nextStepId==="") {
           try {
             const tanggalSelesai = new Date().toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"});
             const mark = await setSelesai({ id: updateData.pengajuanId, tanggalSelesai });
-            if(mark.ok) { showToast("✓ Pengajuan ditandai Selesai pada server"); await load(); }
+            if(mark.ok) { showToast("Pengajuan ditandai Selesai pada server"); await load(); }
           } catch(e) { console.warn("Gagal menandai selesai:",e); }
         }
         const refreshed = await detail({ id: updateData.pengajuanId });
         if(refreshed.ok) setSelected(norm(refreshed.data));
       } else alert("Gagal: "+res.pesan);
+    } catch { alert("Gagal terhubung ke server."); }
+    setSaving(false);
+  };
+
+  const handleTolakBukti = async ({ pengajuanId, berkasId, label, alasan }) => {
+    setSaving(true);
+    try {
+      const res = await tolakBuktiHutang({ pengajuanId, berkasId, label, alasan });
+      if (res.ok) {
+        showToast(`Bukti "${label}" ditolak — pemohon diminta unggah ulang.`);
+        await load();
+        const refreshed = await detail({ id: pengajuanId });
+        if (refreshed.ok) setSelected(norm(refreshed.data));
+      } else alert("Gagal: " + res.pesan);
     } catch { alert("Gagal terhubung ke server."); }
     setSaving(false);
   };
@@ -6951,7 +8399,7 @@ export default function App() {
     try {
       const res = await serahTerimaSKPP({ id: selected.id, ...payload });
       if (res.ok) {
-        showToast("✓ SKPP diserahkan & bukti tercatat");
+        showToast("SKPP diserahkan & bukti tercatat");
         await load();
         const refreshed = await detail({ id: selected.id });
         if (refreshed.ok) setSelected(norm(refreshed.data));
@@ -6969,7 +8417,7 @@ export default function App() {
     try {
       const res = await hapusPengajuan({ id: p.id });
       if (res.ok) {
-        showToast(`🗑 Pengajuan ${p.id} dihapus`);
+        showToast(`Pengajuan ${p.id} dihapus`);
         setSelected(null);
         // Hapus langsung dari tampilan (optimistic), lalu sinkron ulang dari server.
         setData(prev => prev.filter(d => d.id !== p.id));
@@ -6993,7 +8441,8 @@ export default function App() {
     input:        { title:"Input Pengajuan Baru",    sub:"Daftarkan pengajuan SKPP baru" },
     antrean:      { title:"Antrean Pengajuan Online",sub:"Verifikasi pengajuan yang masuk lewat portal (Terima/Kembalikan/Tolak)" },
     riwayat:      { title:"Riwayat & Arsip",         sub:"SKPP yang telah selesai diproses" },
-    users:        { title:"Manajemen Staf",          sub:"Kelola akun dan hak akses staf" },
+    survei:       { title:"Survei Kepuasan (IKM)",   sub:"Rekap Survei Kepuasan Masyarakat layanan SKPP" },
+    users:        { title:"Manajemen Akun",          sub:"Kelola akun staf internal, bendahara OPD & pegawai" },
     aktivitas:    { title:"Aktivitas Pengguna",      sub:"Pantau jejak aktivitas seluruh staf" },
     persetujuan:  { title:"Persetujuan Akun",        sub:"ACC pendaftaran akun pemohon & bendahara dari portal" },
   };
@@ -7046,12 +8495,20 @@ export default function App() {
               </button>
               {(()=>{
                 const SEMUA_TAHAPAN = [...TAHAPAN_A, ...TAHAPAN_B];
-                const notifUser = data.filter(d => {
-                  if (d.status !== "proses") return false;
-                  const step = SEMUA_TAHAPAN.find(t => t.id === d.tahapAktif);
-                  if (!step) return false;
-                  return cekIzinProses(user.role, step.pelaksana);
-                });
+                // Pengajuan online baru (antrean) -> perlu tindakan Staf Loket & Admin.
+                const notifAntrean = (user.role === "operator" || user.role === "admin")
+                  ? antrean.map(d => ({ ...d, _antrean: true }))
+                  : [];
+                const notifUser = [...notifAntrean, ...data.filter(d => {
+                  if (d.status === "proses") {
+                    const step = SEMUA_TAHAPAN.find(t => t.id === d.tahapAktif);
+                    return step && cekIzinProses(user.role, step.pelaksana);
+                  }
+                  // Bukti pelunasan hutang / dokumen persyaratan baru diunggah pemohon ->
+                  // perlu diverifikasi Staf Pengampu OPD (atau admin).
+                  if (buktiHutangBaru(d) || dokumenBaruDiunggah(d)) return user.role === "staf" || user.role === "admin";
+                  return false;
+                })];
                 const cnt = notifUser.length;
                 return (
                   <div className="d2-notif" ref={notifRef}>
@@ -7075,14 +8532,34 @@ export default function App() {
                             {cnt===0 ? (
                               <div className="d2-notif-empty">Tidak ada notifikasi untukmu saat ini.</div>
                             ) : notifUser.slice(0,8).map(d=>{
+                              if (d._antrean) {
+                                return (
+                                  <button key={d.id} className="d2-notif-item is-unread" role="menuitem"
+                                    onClick={()=>{setPage("antrean");setShowNotif(false);}}>
+                                    <span className="d2-notif-ic tone-amber"><D2Ico d={D2ICONS.inbox} size={17}/></span>
+                                    <span className="d2-notif-txt">
+                                      <b>{d.nama}</b>
+                                      <span className="d2-notif-desc">{d.id} · Pengajuan online baru — menunggu verifikasi loket</span>
+                                    </span>
+                                    <span className="d2-notif-pip" aria-hidden="true"/>
+                                  </button>
+                                );
+                              }
+                              const isBuktiHutang = d.status !== "proses" && buktiHutangBaru(d);
+                              const isDokBaru = d.status !== "proses" && dokumenBaruDiunggah(d);
                               const step = SEMUA_TAHAPAN.find(t=>t.id===d.tahapAktif);
+                              const desc = isBuktiHutang && isDokBaru
+                                ? "Dokumen & bukti pelunasan hutang diunggah — perlu diverifikasi"
+                                : isBuktiHutang ? "Bukti pelunasan hutang diunggah — perlu diverifikasi"
+                                : isDokBaru ? "Dokumen baru diunggah — perlu diverifikasi"
+                                : (step?.label||"Menunggu tindakan");
                               return (
                                 <button key={d.id} className="d2-notif-item is-unread" role="menuitem"
                                   onClick={()=>{setSelected(d);setShowNotif(false);}}>
                                   <span className="d2-notif-ic tone-blue"><D2Ico d={D2ICONS.doc} size={17}/></span>
                                   <span className="d2-notif-txt">
                                     <b>{d.nama}</b>
-                                    <span className="d2-notif-desc">{d.id} · {step?.label||"Menunggu tindakan"}</span>
+                                    <span className="d2-notif-desc">{d.id} · {desc}</span>
                                   </span>
                                   <span className="d2-notif-pip" aria-hidden="true"/>
                                 </button>
@@ -7120,6 +8597,7 @@ export default function App() {
                         <button className="d2-profile-item" role="menuitem" onClick={()=>{setShowProfile(false);setPage("profil");}}>
                           <D2Ico d={D2ICONS.user} size={19}/><span>Profil</span>
                         </button>
+                        <PushToggle onToast={showToast}/>
                         <button className="d2-profile-item danger" role="menuitem" onClick={()=>{setShowProfile(false);handleLogout();}}>
                           <D2Ico d={D2ICONS.logout} size={19}/><span>Keluar</span>
                         </button>
@@ -7136,20 +8614,21 @@ export default function App() {
             {page==="pengajuan" && <PagePengajuan data={data} loading={loading} onRefresh={load} onDetail={setSelected} onInputBaru={()=>setShowInput(true)} onExport={exportCSV} user={user}/>}
             {page==="input"     && <div className="card card-body"><PagePengajuan data={[]} loading={false} onRefresh={()=>{}} onDetail={()=>{}} onInputBaru={()=>setShowInput(true)} onExport={()=>{}} user={user}/></div>}
             {page==="riwayat"   && <PageRiwayat data={data} loading={loading} onDetail={setSelected}/>}
+            {page==="survei"    && <PageSurvei/>}
             {page==="laporan"   && <PageLaporan data={data} loading={loading} onDetail={setSelected}/>}
             {page==="profil"    && <PageProfil user={user} onToast={setToast} onUpdateUser={u=>setUser(prev=>({...prev,...u}))}/>}
-            {page==="antrean"     && user.role!=="staf"  && <PageAntreanOnline onToast={showToast} onCount={setAntreanCount}/>}
+            {page==="antrean"     && user.role!=="staf"  && <PageAntreanOnline onToast={showToast} onCount={setAntreanCount} onRefreshMain={load}/>}
             {page==="users"       && user.role==="admin" && <PageUsers onToast={showToast}/>}
             {page==="aktivitas"   && user.role==="admin" && <PageAktivitas data={data} loading={loading}/>}
             {page==="persetujuan" && user.role==="admin" && <PageAkunPersetujuan onToast={showToast} onCount={setAkunPendingCount}/>}
             {page==="antrean" && user.role==="staf" && (
               <div className="alert alert-red">
-                <span>🚫</span><span>Anda tidak memiliki akses ke halaman ini. Hanya Admin dan Staf Loket yang dapat membuka halaman ini.</span>
+                <span>Anda tidak memiliki akses ke halaman ini. Hanya Admin dan Staf Loket yang dapat membuka halaman ini.</span>
               </div>
             )}
             {(page==="users"||page==="aktivitas"||page==="persetujuan") && user.role!=="admin" && (
               <div className="alert alert-red">
-                <span>🚫</span><span>Anda tidak memiliki akses ke halaman ini. Hanya Admin yang dapat membuka halaman ini.</span>
+                <span>Anda tidak memiliki akses ke halaman ini. Hanya Admin yang dapat membuka halaman ini.</span>
               </div>
             )}
           </div>
@@ -7159,7 +8638,7 @@ export default function App() {
       {/* Detail Modal */}
       {selected && (
         <DetailModal p={selected} onClose={()=>setSelected(null)} onUpdate={handleUpdate} onSerah={handleSerahTerima} saving={saving}
-          onCetak={()=>cetakTandaTerima(selected)} onDelete={handleDeletePengajuan} user={user}/>
+          onCetak={()=>cetakTandaTerima(selected)} onDelete={handleDeletePengajuan} onTolakBukti={handleTolakBukti} user={user}/>
       )}
 
       {/* Input Modal */}
@@ -7173,7 +8652,7 @@ export default function App() {
           <div className="modal" style={{maxWidth:520}}>
             <div className="modal-header">
               <div style={{fontWeight:800,fontSize:14,color:"var(--primary)",letterSpacing:"-0.4px"}}>
-                {kodeAksesModal.isBulk?"📦 Pengajuan Bulk Berhasil Didaftarkan":"🎉 Pengajuan Berhasil Didaftarkan"}
+                {kodeAksesModal.isBulk?"Pengajuan Bulk Berhasil Didaftarkan":"Pengajuan Berhasil Didaftarkan"}
               </div>
               <button className="modal-close" onClick={()=>setKodeAksesModal(null)}>✕</button>
             </div>
@@ -7247,7 +8726,6 @@ export default function App() {
           <div className="modal" style={{maxWidth:420,borderRadius:"22px",overflow:"hidden"}}>
             <div className="modal-header" style={{background:"#fffbeb",borderBottom:"1px solid #fde68a"}}>
               <div style={{display:"flex",alignItems:"center",gap:10}}>
-                <span style={{fontSize:22}}>⏰</span>
                 <div style={{fontWeight:800,fontSize:14,color:"#92400e"}}>Sesi Akan Berakhir</div>
               </div>
             </div>

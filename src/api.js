@@ -125,7 +125,7 @@ export async function daftarAkun() {
   // untuk memilih nama staf loket / pengampu OPD. Akses diatur oleh RLS policy
   // "profiles_select" (lihat supabase/04_profiles_directory.sql).
   const { data, error } = await supabase
-    .from("profiles").select("username, nama, role, pangkat").order("nama");
+    .from("profiles").select("username, nama, role, pangkat, opd").order("nama");
   if (error) return err(error.message || "Gagal memuat daftar akun.");
   return ok({ data: data || [] });
 }
@@ -237,25 +237,40 @@ export async function gantiPassword({ passwordLama, passwordBaru }) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 export async function daftarSemua() {
-  const [{ data: pengajuan, error: e1 }, { data: riwayat }] = await Promise.all([
+  const [{ data: pengajuan, error: e1 }, { data: riwayat }, { data: berkas }, { data: profils }] = await Promise.all([
     supabase.from("Pengajuan").select("*").order("id", { ascending: false }),
     supabase.from("Riwayat").select("*").order("waktu", { ascending: true }),
+    supabase.from("BerkasPengajuan").select("*").order("created_at", { ascending: true }),
+    supabase.from("profiles").select("id, role"),
   ]);
   if (e1) return err("Gagal memuat data pengajuan.");
+  const roleById = new Map((profils ?? []).map(pr => [pr.id, pr.role]));
   const data = (pengajuan ?? []).map(p => ({
     ...p,
     riwayat: (riwayat ?? []).filter(r => r.pengajuanId === p.id),
+    // Berkas yang diunggah pemohon lewat portal (mis. bukti pelunasan hutang
+    // saat berkas dikembalikan) -- dipakai utk tombol "Lihat" & notifikasi.
+    berkas: (berkas ?? []).filter(b => b.pengajuanId === p.id),
+    // Role akun pengaju (bendahara/pemohon) -- dipakai utk fitur yang cuma
+    // relevan bila pengajuan online diajukan Bendahara OPD.
+    pengajuRole: roleById.get(p.submittedBy) || null,
   }));
   return ok({ data });
 }
 
 export async function detail({ id }) {
-  const [{ data: p, error: e1 }, { data: riwayat }] = await Promise.all([
+  const [{ data: p, error: e1 }, { data: riwayat }, { data: berkas }] = await Promise.all([
     supabase.from("Pengajuan").select("*").eq("id", id).maybeSingle(),
     supabase.from("Riwayat").select("*").eq("pengajuanId", id).order("waktu", { ascending: true }),
+    supabase.from("BerkasPengajuan").select("*").eq("pengajuanId", id).order("created_at", { ascending: true }),
   ]);
   if (e1 || !p) return err("Data tidak ditemukan.");
-  return ok({ data: { ...p, riwayat: riwayat ?? [] } });
+  let pengajuRole = null;
+  if (p.submittedBy) {
+    const { data: prof } = await supabase.from("profiles").select("role").eq("id", p.submittedBy).maybeSingle();
+    pengajuRole = prof?.role || null;
+  }
+  return ok({ data: { ...p, riwayat: riwayat ?? [], berkas: berkas ?? [], pengajuRole } });
 }
 
 export async function inputBaru({ data: formData }) {
@@ -447,6 +462,26 @@ export async function buktiSerahUrl(path, detik = 600) {
   return data?.signedUrl || null;
 }
 
+// ── Dokumen SKPP final (hasil scan) — diunggah staf, diunduh pemohon di portal ──
+const BUKET_SKPP = "skpp-final";
+// Unggah/ganti file SKPP terscan utk pengajuan {id}, lalu catat path-nya di
+// Pengajuan.skppFinalPath. RLS storage: hanya staf (is_staff) yang boleh menulis.
+export async function unggahSkppFinal({ id, file }) {
+  const path = `${id}.pdf`;
+  const up = await supabase.storage.from(BUKET_SKPP)
+    .upload(path, file, { contentType: file.type || "application/pdf", upsert: true });
+  if (up.error) return err("Gagal mengunggah file SKPP: " + up.error.message);
+  const { error } = await supabase.from("Pengajuan").update({ skppFinalPath: path }).eq("id", id);
+  if (error) return err("File terunggah tetapi gagal dicatat: " + error.message);
+  return ok({ path, pesan: "Dokumen SKPP berhasil diunggah." });
+}
+// URL sementara untuk melihat/mengunduh SKPP terscan (sisi dasbor).
+export async function skppFinalUrl(path, detik = 600) {
+  if (!path) return null;
+  const { data } = await supabase.storage.from(BUKET_SKPP).createSignedUrl(path, detik);
+  return data?.signedUrl || null;
+}
+
 // Hapus pengajuan beserta riwayatnya (khusus admin).
 export async function hapusPengajuan({ id }) {
   await supabase.from("Riwayat").delete().eq("pengajuanId", id);
@@ -472,28 +507,106 @@ export async function berkasPengajuanUrl(path, detik = 600) {
   return data?.signedUrl || null;
 }
 
-// Pengajuan online yang masih menunggu tindakan loket (belum Diterima ke alur normal),
-// termasuk yang baru saja Ditolak (agar staf masih bisa melihat riwayat penolakan).
+// Unduh berkas persyaratan secara paksa. Signed URL Supabase Storage lintas-
+// domain, jadi atribut `download` HTML biasa tidak dipatuhi browser -- ambil
+// sebagai blob dulu lalu picu unduhan lewat elemen <a> sementara.
+export async function unduhBerkasPengajuan(path, filename) {
+  const url = await berkasPengajuanUrl(path);
+  if (!url) return false;
+  const res = await fetch(url);
+  const blob = await res.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = blobUrl;
+  a.download = filename || path.split("/").pop();
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(blobUrl);
+  return true;
+}
+
+// Unggah Draft SKPP (staf, pada tahap "Pembuatan Draft SKPP"). Path memakai
+// prefix UID STAF pengunggah (bukan pemohon) krn policy RLS storage
+// mewajibkan folder pertama = auth.uid() milik pengunggah -- staf sudah
+// diberi akses insert tabel via is_staff() (lihat berkas_insert), jadi tidak
+// perlu migrasi RLS baru. UID diambil langsung dari sesi auth (bukan dari
+// state `user` di App.jsx, yang cuma menyimpan username/nama/role/pangkat).
+export async function uploadDraftSkpp({ pengajuanId, file }) {
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  if (!authUser) return err("Sesi berakhir. Silakan masuk kembali.");
+  const safeName = file.name.replace(/[^\w.-]+/g, "_");
+  const path = `${authUser.id}/${pengajuanId}/draft-skpp-${Date.now()}-${safeName}`;
+  const up = await supabase.storage.from(BUKET_BERKAS).upload(path, file, { contentType: file.type, upsert: false });
+  if (up.error) return err("Gagal mengunggah draft SKPP: " + up.error.message);
+  const meta = await supabase.from("BerkasPengajuan").insert({
+    pengajuanId, jenis: "Draft SKPP", path, uploadedBy: authUser.id,
+  });
+  if (meta.error) return err("Gagal menyimpan metadata: " + meta.error.message);
+  return ok({ path });
+}
+
+// Unggah Rincian Perhitungan Kekurangan Pembayaran Pangkat Pengabdian (staf,
+// tahap B5), khusus pengajuan online yang diajukan Bendahara OPD -- berkas
+// ini TIDAK disembunyikan dari pemohon (beda dgn Draft SKPP), krn memang
+// ditujukan utk diunduh Bendahara OPD lewat portal.
+export async function uploadRincianKekurangan({ pengajuanId, file }) {
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  if (!authUser) return err("Sesi berakhir. Silakan masuk kembali.");
+  const safeName = file.name.replace(/[^\w.-]+/g, "_");
+  const path = `${authUser.id}/${pengajuanId}/rincian-kekurangan-${Date.now()}-${safeName}`;
+  const up = await supabase.storage.from(BUKET_BERKAS).upload(path, file, { contentType: file.type, upsert: false });
+  if (up.error) return err("Gagal mengunggah berkas: " + up.error.message);
+  const meta = await supabase.from("BerkasPengajuan").insert({
+    pengajuanId, jenis: "Rincian Perhitungan Kekurangan Pembayaran Pangkat Pengabdian", path, uploadedBy: authUser.id,
+  });
+  if (meta.error) return err("Gagal menyimpan metadata: " + meta.error.message);
+  return ok({ path });
+}
+
+// Unggah hasil PDF SKPP yang fotonya sudah ditempel otomatis (tahap
+// "Penempelan Foto & Penomoran"). Sama pola dgn uploadDraftSkpp.
+export async function uploadSkppFotoDitempel({ pengajuanId, file }) {
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  if (!authUser) return err("Sesi berakhir. Silakan masuk kembali.");
+  const safeName = file.name.replace(/[^\w.-]+/g, "_");
+  const path = `${authUser.id}/${pengajuanId}/skpp-foto-${Date.now()}-${safeName}`;
+  const up = await supabase.storage.from(BUKET_BERKAS).upload(path, file, { contentType: file.type, upsert: false });
+  if (up.error) return err("Gagal mengunggah berkas: " + up.error.message);
+  const meta = await supabase.from("BerkasPengajuan").insert({
+    pengajuanId, jenis: "SKPP (Foto Ditempel)", path, uploadedBy: authUser.id,
+  });
+  if (meta.error) return err("Gagal menyimpan metadata: " + meta.error.message);
+  return ok({ path });
+}
+
+// Semua pengajuan online (sumber='online'), berapapun statusnya -- tab
+// "Menunggu"/"Ditolak"/"Diterima" difilter di sisi UI dari status ini.
+// Turut disertakan role akun pengaju (bendahara/pemohon) via join profiles,
+// utk menampilkan apakah diajukan Bendahara OPD atau perorangan.
 export async function listAntreanOnline() {
-  const [{ data: pengajuan, error: e1 }, { data: berkas }] = await Promise.all([
-    supabase.from("Pengajuan").select("*")
-      .eq("sumber", "online").in("status", ["diajukan", "ditolak"])
-      .order("id", { ascending: false }),
+  const [{ data: pengajuan, error: e1 }, { data: berkas }, { data: profils }] = await Promise.all([
+    supabase.from("Pengajuan").select("*").eq("sumber", "online").order("id", { ascending: false }),
     supabase.from("BerkasPengajuan").select("*").order("created_at", { ascending: true }),
+    supabase.from("profiles").select("id, role"),
   ]);
   if (e1) return err("Gagal memuat antrean pengajuan online: " + e1.message);
   const ids = new Set((pengajuan ?? []).map(p => p.id));
+  const roleById = new Map((profils ?? []).map(pr => [pr.id, pr.role]));
   const data = (pengajuan ?? []).map(p => ({
     ...p,
     berkas: (berkas ?? []).filter(b => b.pengajuanId === p.id && ids.has(p.id)),
+    pengajuRole: roleById.get(p.submittedBy) || null,
   }));
   return ok({ data });
 }
 
 // Terima: pengajuan online masuk alur normal — persis pola inputBaru (tahap A1/B1
 // langsung selesai, tahap aktif pindah ke A2/B2), bedanya baris sudah ada (update, bukan insert).
-export async function terimaPengajuanOnline({ id, jalur }) {
+// kasubid & subjenis dipakai nanti saat penomoran SKPP (lihat generateTemplateNomor).
+export async function terimaPengajuanOnline({ id, jalur, kasubid, subjenis }) {
   if (!["A", "B"].includes(jalur)) return err("Jalur proses wajib dipilih (A atau B).");
+  if (!kasubid) return err("Kasubid pembayaran wajib dipilih.");
   const est = new Date(); est.setDate(est.getDate() + 7);
   const estimasiSelesai = est.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
   const firstStep = jalur === "A" ? "A1" : "B1";
@@ -501,7 +614,7 @@ export async function terimaPengajuanOnline({ id, jalur }) {
 
   const { error } = await supabase.from("Pengajuan").update({
     jalur, estimasiSelesai, tahapAktif: nextStep, tahapSelesai: firstStep,
-    status: "proses", catatan: null,
+    status: "proses", catatan: null, kasubid, subjenis: subjenis || null,
   }).eq("id", id);
   if (error) return err("Gagal menerima pengajuan: " + error.message);
 
@@ -533,4 +646,33 @@ export async function tolakPengajuanOnline({ id, alasan }) {
   const { error } = await supabase.from("Pengajuan").update({ status: "ditolak", catatan: c }).eq("id", id);
   if (error) return err("Gagal menolak pengajuan: " + error.message);
   return ok({ id, pesan: "Pengajuan ditolak." });
+}
+
+// Tolak bukti pelunasan hutang yang diunggah pemohon (mis. bukti setoran keliru/
+// tidak sah). Lewat RPC SECURITY DEFINER (bukan delete langsung dari klien):
+// hanya Staf Pengampu OPD ('staf') / Admin yang diizinkan (dicek di server),
+// jadi tidak perlu memberi hak DELETE umum ke tabel BerkasPengajuan lewat RLS.
+// Hapus berkasnya (status kembali "belum diunggah" di portal, pemohon diminta
+// unggah ulang) + catat alasan penolakan ke Riwayat.
+export async function tolakBuktiHutang({ pengajuanId, berkasId, label, alasan }) {
+  const a = (alasan || "").trim();
+  if (!a) return err("Alasan penolakan wajib diisi.");
+  const { error } = await supabase.rpc("tolak_bukti_hutang", {
+    p_pengajuan_id: pengajuanId, p_berkas_id: berkasId, p_label: label, p_alasan: a,
+  });
+  if (error) return err("Gagal menolak bukti: " + error.message);
+  return ok({ pesan: "Bukti ditolak & pemohon diminta unggah ulang." });
+}
+
+// ── SURVEI KEPUASAN MASYARAKAT (SKM / IKM) ──────────────────────────────────
+// Rekap agregat survei layanan pada rentang tanggal (kosong = seluruh periode).
+// Mengembalikan { responden, nrr:{u1..u9}, ikm, mutu, saran[] } via RPC
+// SECURITY DEFINER rekap_survei_skm (baca-only, khusus staf yang login).
+export async function rekapSurvei(dari = null, sampai = null) {
+  const { data, error } = await supabase.rpc("rekap_survei_skm", {
+    p_dari: dari || null,
+    p_sampai: sampai || null,
+  });
+  if (error) return err("Gagal memuat rekap survei: " + error.message);
+  return ok({ data: data || {} });
 }

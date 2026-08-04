@@ -57,8 +57,10 @@ revoke all on function public.is_approved_pemohon() from public;
 grant execute on function public.is_approved_pemohon() to authenticated;
 
 -- 4) Helper: kode akses 8 char CSPRNG (alfabet tanpa 0 O 1 I L) ---------------
+-- search_path menyertakan "extensions" karena Supabase memasang pgcrypto di
+-- skema itu (bukan public) secara default.
 create or replace function public.gen_kode_akses(n int default 8)
-returns text language plpgsql as $$
+returns text language plpgsql set search_path = public, extensions as $$
 declare alf text := 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; out text := ''; i int; b bytea;
 begin
   b := gen_random_bytes(n);
@@ -142,8 +144,10 @@ create policy "berkas_insert" on public."BerkasPengajuan"
     public.is_staff()
     or ( public.is_approved_pemohon()
          and "uploadedBy" = auth.uid()
+         -- 'diajukan' = sebelum diverifikasi loket; 'kembali' = berkas/bukti
+         -- tambahan diminta staf saat proses (mis. bukti pelunasan hutang).
          and "pengajuanId" in (select id from public."Pengajuan"
-                               where "submittedBy" = auth.uid() and status = 'diajukan') )
+                               where "submittedBy" = auth.uid() and status in ('diajukan','kembali')) )
   );
 
 drop policy if exists "berkas_delete" on public."BerkasPengajuan";
@@ -155,6 +159,9 @@ create policy "berkas_delete" on public."BerkasPengajuan"
          and "pengajuanId" in (select id from public."Pengajuan"
                                where "submittedBy" = auth.uid() and status = 'diajukan') )
   );
+-- Catatan: "Tolak Bukti Hutang" oleh Staf Pengampu OPD (non-admin) TIDAK lewat
+-- policy ini -- pakai RPC public.tolak_bukti_hutang (SECURITY DEFINER) di bawah,
+-- yang mengecek sendiri role pemanggil, supaya staf tidak diberi hak hapus umum.
 
 -- 8) Storage: bucket privat + policy per-pemilik -----------------------------
 insert into storage.buckets (id, name, public)
@@ -184,21 +191,24 @@ create policy "berkas_obj_delete" on storage.objects
 create or replace function public.ajukan_pengajuan_online(p jsonb)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
-  uid   uuid := auth.uid();
-  tahun int  := extract(year from now());
-  nilai int;
-  new_id text;
-  kode  text;
+  uid     uuid := auth.uid();
+  -- Variabel TIDAK boleh sama nama dengan kolom tabel yang disentuh di sini
+  -- (mis. "tahun") -- PL/pgSQL akan gagal dgn "column reference is ambiguous"
+  -- khususnya pada klausa INSERT ... ON CONFLICT (kolom).
+  v_tahun int  := extract(year from now());
+  v_nilai int;
+  new_id  text;
+  kode    text;
 begin
   if not public.is_approved_pemohon() then
     raise exception 'Akun belum disetujui admin / bukan pemohon.';
   end if;
 
-  insert into public."Counter"(tahun, nilai) values (tahun, 1)
+  insert into public."Counter"(tahun, nilai) values (v_tahun, 1)
     on conflict (tahun) do update set nilai = public."Counter".nilai + 1
-    returning nilai into nilai;
+    returning nilai into v_nilai;
 
-  new_id := 'SKPP-' || tahun || '-' || lpad(nilai::text, 4, '0');
+  new_id := 'SKPP-' || v_tahun || '-' || lpad(v_nilai::text, 4, '0');
   kode   := public.gen_kode_akses(8);
 
   insert into public."Pengajuan"
@@ -215,6 +225,61 @@ begin
 end;
 $$;
 grant execute on function public.ajukan_pengajuan_online(jsonb) to authenticated;
+
+-- 10) RPC tolak bukti pelunasan hutang (dashboard internal) -----------------
+-- Dipakai Staf Pengampu OPD (role 'staf') atau Admin saat bukti yang diunggah
+-- pemohon (mis. bukti setoran RKUD) keliru/tidak sah: menghapus METADATA-nya
+-- (jadi kembali "belum diunggah" di portal, pemohon diminta unggah ulang) &
+-- mencatat alasan penolakan ke Riwayat. SECURITY DEFINER agar staf non-admin
+-- TIDAK perlu diberi hak DELETE umum lewat RLS -- otorisasi diperiksa di
+-- dalam fungsi ini saja, khusus utk aksi ini.
+-- Catatan: file di Storage TIDAK ikut dihapus -- Supabase melarang DELETE
+-- langsung ke storage.objects lewat SQL ("Use the Storage API instead").
+-- Dibiarkan tersimpan (bucket privat, sudah tak tertaut ke BerkasPengajuan
+-- manapun jadi tak lagi terlihat/dipakai) -- lebih aman drpd memberi hak
+-- hapus Storage API ke staf non-admin hanya utk pembersihan.
+create or replace function public.tolak_bukti_hutang(
+  p_pengajuan_id text, p_berkas_id uuid, p_label text, p_alasan text
+)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_role       text;
+  v_path       text;
+  v_tahap      text;
+  v_oleh       text;
+  v_oleh_nama  text;
+begin
+  select role into v_role from public.profiles where id = auth.uid();
+  if v_role not in ('staf','admin') then
+    raise exception 'Hanya Staf Pengampu OPD atau Admin yang dapat menolak bukti.';
+  end if;
+  if coalesce(trim(p_alasan), '') = '' then
+    raise exception 'Alasan penolakan wajib diisi.';
+  end if;
+
+  select path into v_path from public."BerkasPengajuan"
+    where id = p_berkas_id and "pengajuanId" = p_pengajuan_id;
+  if v_path is null then
+    raise exception 'Berkas tidak ditemukan.';
+  end if;
+
+  delete from public."BerkasPengajuan" where id = p_berkas_id;
+
+  select "tahapAktif" into v_tahap from public."Pengajuan" where id = p_pengajuan_id;
+  select username, nama into v_oleh, v_oleh_nama from public.profiles where id = auth.uid();
+
+  insert into public."Riwayat" ("pengajuanId", tahap, waktu, catatan, "isKembali", oleh, "olehNama")
+  values (
+    p_pengajuan_id, v_tahap, to_char(now(), 'DD/MM/YYYY, HH24.MI.SS'),
+    format('Bukti "%s" ditolak: %s. Pemohon perlu mengunggah ulang.', p_label, p_alasan),
+    false, coalesce(v_oleh, ''), coalesce(v_oleh_nama, '')
+  );
+
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke all on function public.tolak_bukti_hutang(text, uuid, text, text) from public;
+grant execute on function public.tolak_bukti_hutang(text, uuid, text, text) to authenticated;
 
 -- ── VERIFIKASI (staging) ──
 -- 1) daftar akun pending:  select username,nama,role,akun_status from profiles where akun_status='pending';
