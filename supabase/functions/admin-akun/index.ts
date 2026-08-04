@@ -17,6 +17,12 @@ const URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const EMAIL = (username: string) => `${username}@skpp.local`;
 
+// Resend — email notifikasi status akun (disetujui/ditolak) ke pemohon.
+// Set secret RESEND_API_KEY di Edge Function. EMAIL_FROM & PORTAL_URL punya default.
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
+const EMAIL_FROM = Deno.env.get("EMAIL_FROM") || "KATONG SKPP <noreply@katongskpp.my.id>";
+const PORTAL_URL = Deno.env.get("PORTAL_URL") || "https://katongskpp.my.id";
+
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -28,6 +34,54 @@ const json = (body: unknown, status = 200) =>
     status,
     headers: { ...cors, "Content-Type": "application/json" },
   });
+
+const esc = (s: string) =>
+  s.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!));
+
+// Kop + footer email seragam KATONG SKPP (senada dgn email verifikasi Supabase).
+function emailShell(judul: string, isiHtml: string) {
+  return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#0f172a">
+  <div style="text-align:center;margin-bottom:20px">
+    <div style="font-size:24px;font-weight:800;letter-spacing:.5px"><span style="color:#0f2f5e">KATONG</span> <span style="color:#c8892a">SKPP</span></div>
+    <div style="font-size:12px;color:#64748b;margin-top:2px">Badan Keuangan Daerah Provinsi Nusa Tenggara Timur</div>
+  </div>
+  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:28px">
+    <h1 style="font-size:18px;font-weight:700;margin:0 0 12px;color:#0f2f5e">${judul}</h1>
+    ${isiHtml}
+  </div>
+  <p style="font-size:11px;color:#94a3b8;text-align:center;margin-top:16px;line-height:1.5">Email otomatis, mohon tidak dibalas.<br>&copy; Badan Keuangan Daerah Provinsi Nusa Tenggara Timur</p>
+</div>`;
+}
+
+// Kirim email status akun ke pemohon lewat Resend. Best-effort: kegagalan email
+// TIDAK menggagalkan aksi persetujuan (dibungkus try/catch, dikembalikan senyap).
+async function kirimEmailStatus(to: string, nama: string | null, disetujui: boolean) {
+  if (!RESEND_API_KEY || !to) return;
+  const sapaan = nama ? `<strong>${esc(nama)}</strong>, ` : "";
+  const subject = disetujui
+    ? "Akun Anda Telah Disetujui — KATONG SKPP"
+    : "Status Pendaftaran Akun — KATONG SKPP";
+  const html = disetujui
+    ? emailShell(
+        "Akun Anda Telah Disetujui",
+        `<p style="font-size:14px;line-height:1.65;color:#475569;margin:0 0 22px">Kabar baik, ${sapaan}akun Anda di Portal Pengajuan SKPP telah <strong>disetujui</strong> oleh Administrator. Anda kini dapat masuk dan mulai mengajukan SKPP.</p>
+         <div style="text-align:center"><a href="${PORTAL_URL}" style="display:inline-block;background:#0f2f5e;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:13px 30px;border-radius:8px">Masuk ke Portal</a></div>`,
+      )
+    : emailShell(
+        "Pendaftaran Belum Dapat Disetujui",
+        `<p style="font-size:14px;line-height:1.65;color:#475569;margin:0 0 12px">Mohon maaf, ${sapaan}pendaftaran akun Anda belum dapat kami setujui saat ini.</p>
+         <p style="font-size:13px;line-height:1.6;color:#64748b;margin:0">Untuk informasi lebih lanjut, silakan menghubungi Bidang Perbendaharaan Badan Keuangan Daerah Provinsi Nusa Tenggara Timur.</p>`,
+      );
+  try {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: EMAIL_FROM, to: [to], subject, html }),
+    });
+  } catch (_) {
+    // diabaikan — persetujuan tetap berhasil walau email gagal terkirim
+  }
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -136,9 +190,14 @@ Deno.serve(async (req) => {
         if (!userId) return json({ ok: false, pesan: "userId wajib diisi." });
         if (!["approved", "rejected"].includes(akunStatus))
           return json({ ok: false, pesan: "Status akun tidak valid." });
+        // Ambil email & nama pemohon untuk notifikasi.
+        const { data: prof } = await admin
+          .from("profiles").select("email, nama").eq("id", userId).maybeSingle();
         const { error } = await admin
           .from("profiles").update({ akun_status: akunStatus }).eq("id", userId);
         if (error) return json({ ok: false, pesan: error.message });
+        // Beri tahu pemohon lewat email (best-effort; tak menggagalkan aksi).
+        if (prof?.email) await kirimEmailStatus(prof.email, prof.nama, akunStatus === "approved");
         return json({
           ok: true,
           pesan: akunStatus === "approved" ? "Akun berhasil disetujui." : "Akun ditolak.",
