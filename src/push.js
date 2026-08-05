@@ -72,6 +72,27 @@ export async function aktifkanPush() {
   }
 }
 
+// Selaraskan pemilik langganan ke user yang SEDANG login (dipanggil saat sesi
+// aktif). Mencegah "tertukar peran" di komputer bersama: bila izin sudah granted
+// dan langganan browser sudah ada, klaim endpoint itu untuk user aktif. TIDAK
+// meminta izin & TIDAK subscribe baru -- aman dipanggil di setiap login.
+export async function sinkronkanPush() {
+  if (!pushDidukung() || !pushDikonfigurasi()) return;
+  if (Notification.permission !== "granted") return;
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg ? await reg.pushManager.getSubscription() : null;
+    if (!sub) return;
+    const j = sub.toJSON();
+    await supabase.rpc("simpan_langganan_push", {
+      p_endpoint: j.endpoint,
+      p_p256dh: j.keys?.p256dh,
+      p_auth: j.keys?.auth,
+      p_ua: navigator.userAgent,
+    });
+  } catch { /* abaikan */ }
+}
+
 // Matikan: unsubscribe + hapus dari Supabase.
 export async function matikanPush() {
   try {

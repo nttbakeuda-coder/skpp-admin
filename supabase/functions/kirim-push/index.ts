@@ -99,6 +99,7 @@ Deno.serve(async (req) => {
   const pesan = JSON.stringify({ title: notif.title, body: notif.body, url: notif.url, tag: notif.tag });
 
   let terkirim = 0;
+  const errors: any[] = [];
   await Promise.all((subs || []).map(async (s: any) => {
     try {
       await webpush.sendNotification(
@@ -107,6 +108,7 @@ Deno.serve(async (req) => {
       );
       terkirim++;
     } catch (e: any) {
+      errors.push({ code: e?.statusCode ?? null, msg: String(e?.body ?? e?.message ?? e).slice(0, 180) });
       // 404/410 = langganan kedaluwarsa -> hapus agar tak menumpuk.
       if (e?.statusCode === 404 || e?.statusCode === 410) {
         await sb.from("PushSubscription").delete().eq("endpoint", s.endpoint);
@@ -114,5 +116,5 @@ Deno.serve(async (req) => {
     }
   }));
 
-  return new Response(JSON.stringify({ ok: true, terkirim }), { headers: { "Content-Type": "application/json" } });
+  return new Response(JSON.stringify({ ok: true, terkirim, langganan: subs?.length ?? 0, errors }), { headers: { "Content-Type": "application/json" } });
 });

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { sinkronkanPush } from "./push";
 import {
   login, logout, sesiSaatIni, touchPresence, statusLoginPengguna,
   daftarAkun, tambahAkun, editAkun, hapusAkun, resetPassword,
@@ -8264,6 +8265,12 @@ export default function App() {
     setUser(null);
     setPage("dashboard");
   }, []);
+
+  // Selaraskan pemilik langganan push ke user yang SEDANG login (komputer
+  // bersama: notif ikut siapa yang login, tanpa perlu klik ulang toggle).
+  useEffect(() => {
+    if (user) sinkronkanPush();
+  }, [user]);
 
   const showToast = msg => { setToast(msg); setTimeout(()=>setToast(""), 3200); };
 
