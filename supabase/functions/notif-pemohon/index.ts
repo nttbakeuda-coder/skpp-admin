@@ -16,6 +16,7 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 const EMAIL_FROM = Deno.env.get("EMAIL_FROM") || "KATONG SKPP <noreply@katongskpp.my.id>";
 const PORTAL_URL = Deno.env.get("PORTAL_URL") || "https://katongskpp.my.id";
 const HOOK_SECRET = Deno.env.get("PUSH_HOOK_SECRET") || "";
+const WA_TOKEN = Deno.env.get("WA_TOKEN") || ""; // token perangkat Fonnte
 
 const sb = createClient(SUPABASE_URL, SERVICE_KEY);
 const json = (b: unknown, s = 200) =>
@@ -76,9 +77,32 @@ async function kirimEmail(to: string | null, nama: string | null, m: { judul: st
   }
 }
 
-// Stub WhatsApp — akan diisi saat penyedia gateway dipilih (Meta/Fonnte/Twilio).
-async function kirimWA(_wa: string | null, _m: { judul: string; teks: string }) {
-  return "wa-belum-aktif";
+// Normalisasi nomor ke format internasional 62xxxxxxxxxx.
+function normalWa(wa: string | null): string {
+  let n = String(wa ?? "").replace(/[^0-9]/g, "");
+  if (!n) return "";
+  if (n.startsWith("0")) n = "62" + n.slice(1);
+  else if (!n.startsWith("62")) n = "62" + n;
+  return n;
+}
+
+// WhatsApp via gateway Fonnte (api.fonnte.com). Butuh secret WA_TOKEN (token
+// perangkat). Kosong = belum aktif -> fungsi jatuh ke email cadangan.
+async function kirimWA(wa: string | null, m: { judul: string; teks: string }) {
+  if (!WA_TOKEN) return "wa-belum-aktif";
+  const target = normalWa(wa);
+  if (!target) return "skip-no-wa";
+  const pesan = `*${m.judul}*\n\n${m.teks}\n\n${PORTAL_URL}`;
+  try {
+    const r = await fetch("https://api.fonnte.com/send", {
+      method: "POST",
+      headers: { Authorization: WA_TOKEN, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ target, message: pesan }).toString(),
+    });
+    return r.ok ? "sent" : "fail-" + r.status;
+  } catch {
+    return "error";
+  }
 }
 
 Deno.serve(async (req) => {
