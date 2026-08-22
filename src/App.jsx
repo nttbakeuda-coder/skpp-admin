@@ -138,7 +138,7 @@ const DAFTAR_TINDAKAN = [
 const DP_DOKUMEN_GRUP = [
   { grup:"I. DOKUMEN UMUM (WAJIB UNTUK SEMUA JENIS SKPP)", items:[
     { t:"Pas foto terbaru berlatar merah/biru" },
-    { t:"Fotokopi Kartu Keluarga yang masih berlaku" },
+    { t:"Kartu Keluarga yang masih berlaku" },
   ]},
   { grup:"II. DOKUMEN TAMBAHAN — PENSIUN", items:[
     { t:"SK Pensiun" },
@@ -152,10 +152,10 @@ const DP_DOKUMEN_GRUP = [
   ]},
   { grup:"V. DOKUMEN TAMBAHAN — AHLI WARIS (MENINGGAL DUNIA)", items:[
     { t:"SK Pemberhentian yang telah ditetapkan oleh pejabat berwenang" },
-    { t:"Akta Kematian Pegawai yang bersangkutan (asli atau dilegalisir)" },
-    { t:"Fotokopi Akta Perkawinan / Buku Nikah (dilegalisir)" },
-    { t:"Fotokopi KTP Ahli Waris" },
-    { t:"Fotokopi Akta Kelahiran Anak (bila ahli waris adalah anak)" },
+    { t:"Akta Kematian Pegawai yang bersangkutan" },
+    { t:"Akta Perkawinan / Buku Nikah" },
+    { t:"KTP Ahli Waris" },
+    { t:"Akta Kelahiran Anak (bila ahli waris adalah anak)" },
   ]},
 ];
 const DP_DOKUMEN_FLAT = DP_DOKUMEN_GRUP.flatMap(g => g.items);
