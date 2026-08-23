@@ -3971,7 +3971,6 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
                 </div>
               </div>
               {p.tanggalSerahTerima && <BuktiSerahBlock p={p}/>}
-              {(p.status==="selesai"||prog===100) && <SkppFinalBox p={p}/>}
               <div style={{marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <span style={{fontSize:12,fontWeight:700,color:"var(--on-surface-variant)",textTransform:"uppercase",letterSpacing:"0.06em"}}>Progress</span>
                 <span style={{fontSize:13,fontWeight:800,color:prog===100?"var(--success)":"var(--primary)",fontFamily:"var(--mono)"}}>{prog}%</span>
