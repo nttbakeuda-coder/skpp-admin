@@ -45,7 +45,14 @@ function pesanStatus(rec: any, old: any): { judul: string; teks: string } | null
   const id = rec.id;
   switch (s) {
     case "proses":
-      return { judul: "Pengajuan Diterima & Diproses", teks: `Pengajuan SKPP ${id} telah diverifikasi Loket dan kini sedang diproses.` };
+      // diajukan -> proses = penerimaan awal di Loket.
+      if (prev === "diajukan")
+        return { judul: "Pengajuan Diterima & Diproses", teks: `Pengajuan SKPP ${id} telah diverifikasi Loket dan kini sedang diproses.` };
+      // kembali -> proses = berkas yang dilengkapi diterima & proses dilanjutkan.
+      if (prev === "kembali")
+        return { judul: "Berkas Diterima & Proses Dilanjutkan", teks: `Berkas perbaikan untuk pengajuan SKPP ${id} telah diverifikasi dan prosesnya dilanjutkan.` };
+      // Transisi lain menuju "proses" (mis. rollback tahap oleh admin) tidak perlu notif pemohon.
+      return null;
     case "kembali":
       return { judul: "Berkas Perlu Dilengkapi", teks: `Pengajuan SKPP ${id} dikembalikan. Silakan buka portal untuk melengkapi berkas/bukti yang diminta.` };
     case "selesai":
