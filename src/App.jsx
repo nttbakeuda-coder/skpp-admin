@@ -102,23 +102,19 @@ const DAFTAR_KEPERLUAN = [
 const SUBJENIS_MD = ["Pensiun Janda","Pensiun Duda","Anak","Orang Tua","Ahli Waris Lain"];
 
 // Pilihan dokumen persyaratan SKPP untuk dropdown "Dokumen Kurang".
+// Selaras dengan persyaratan terbaru (DP_DOKUMEN_GRUP). Opsi "Lainnya (ketik
+// manual)" ditambahkan otomatis oleh komponen dropdown.
 const DAFTAR_DOKUMEN_SKPP = [
-  "Surat Pengantar dari OPD",
-  "SK Pensiun / SK Pemberhentian",
-  "SK Kenaikan Pangkat Terakhir",
-  "SK Kenaikan Gaji Berkala Terakhir",
-  "Daftar Gaji Terakhir (Asli)",
-  "Surat Keterangan Penghentian Pembayaran (SKPP) sebelumnya",
-  "Fotokopi KTP",
-  "Fotokopi Kartu Pegawai (Karpeg)",
-  "Fotokopi NPWP",
-  "Fotokopi Kartu Taspen",
-  "Buku Rekening / Rekening Koran",
-  "SPTJM (Surat Pernyataan Tanggung Jawab Mutlak)",
-  "Surat Keterangan Bebas Temuan / Bebas Hutang",
-  "Pas Foto Terbaru",
-  "Akta Kematian (untuk Janda/Duda)",
-  "Surat Nikah / Akta Perkawinan (untuk Janda/Duda)",
+  "Pas foto terbaru berlatar merah/biru",
+  "Kartu Keluarga yang masih berlaku",
+  "SK Pensiun",
+  "SK Pindah",
+  "Persetujuan Mutasi dari pejabat berwenang Pemerintah Provinsi NTT",
+  "SK Pemberhentian yang telah ditetapkan oleh pejabat berwenang",
+  "Akta Kematian Pegawai yang bersangkutan",
+  "Akta Perkawinan / Buku Nikah",
+  "KTP Ahli Waris",
+  "Akta Kelahiran Anak (bila ahli waris adalah anak)",
 ];
 
 // Pilihan tindakan yang diperlukan untuk dropdown "Tindakan yang Diperlukan".
@@ -4434,19 +4430,19 @@ function FormulirKembaliModal({ p, user, fkData, setFkData, pengampuList, saving
   };
 
   const SectionTitle = ({children}) => (
-    <div style={{fontWeight:800,fontSize:11.5,color:"white",textTransform:"uppercase",letterSpacing:"0.07em",
-      marginBottom:10,padding:"8px 16px",background:"#1a4b9b",borderRadius:12}}>
+    <div style={{fontWeight:800,fontSize:11.5,color:"var(--primary)",textTransform:"uppercase",letterSpacing:"0.07em",
+      marginBottom:10,paddingBottom:6,borderBottom:"1px solid var(--outline-variant)"}}>
       {children}
     </div>
   );
 
   const CheckRow = ({field,label}) => (
     <div style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 14px",cursor:"pointer",
-      background:fkData[field]?"#EEF2FF":"var(--surface-container-low)",
-      border:`1.5px solid ${fkData[field]?"#4F6BCD":"var(--outline-variant)"}`,
+      background:fkData[field]?"var(--primary-fixed, rgba(47,91,208,0.08))":"var(--surface-container-low)",
+      border:`1.5px solid ${fkData[field]?"var(--primary)":"var(--outline-variant)"}`,
       borderRadius:12,marginBottom:8}}
       onClick={()=>setFkData(d=>({...d,[field]:!d[field]}))}>
-      <input type="checkbox" checked={fkData[field]} readOnly style={{width:16,height:16,marginTop:1,accentColor:"#4F6BCD",flexShrink:0}}/>
+      <input type="checkbox" checked={fkData[field]} readOnly style={{width:16,height:16,marginTop:1,accentColor:"var(--primary)",flexShrink:0}}/>
       <span style={{fontSize:13,fontWeight:fkData[field]?600:400,lineHeight:1.5}}>{label}</span>
     </div>
   );
@@ -4455,13 +4451,13 @@ function FormulirKembaliModal({ p, user, fkData, setFkData, pengampuList, saving
     <div className="modal-overlay" style={{zIndex:10000}}>
       <div className="modal" style={{maxWidth:820,maxHeight:"92vh",display:"flex",flexDirection:"column",borderRadius:18,overflow:"hidden"}}>
         {/* Header */}
-        <div className="modal-header" style={{background:"#1a4b9b",flexShrink:0}}>
+        <div className="modal-header" style={{flexShrink:0}}>
           <div>
-            <div style={{fontFamily:"var(--mono)",fontSize:10,color:"rgba(255,255,255,.6)",fontWeight:700,marginBottom:2,letterSpacing:"0.05em"}}>{nomorFormulir}</div>
-            <div style={{fontWeight:800,fontSize:14,color:"white",letterSpacing:"-0.3px"}}>Formulir Pengembalian Berkas</div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,.7)",marginTop:2}}>SKPP — {p.nama} · {tanggalKembali}</div>
+            <div style={{fontFamily:"var(--mono)",fontSize:10,color:"var(--primary)",fontWeight:700,marginBottom:2,letterSpacing:"0.05em"}}>{nomorFormulir}</div>
+            <div style={{fontWeight:800,fontSize:14,color:"var(--on-surface)",letterSpacing:"-0.3px"}}>Formulir Pengembalian Berkas</div>
+            <div style={{fontSize:11,color:"var(--on-surface-variant)",marginTop:2}}>SKPP — {p.nama} · {tanggalKembali}</div>
           </div>
-          <button className="modal-close" onClick={onClose} disabled={saving} style={{color:"white",opacity:.7}}>✕</button>
+          <button className="modal-close" onClick={onClose} disabled={saving}>✕</button>
         </div>
 
         {/* Body — scrollable */}
@@ -4480,7 +4476,7 @@ function FormulirKembaliModal({ p, user, fkData, setFkData, pengampuList, saving
                   <span className="info-val" style={{display:"flex",gap:16,flexWrap:"wrap"}}>
                     {[["Pensiun",isPS],["Pindah",isPD],["Berhenti",isBH],["Janda/Duda",isJD]].map(([lbl,chk])=>(
                       <span key={lbl} style={{display:"flex",alignItems:"center",gap:5,fontSize:12}}>
-                        <span style={{width:14,height:14,border:"1.5px solid var(--outline)",borderRadius:2,display:"inline-flex",alignItems:"center",justifyContent:"center",background:chk?"#1a4b9b":"white",flexShrink:0}}>
+                        <span style={{width:14,height:14,border:"1.5px solid var(--outline)",borderRadius:2,display:"inline-flex",alignItems:"center",justifyContent:"center",background:chk?"var(--primary)":"white",flexShrink:0}}>
                           {chk&&<span style={{color:"white",fontSize:9,fontWeight:900}}>✓</span>}
                         </span>{lbl}
                       </span>
@@ -4655,10 +4651,10 @@ function FormulirKembaliModal({ p, user, fkData, setFkData, pengampuList, saving
         {/* Footer */}
         <div style={{padding:"14px 20px",borderTop:"1px solid var(--outline-variant)",display:"flex",gap:8,justifyContent:"flex-end",flexShrink:0,background:"var(--surface-container-lowest)"}}>
           <button className="btn btn-ghost" onClick={onClose} disabled={saving}>Batal</button>
-          <button className="btn" style={{background:"#f97316",color:"white",gap:6}} onClick={handleCetak} disabled={!canSubmit}>
+          <button className="btn btn-secondary" style={{gap:6}} onClick={handleCetak} disabled={!canSubmit}>
             Cetak Formulir
           </button>
-          <button className="btn" style={{background:"#dc2626",color:"white",gap:6}} onClick={onSubmit} disabled={saving||!canSubmit}>
+          <button className="btn btn-danger" style={{gap:6}} onClick={onSubmit} disabled={saving||!canSubmit}>
             {saving?"Menyimpan...":"Simpan & Kembalikan Berkas"}
           </button>
         </div>
