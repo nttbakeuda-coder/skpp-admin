@@ -5246,28 +5246,38 @@ function SkppFinalBox({ p, onUploaded }) {
           : "Unggah dokumen SKPP yang telah ditandatangani agar dapat diunduh pemohon."}
       </div>
       <input ref={fileRef} type="file" accept="application/pdf,.pdf" style={{display:"none"}} onChange={onFile}/>
-      <div
-        onDragOver={e=>{ e.preventDefault(); if(!busy) setDragOver(true); }}
-        onDragLeave={e=>{ e.preventDefault(); setDragOver(false); }}
-        onDrop={e=>{ e.preventDefault(); setDragOver(false); if(busy) return; prosesFile(e.dataTransfer.files?.[0]); }}
-        onClick={()=>{ if(!busy) fileRef.current?.click(); }}
-        style={{
-          border:`1.5px dashed ${dragOver?"#1e40af":"#bfdbfe"}`,
-          background:dragOver?"rgba(30,64,175,0.06)":"#fff",
-          borderRadius:10, padding:"14px 16px", textAlign:"center",
-          cursor:busy?"default":"pointer", transition:"border-color .15s, background .15s",
-        }}
-      >
-        <div style={{fontSize:12,color:"#1e40af",marginBottom:10}}>
-          {dragOver ? "Lepaskan berkas PDF untuk mengunggah" : "Tarik & letakkan berkas PDF di sini, atau"}
-        </div>
-        <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center"}}>
-          {path && <button className="btn btn-secondary btn-sm" onClick={e=>{ e.stopPropagation(); lihat(); }} disabled={busy}>Lihat / Unduh</button>}
-          <button className="btn btn-primary btn-sm" onClick={e=>{ e.stopPropagation(); fileRef.current?.click(); }} disabled={busy}>
-            {busy ? "Mengunggah…" : (path ? "Ganti File" : "Unggah SKPP")}
+      {path ? (
+        // Sudah ada scan -> tampilan ringkas (tanpa drop zone), cukup lihat/ganti.
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <button className="btn btn-secondary btn-sm" onClick={lihat} disabled={busy}>Lihat / Unduh</button>
+          <button className="btn btn-primary btn-sm" onClick={()=>fileRef.current?.click()} disabled={busy}>
+            {busy ? "Mengunggah…" : "Ganti File"}
           </button>
         </div>
-      </div>
+      ) : (
+        // Belum ada scan -> drop zone untuk unggah pertama.
+        <div
+          onDragOver={e=>{ e.preventDefault(); if(!busy) setDragOver(true); }}
+          onDragLeave={e=>{ e.preventDefault(); setDragOver(false); }}
+          onDrop={e=>{ e.preventDefault(); setDragOver(false); if(busy) return; prosesFile(e.dataTransfer.files?.[0]); }}
+          onClick={()=>{ if(!busy) fileRef.current?.click(); }}
+          style={{
+            border:`1.5px dashed ${dragOver?"#1e40af":"#bfdbfe"}`,
+            background:dragOver?"rgba(30,64,175,0.06)":"#fff",
+            borderRadius:10, padding:"14px 16px", textAlign:"center",
+            cursor:busy?"default":"pointer", transition:"border-color .15s, background .15s",
+          }}
+        >
+          <div style={{fontSize:12,color:"#1e40af",marginBottom:10}}>
+            {dragOver ? "Lepaskan berkas PDF untuk mengunggah" : "Tarik & letakkan berkas PDF di sini, atau"}
+          </div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center"}}>
+            <button className="btn btn-primary btn-sm" onClick={e=>{ e.stopPropagation(); fileRef.current?.click(); }} disabled={busy}>
+              {busy ? "Mengunggah…" : "Unggah SKPP"}
+            </button>
+          </div>
+        </div>
+      )}
       {msg && <div style={{fontSize:11.5,color:"#1e40af",marginTop:8,fontWeight:600}}>{msg}</div>}
     </div>
   );
