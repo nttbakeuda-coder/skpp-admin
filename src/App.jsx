@@ -7950,7 +7950,9 @@ function AntreanDetailModal({ p, onClose, onTerima, onKembalikan, onTolak, savin
 
   return (
     <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget && !saving) onClose();}}>
-      <div className="modal" style={{maxWidth:960}}>
+      {/* zoom:1 override khusus modal ini -> teks tampil ukuran penuh (tidak
+          ikut mengecil 0.75 seperti modal lain). */}
+      <div className="modal" style={{maxWidth:820,zoom:1}}>
         <div className="modal-header">
           <div>
             <div style={{fontWeight:800,fontSize:14,color:"var(--primary)",letterSpacing:"-0.4px"}}>{p.id}</div>
