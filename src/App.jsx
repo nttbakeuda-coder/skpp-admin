@@ -3844,6 +3844,8 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
   const [showDaftarPeriksa, setShowDaftarPeriksa] = useState(false);
   // Serah Terima ke pemohon (tahap akhir A7/B11).
   const [showSerahTerima, setShowSerahTerima] = useState(false);
+  // Scan SKPP ber-TTD sudah diunggah pada sesi ini (mendahului refresh p).
+  const [skppUploaded, setSkppUploaded] = useState(false);
   const hariIni = (() => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
   const hutangLunasAwal = hutangSudahLunas(p);
   const [dpData, setDpData] = useState({
@@ -4137,11 +4139,48 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
                   )}
                   {stepAktif.final===true && (
                     <div className="nbox-green" style={{borderRadius:10,padding:"11px 14px",marginBottom:14,fontSize:12}}>
-                      Unggah scan SKPP yang telah ditandatangani, lalu serahkan kepada pemohon.
+                      Unggah scan SKPP yang telah ditandatangani agar dapat diunduh pemohon. Penyerahan SKPP asli (fisik) dapat dilakukan menyusul.
                     </div>
                   )}
-                  {stepAktif.final===true && <SkppFinalBox p={p}/>}
-                  {(() => {
+                  {stepAktif.final===true && <SkppFinalBox p={p} onUploaded={()=>setSkppUploaded(true)}/>}
+                  {stepAktif.final===true ? (() => {
+                    // Tahap akhir: yang WAJIB adalah scan SKPP ber-TTD diunggah
+                    // (agar bisa diunduh pemohon). Penyerahan fisik SKPP asli bisa
+                    // menyusul — jadi "Selesaikan" tidak menuntut serah terima.
+                    const izinOk = cekIzinProses(user?.role, stepAktif.pelaksana);
+                    const scanAda = !!(p.skppFinalPath || skppUploaded);
+                    const nonaktif = saving || !izinOk || !scanAda;
+                    return (
+                  <>
+                    {izinOk && !scanAda && (
+                      <div style={{fontSize:11.5,color:"#b45309",marginBottom:8,lineHeight:1.5}}>
+                        Unggah scan SKPP yang telah ditandatangani terlebih dahulu agar dapat diunduh pemohon.
+                      </div>
+                    )}
+                    <button
+                      className="btn btn-primary" style={{width:"100%",justifyContent:"center",fontWeight:700,opacity:nonaktif?0.6:1,marginBottom:8}}
+                      disabled={nonaktif}
+                      onClick={() => {
+                        if (!window.confirm("Selesaikan pengajuan ini? Scan SKPP sudah dapat diunduh pemohon melalui portal. Penyerahan SKPP asli (fisik) dapat dilakukan menyusul.")) return;
+                        onUpdate({
+                          pengajuanId: p.id, stepId: stepAktif.id, nextStepId: "",
+                          catatan: "", catatanInternal: "SKPP selesai — scan diunggah & dapat diunduh pemohon. Penyerahan fisik SKPP asli menyusul.",
+                          isKembali: false, isFinal: true,
+                        });
+                      }}
+                    >
+                      {saving ? "Menyimpan..." : !izinOk ? `Khusus: ${stepAktif.pelaksana}` : "Selesaikan — Serah Terima Fisik Menyusul"}
+                    </button>
+                    <button
+                      className="btn btn-secondary" style={{width:"100%",justifyContent:"center",fontWeight:700,opacity:nonaktif?0.6:1}}
+                      disabled={nonaktif}
+                      onClick={() => setShowSerahTerima(true)}
+                    >
+                      Selesaikan &amp; Catat Bukti Serah Terima
+                    </button>
+                  </>
+                    );
+                  })() : (() => {
                     const tombolNonaktif = saving || !cekIzinProses(user?.role, stepAktif.pelaksana)
                       || (isPenomoran(stepAktif.id) && !nomorUrut) || (isSP2D(stepAktif.id) && !nomorSP2D.trim());
                     return (
@@ -4153,7 +4192,6 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
                     }}
                     disabled={tombolNonaktif}
                     onClick={() => {
-                      if (stepAktif.final===true) { setShowSerahTerima(true); return; }
                       if (isKembali) {
                         if (stafLoketList.length===0 || pengampuList.length===0) daftarAkun().then(res=>{ if(res.ok){ setStafLoketList(res.data.filter(a=>a.role==="operator")); setPengampuList(res.data.filter(a=>a.role==="staf")); } });
                         setShowFormKembali(true);
@@ -4172,14 +4210,13 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
                         catatan: "",
                         catatanInternal: catatanInternalFinal,
                         isKembali: isKembali,
-                        isFinal: stepAktif.final===true,
+                        isFinal: false,
                         nomorSKPP: isPenomoran(stepAktif.id) ? generateTemplateNomor(nomorUrut, p) : undefined,
                       });
                     }}
                   >
                     {saving ? "Menyimpan..." :
                      !cekIzinProses(user?.role, stepAktif.pelaksana) ? `Khusus: ${stepAktif.pelaksana}` :
-                     stepAktif.final===true ? "Serahkan ke Pemohon & Catat Bukti" :
                      isKembali ? "Kembalikan Berkas" : "Tandai Tahap Ini Selesai"}
                   </button>
                     );
@@ -5164,7 +5201,7 @@ function SerahTerimaModal({ p, user, saving, onClose, onSubmit }) {
 // Kotak unggah/unduh dokumen SKPP final (hasil scan) — muncul di panel detail
 // untuk pengajuan yang sudah selesai. Staf mengunggah PDF; pemohon mengunduhnya
 // di portal. Mengelola path lokal supaya UI langsung ter-update tanpa reload.
-function SkppFinalBox({ p }) {
+function SkppFinalBox({ p, onUploaded }) {
   const [path, setPath] = useState(p.skppFinalPath || null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -5178,7 +5215,7 @@ function SkppFinalBox({ p }) {
     setBusy(true); setMsg("");
     const res = await unggahSkppFinal({ id: p.id, file });
     setBusy(false);
-    if (res.ok) { setPath(res.path); setMsg("Dokumen SKPP terunggah & siap diunduh pemohon."); }
+    if (res.ok) { setPath(res.path); setMsg("Dokumen SKPP terunggah & siap diunduh pemohon."); onUploaded?.(res.path); }
     else setMsg(res.pesan || "Gagal mengunggah dokumen.");
   };
   const onFile = (e) => { const file = e.target.files?.[0]; e.target.value = ""; prosesFile(file); };
