@@ -144,11 +144,23 @@ Deno.serve(async (req) => {
   if (!prof) return json({ ok: true, skip: "profil-tak-ada" });
 
   const ch = prof.notif_channel || "email";
+  if (ch === "off") return json({ ok: true, skip: "kanal-off" });
+
   const hasil: Record<string, string> = { channel: ch };
   if (ch === "email" || ch === "both") hasil.email = await kirimEmail(prof.email, prof.nama, m);
-  if (ch === "whatsapp" || ch === "both") hasil.wa = await kirimWA(prof.wa_number, m);
-  // WhatsApp belum aktif -> jangan biarkan pemohon 'whatsapp'-only tak terinfo:
-  // kirim email sebagai cadangan sampai gateway WA disiapkan.
+
+  // WhatsApp "tepat sasaran": nomor pegawai pada pengajuan INI (selalu, agar tiap
+  // pegawai hanya menerima update pengajuannya sendiri) + nomor akun pengaju bila
+  // preferensinya memakai WA. Digabung & dedupe.
+  const waSet = new Set<string>();
+  const tambahWa = (raw: unknown) => {
+    for (const n of String(raw ?? "").split(",")) { const t = normalWa(n); if (t) waSet.add(t); }
+  };
+  tambahWa(rec.waPegawai);
+  if (ch === "whatsapp" || ch === "both") tambahWa(prof.wa_number);
+  if (waSet.size) hasil.wa = await kirimWA([...waSet].join(","), m);
+
+  // Pengaju memilih WA-only tapi gateway belum aktif -> email cadangan ke pengaju.
   if (ch === "whatsapp" && hasil.wa === "wa-belum-aktif" && prof.email)
     hasil.emailCadangan = await kirimEmail(prof.email, prof.nama, m);
 
