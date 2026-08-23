@@ -97,8 +97,11 @@ function normalWa(wa: string | null): string {
 // perangkat). Kosong = belum aktif -> fungsi jatuh ke email cadangan.
 async function kirimWA(wa: string | null, m: { judul: string; teks: string }) {
   if (!WA_TOKEN) return "wa-belum-aktif";
-  const target = normalWa(wa);
-  if (!target) return "skip-no-wa";
+  // wa_number bisa berisi BANYAK nomor (dipisah koma). Fonnte menerima `target`
+  // dgn banyak nomor sekaligus (dipisah koma).
+  const list = String(wa ?? "").split(",").map(normalWa).filter(Boolean);
+  if (!list.length) return "skip-no-wa";
+  const target = list.join(",");
   // Branding di ISI pesan: walau pengirim tampil sbg nomor (batasan WA utk
   // non-kontak), penerima langsung mengenali ini dari KATONG SKPP.
   const pesan =
