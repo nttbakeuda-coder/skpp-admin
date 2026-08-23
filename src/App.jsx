@@ -5,7 +5,7 @@ import {
   daftarAkun, tambahAkun, editAkun, hapusAkun, resetPassword,
   ajukanResetPassword, daftarPermintaanReset, tandaiResetSelesai, hapusPermintaanReset,
   profil, updateProfil, gantiPassword,
-  daftarSemua, detail, inputBaru, inputBulk, updateTahap, setSelesai, hapusPengajuan,
+  daftarSemua, detail, inputBaru, inputBulk, updateTahap, rollbackTahap, setSelesai, hapusPengajuan,
   serahTerimaSKPP, buktiSerahUrl, unggahSkppFinal, skppFinalUrl,
   listAkunPending, setAkunStatus,
   listAntreanOnline, berkasPengajuanUrl, unduhBerkasPengajuan, terimaPengajuanOnline, kembalikanPengajuanOnline, tolakPengajuanOnline,
@@ -3822,7 +3822,7 @@ function RincianKekuranganBlock({ p }) {
 }
 
 // ─── DETAIL MODAL ─────────────────────────────────────────────────────────────
-function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete, onTolakBukti, user }) {
+function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete, onRollback, onTolakBukti, user }) {
   const [tab, setTab] = useState("info");
   const [catatan, setCatatan] = useState("");
   const [isKembali, setIsKembali] = useState(false);
@@ -3982,6 +3982,29 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
 
           {tab==="proses" && (
             <div>
+              {/* Kontrol Admin: mundurkan/undur tahap bila proses salah maju. */}
+              {user?.role==="admin" && p.status!=="diajukan" && (() => {
+                const seri = tahapanUntuk(p);
+                let lastIdx = -1;
+                seri.forEach((t,i)=>{ if((p.tahapSelesai||[]).includes(t.id)) lastIdx = Math.max(lastIdx,i); });
+                if (lastIdx < 0) return null;
+                const stepMundur = seri[lastIdx];
+                return (
+                  <div style={{marginBottom:14,padding:"12px 14px",borderRadius:10,border:"1px dashed #fca5a5",background:"var(--error-container,#fef2f2)"}}>
+                    <div style={{fontWeight:800,fontSize:12,color:"var(--error,#b91c1c)",marginBottom:4,textTransform:"uppercase",letterSpacing:"0.04em"}}>Kontrol Admin — Mundurkan Tahap</div>
+                    <div style={{fontSize:11.5,color:"var(--on-surface-variant)",marginBottom:10,lineHeight:1.5}}>
+                      Batalkan penyelesaian tahap terakhir dan jadikan aktif kembali bila ada kesalahan. Status akan kembali ke <strong>Diproses</strong>.
+                    </div>
+                    <button className="btn btn-sm" style={{background:"var(--error,#dc2626)",color:"#fff",fontWeight:700}} disabled={saving}
+                      onClick={()=>{
+                        if(!window.confirm(`Mundurkan tahap kembali ke "${stepMundur.label}"? Penyelesaian tahap tersebut dibatalkan dan status menjadi Diproses.`)) return;
+                        onRollback?.({ id:p.id, tahapSelesai:(p.tahapSelesai||[]).filter(x=>x!==stepMundur.id).join(","), tahapAktif:stepMundur.id, label:stepMundur.label });
+                      }}>
+                      {saving?"Memproses…":`Mundurkan ke: ${stepMundur.label}`}
+                    </button>
+                  </div>
+                );
+              })()}
               {(p.status==="selesai"||prog===100) ? (
                 <div className="alert alert-green"><IcoCheck size={16}/><span>SKPP sudah selesai dan diserahkan. Tidak ada tahap yang perlu diupdate.</span></div>
               ) : p.status==="kembali" ? (
@@ -4071,6 +4094,10 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
                         </div>
                       )}
                     </div>
+                    <div style={{fontSize:11,color:"var(--on-surface-variant)",marginBottom:8,lineHeight:1.5}}>
+                      Setelah foto ditempel &amp; nomor ditetapkan, cetak SKPP untuk ditandatangani pimpinan secara manual — diperlukan sebelum tahap Verifikasi &amp; Tanda Tangan.
+                    </div>
+                    <CetakSkppFinalButton p={p}/>
                   </>)}
                   {isRincianKekurangan(stepAktif.id) && p.sumber==="online" && p.pengajuRole==="bendahara" && (
                     <RincianKekuranganBlock p={p}/>
@@ -4113,7 +4140,6 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
                       Serahkan SKPP kepada pemohon.
                     </div>
                   )}
-                  {stepAktif.final===true && <CetakSkppFinalButton p={p}/>}
                   {(() => {
                     const tombolNonaktif = saving || !cekIzinProses(user?.role, stepAktif.pelaksana)
                       || (isPenomoran(stepAktif.id) && !nomorUrut) || (isSP2D(stepAktif.id) && !nomorSP2D.trim());
@@ -8426,6 +8452,20 @@ export default function App() {
     setSaving(false);
   };
 
+  const handleRollback = async ({ id, tahapSelesai, tahapAktif, label }) => {
+    setSaving(true);
+    try {
+      const res = await rollbackTahap({ id, tahapSelesai, tahapAktif, label });
+      if (res.ok) {
+        showToast(res.pesan || "Tahap dimundurkan.");
+        await load();
+        const refreshed = await detail({ id });
+        if (refreshed.ok) setSelected(norm(refreshed.data));
+      } else alert("Gagal: " + res.pesan);
+    } catch { alert("Gagal terhubung ke server."); }
+    setSaving(false);
+  };
+
   const handleTolakBukti = async ({ pengajuanId, berkasId, label, alasan }) => {
     setSaving(true);
     try {
@@ -8691,7 +8731,7 @@ export default function App() {
       {/* Detail Modal */}
       {selected && (
         <DetailModal p={selected} onClose={()=>setSelected(null)} onUpdate={handleUpdate} onSerah={handleSerahTerima} saving={saving}
-          onCetak={()=>cetakTandaTerima(selected)} onDelete={handleDeletePengajuan} onTolakBukti={handleTolakBukti} user={user}/>
+          onCetak={()=>cetakTandaTerima(selected)} onDelete={handleDeletePengajuan} onRollback={handleRollback} onTolakBukti={handleTolakBukti} user={user}/>
       )}
 
       {/* Input Modal */}

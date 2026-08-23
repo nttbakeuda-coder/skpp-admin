@@ -381,6 +381,27 @@ export async function updateTahap({ data: updateData }) {
   return ok({ nextStepId });
 }
 
+// Mundurkan/undur tahap (khusus Admin) — koreksi bila proses salah maju.
+// Frontend menghitung tahapSelesai & tahapAktif baru (berdasar seri jalur),
+// fungsi ini menuliskannya + status kembali "proses" (mencabut "selesai"),
+// mengosongkan tanggalSelesai, dan mencatat Riwayat.
+export async function rollbackTahap({ id, tahapSelesai, tahapAktif, label }) {
+  const { error } = await supabase.from("Pengajuan").update({
+    tahapSelesai, tahapAktif, status: "proses", tanggalSelesai: null,
+  }).eq("id", id);
+  if (error) return err("Gagal memundurkan tahap: " + error.message);
+
+  const aktor = await aktorSekarang();
+  await supabase.from("Riwayat").insert({
+    pengajuanId: id, tahap: tahapAktif,
+    waktu: new Date().toLocaleString("id-ID"),
+    catatan: "", catatanInternal: `Tahap dimundurkan oleh Admin ke "${label || tahapAktif}" untuk koreksi.`,
+    isKembali: false, oleh: aktor.oleh, olehNama: aktor.olehNama,
+  });
+
+  return ok({ id, pesan: `Tahap dimundurkan ke "${label || tahapAktif}".` });
+}
+
 export async function setSelesai({ id, tanggalSelesai }) {
   const tgl = tanggalSelesai
     ?? new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
