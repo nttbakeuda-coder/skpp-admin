@@ -203,9 +203,15 @@ const KODE_ALASAN = {
 // - "Lainnya": kode diketik manual saat input (kodeLain).
 function kodeAlasan(p) {
   const { alasan, subjenis, kodeLain } = p || {};
-  if ((alasan || "").startsWith("Meninggal Dunia") && KODE_ALASAN[subjenis]) return KODE_ALASAN[subjenis];
-  if (alasan === "Lainnya") return (kodeLain || "").trim().toUpperCase() || "LN";
-  if (KODE_ALASAN[alasan]) return KODE_ALASAN[alasan];
+  const al = alasan || "";
+  if (al.startsWith("Meninggal Dunia") && KODE_ALASAN[subjenis]) return KODE_ALASAN[subjenis];
+  if (al === "Lainnya") return (kodeLain || "").trim().toUpperCase() || "LN";
+  if (KODE_ALASAN[al]) return KODE_ALASAN[al];
+  // Pengajuan online menyimpan alasan lebih rinci (mis. "Pensiun — TMT: 1 Agu
+  // 2026"), jadi cocokkan keperluan DASAR lewat prefiks — TERPANJANG dulu agar
+  // "Pemberhentian dengan Hormat PPPK" menang atas "Pemberhentian dengan Hormat".
+  const base = Object.keys(KODE_ALASAN).sort((a, b) => b.length - a.length).find(k => al.startsWith(k));
+  if (base) return KODE_ALASAN[base];
   return (kodeLain || "").trim().toUpperCase() || "XX";
 }
 
