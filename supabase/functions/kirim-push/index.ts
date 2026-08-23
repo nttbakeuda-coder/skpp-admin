@@ -90,15 +90,16 @@ Deno.serve(async (req) => {
   const notif = await bangunNotif(payload);
   if (!notif) return new Response(JSON.stringify({ ok: true, skip: true }), { headers: { "Content-Type": "application/json" } });
 
-  // Ambil id staf sesuai role (+ opd utk penyaringan pengampu), lalu langganan.
-  const { data: users } = await sb.from("profiles").select("id, role, opd").in("role", notif.roles);
-  // Staf Pengampu OPD ('staf') HANYA menerima notifikasi untuk OPD yang diampunya.
-  // Admin/operator tanpa filter. Staf tanpa OPD ATAU notif tanpa OPD -> tetap
-  // diterima (catch-all, kompatibilitas mundur untuk akun lama belum di-set OPD).
+  // Ambil id staf sesuai role (+ opd_ampu utk penyaringan pengampu), lalu langganan.
+  const { data: users } = await sb.from("profiles").select("id, role, opd_ampu").in("role", notif.roles);
+  // Staf Pengampu OPD ('staf') HANYA menerima notifikasi untuk OPD yang diampunya
+  // (bisa beberapa OPD). Admin/operator tanpa filter. Staf tanpa OPD ATAU notif
+  // tanpa OPD -> tetap diterima (catch-all, kompatibilitas mundur).
   const eligible = (users || []).filter((u: any) => {
     if (u.role !== "staf") return true;
-    if (!u.opd || !notif.opd) return true;
-    return u.opd === notif.opd;
+    const list = Array.isArray(u.opd_ampu) ? u.opd_ampu : [];
+    if (list.length === 0 || !notif.opd) return true;
+    return list.includes(notif.opd);
   });
   const ids = eligible.map((u: any) => u.id);
   if (ids.length === 0) return new Response(JSON.stringify({ ok: true, terkirim: 0 }), { headers: { "Content-Type": "application/json" } });

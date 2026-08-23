@@ -125,17 +125,17 @@ export async function daftarAkun() {
   // untuk memilih nama staf loket / pengampu OPD. Akses diatur oleh RLS policy
   // "profiles_select" (lihat supabase/04_profiles_directory.sql).
   const { data, error } = await supabase
-    .from("profiles").select("username, nama, role, pangkat, opd").order("nama");
+    .from("profiles").select("username, nama, role, pangkat, opd, opd_ampu").order("nama");
   if (error) return err(error.message || "Gagal memuat daftar akun.");
   return ok({ data: data || [] });
 }
 
-export async function tambahAkun({ username, password, nama, role, opd }) {
-  return await adminAkun({ action: "create", username, password, nama, role, opd });
+export async function tambahAkun({ username, password, nama, role, opdAmpu }) {
+  return await adminAkun({ action: "create", username, password, nama, role, opdAmpu });
 }
 
-export async function editAkun({ username, nama, role, opd }) {
-  return await adminAkun({ action: "edit", username, nama, role, opd });
+export async function editAkun({ username, nama, role, opdAmpu }) {
+  return await adminAkun({ action: "edit", username, nama, role, opdAmpu });
 }
 
 export async function hapusAkun({ username }) {

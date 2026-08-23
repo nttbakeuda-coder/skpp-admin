@@ -57,6 +57,32 @@ const DAFTAR_OPD = [
   "Badan Kesatuan Bangsa dan Politik Provinsi NTT"
 ];
 
+// Pemilih BANYAK OPD (OPD yang diampu Staf Pengampu OPD). Daftar centang
+// bercari; disimpan sebagai array (nama OPD boleh mengandung koma).
+function OpdMultiSelect({ value, onChange }) {
+  const [q, setQ] = useState("");
+  const sel = new Set(value || []);
+  const toggle = (o) => { const n = new Set(sel); n.has(o) ? n.delete(o) : n.add(o); onChange([...n]); };
+  const filtered = DAFTAR_OPD.filter((o) => o.toLowerCase().includes(q.toLowerCase()));
+  return (
+    <div>
+      <input className="form-control" placeholder="Cari OPD…" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 8 }} />
+      <div style={{ maxHeight: 210, overflowY: "auto", border: "1px solid var(--outline-variant)", borderRadius: 8, padding: 6, display: "flex", flexDirection: "column", gap: 2 }}>
+        {filtered.map((o) => (
+          <label key={o} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "6px 8px", cursor: "pointer", fontSize: 12.5, lineHeight: 1.4, borderRadius: 6, background: sel.has(o) ? "var(--primary-fixed, rgba(47,91,208,0.08))" : "transparent" }}>
+            <input type="checkbox" checked={sel.has(o)} onChange={() => toggle(o)} style={{ marginTop: 2, flexShrink: 0 }} />
+            <span>{o}</span>
+          </label>
+        ))}
+        {filtered.length === 0 && <div style={{ fontSize: 12, color: "var(--on-surface-variant)", padding: 8 }}>Tidak ada OPD cocok.</div>}
+      </div>
+      <div style={{ fontSize: 12, color: "var(--on-surface-variant)", marginTop: 6 }}>
+        {sel.size} OPD dipilih. Staf hanya menerima notifikasi push untuk OPD yang dipilih.
+      </div>
+    </div>
+  );
+}
+
 const DAFTAR_PANGKAT = [
   "Juru Muda / I-a","Juru Muda Tingkat I / I-b","Juru / I-c","Juru Tingkat I / I-d",
   "Pengatur Muda / II-a","Pengatur Muda Tingkat I / II-b","Pengatur / II-c","Pengatur Tingkat I / II-d",
@@ -6932,19 +6958,19 @@ function PageUsers({ onToast }) {
 
   // ── Tambah akun ──
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ username:"", password:"", nama:"", role:"staf", opd:"" });
+  const [form, setForm] = useState({ username:"", password:"", nama:"", role:"staf", opdAmpu:[] });
   const [savingAdd, setSavingAdd] = useState(false);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
   const simpanAkun = async () => {
     if (!form.username.trim() || !form.password || !form.nama.trim()) return onToast("Username, password, dan nama wajib diisi.");
     if (form.password.length < 6 || !/[A-Z]/.test(form.password)) return onToast("Password minimal 6 karakter & 1 huruf kapital.");
-    if (form.role === "staf" && !form.opd) return onToast("Pilih OPD yang diampu untuk Staf Pengampu OPD.");
+    if (form.role === "staf" && !form.opdAmpu.length) return onToast("Pilih minimal satu OPD yang diampu untuk Staf Pengampu OPD.");
     setSavingAdd(true);
     try {
-      const res = await tambahAkun({ username: form.username.trim(), password: form.password, nama: form.nama.trim(), role: form.role, opd: form.role === "staf" ? form.opd : null });
+      const res = await tambahAkun({ username: form.username.trim(), password: form.password, nama: form.nama.trim(), role: form.role, opdAmpu: form.role === "staf" ? form.opdAmpu : null });
       if (res && res.ok) {
         onToast(res.pesan || "Akun berhasil ditambahkan.");
-        setForm({username:"",password:"",nama:"",role:"staf",opd:""});
+        setForm({username:"",password:"",nama:"",role:"staf",opdAmpu:[]});
         setShowForm(false);
         muat();
       } else onToast((res && res.pesan) || "Gagal menambah akun.");
@@ -6954,15 +6980,15 @@ function PageUsers({ onToast }) {
 
   // ── Edit akun ──
   const [editTarget, setEditTarget] = useState(null);
-  const [editForm, setEditForm] = useState({ nama:"", role:"staf", opd:"" });
+  const [editForm, setEditForm] = useState({ nama:"", role:"staf", opdAmpu:[] });
   const [savingEdit, setSavingEdit] = useState(false);
-  const bukaEdit = (u) => { setEditTarget(u); setEditForm({ nama: u.nama, role: u.role, opd: u.opd || "" }); };
+  const bukaEdit = (u) => { setEditTarget(u); setEditForm({ nama: u.nama, role: u.role, opdAmpu: Array.isArray(u.opd_ampu) ? u.opd_ampu : [] }); };
   const simpanEdit = async () => {
     if (!editForm.nama.trim()) return onToast("Nama tidak boleh kosong.");
-    if (editForm.role === "staf" && !editForm.opd) return onToast("Pilih OPD yang diampu untuk Staf Pengampu OPD.");
+    if (editForm.role === "staf" && !editForm.opdAmpu.length) return onToast("Pilih minimal satu OPD yang diampu untuk Staf Pengampu OPD.");
     setSavingEdit(true);
     try {
-      const res = await editAkun({ username: editTarget.username, nama: editForm.nama.trim(), role: editForm.role, opd: editForm.role === "staf" ? editForm.opd : null });
+      const res = await editAkun({ username: editTarget.username, nama: editForm.nama.trim(), role: editForm.role, opdAmpu: editForm.role === "staf" ? editForm.opdAmpu : null });
       if (res && res.ok) { onToast(res.pesan || "Akun diperbarui."); setEditTarget(null); muat(); }
       else onToast((res && res.pesan) || "Gagal memperbarui akun.");
     } catch { onToast("Gagal terhubung ke server."); }
@@ -7149,12 +7175,8 @@ function PageUsers({ onToast }) {
               </div>
               {form.role === "staf" && (
                 <div className="form-group">
-                  <label className="form-label">OPD yang Diampu *</label>
-                  <select className="form-control" value={form.opd} onChange={e=>set("opd",e.target.value)}>
-                    <option value="">— Pilih OPD —</option>
-                    {DAFTAR_OPD.map(o=><option key={o} value={o}>{o}</option>)}
-                  </select>
-                  <div style={{fontSize:12,color:"var(--on-surface-variant)",marginTop:5}}>Staf ini hanya menerima notifikasi push untuk pengajuan dari OPD tersebut.</div>
+                  <label className="form-label">OPD yang Diampu * (boleh lebih dari satu)</label>
+                  <OpdMultiSelect value={form.opdAmpu} onChange={(arr)=>set("opdAmpu",arr)}/>
                 </div>
               )}
             </div>
@@ -7225,12 +7247,8 @@ function PageUsers({ onToast }) {
               </div>
               {editForm.role === "staf" && (
                 <div className="form-group" style={{marginBottom:0}}>
-                  <label className="form-label">OPD yang Diampu *</label>
-                  <select className="form-control" value={editForm.opd} onChange={e=>setEditForm(f=>({...f,opd:e.target.value}))}>
-                    <option value="">— Pilih OPD —</option>
-                    {DAFTAR_OPD.map(o=><option key={o} value={o}>{o}</option>)}
-                  </select>
-                  <div style={{fontSize:12,color:"var(--on-surface-variant)",marginTop:5}}>Staf ini hanya menerima notifikasi push untuk pengajuan dari OPD tersebut.</div>
+                  <label className="form-label">OPD yang Diampu * (boleh lebih dari satu)</label>
+                  <OpdMultiSelect value={editForm.opdAmpu} onChange={(arr)=>setEditForm(f=>({...f,opdAmpu:arr}))}/>
                 </div>
               )}
             </div>
