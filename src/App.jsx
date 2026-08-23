@@ -4137,9 +4137,10 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
                   )}
                   {stepAktif.final===true && (
                     <div className="nbox-green" style={{borderRadius:10,padding:"11px 14px",marginBottom:14,fontSize:12}}>
-                      Serahkan SKPP kepada pemohon.
+                      Unggah scan SKPP yang telah ditandatangani, lalu serahkan kepada pemohon.
                     </div>
                   )}
+                  {stepAktif.final===true && <SkppFinalBox p={p}/>}
                   {(() => {
                     const tombolNonaktif = saving || !cekIzinProses(user?.role, stepAktif.pelaksana)
                       || (isPenomoran(stepAktif.id) && !nomorUrut) || (isSP2D(stepAktif.id) && !nomorSP2D.trim());
