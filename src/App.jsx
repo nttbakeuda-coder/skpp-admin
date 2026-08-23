@@ -4898,6 +4898,13 @@ function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuLi
   const adaDokTidakAda = isOnline
     ? relevantDokItems.some(it => !(p.berkas||[]).some(b=>b.jenis===it.t))
     : dpData.dok.some(d => d && d.status === "tidak");
+  // Wajib "kembalikan" bila ada dokumen ditolak/kurang ATAU disimpulkan ada hutang.
+  const harusKembali = adaDokTidakAda || dpData.kesimpulanHutang === "hutang";
+  // Auto-pilih kesimpulan "Berkas Tidak Lengkap / Terdapat Hutang" + kunci opsi
+  // "lengkap". (Pola adjust-state-during-render; guard mencegah loop.)
+  if (harusKembali && dpData.kesimpulan !== "kembali") {
+    setDpData(d => ({ ...d, kesimpulan: "kembali" }));
+  }
   // Selesai verifikasi mensyaratkan jalur proses sudah ditetapkan (A/B).
   const canSelesai = dpData.kesimpulan === "lengkap" && !!dpData.jalur;
   const canKembali = dpData.kesimpulan === "kembali";
@@ -5003,15 +5010,15 @@ function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuLi
           </div>
 
           <div
-            onClick={()=>{ if (!adaDokTidakAda) set("kesimpulan","lengkap"); }}
+            onClick={()=>{ if (!harusKembali) set("kesimpulan","lengkap"); }}
             style={{display:"flex",gap:10,alignItems:"flex-start",padding:"11px 13px",marginBottom:8,borderRadius:10,
-              cursor:adaDokTidakAda?"not-allowed":"pointer",opacity:adaDokTidakAda?0.5:1,
+              cursor:harusKembali?"not-allowed":"pointer",opacity:harusKembali?0.5:1,
               border:`1.5px solid ${dpData.kesimpulan==="lengkap"?"#0E7C7B":"var(--outline-variant,#d6deea)"}`,
               background:dpData.kesimpulan==="lengkap"?"rgba(14,124,123,0.07)":"#fff"}}>
-            <input type="radio" checked={dpData.kesimpulan==="lengkap"} disabled={adaDokTidakAda} readOnly style={{marginTop:2}}/>
+            <input type="radio" checked={dpData.kesimpulan==="lengkap"} disabled={harusKembali} readOnly style={{marginTop:2}}/>
             <div><div style={{fontWeight:700,fontSize:12.5,color:"#0E5A59"}}>Berkas Lengkap & Bebas Hutang</div>
               <div style={{fontSize:11,color:"var(--on-surface-variant)"}}>
-                {adaDokTidakAda ? "Tidak dapat dipilih — terdapat dokumen yang belum lengkap/ditolak." : "Dapat diproses lebih lanjut — verifikasi diselesaikan, lanjut ke tahap berikutnya."}
+                {harusKembali ? "Tidak dapat dipilih — ada dokumen belum lengkap/ditolak atau terdapat hutang." : "Dapat diproses lebih lanjut — verifikasi diselesaikan, lanjut ke tahap berikutnya."}
               </div></div>
           </div>
           <div
