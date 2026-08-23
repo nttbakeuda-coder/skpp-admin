@@ -92,7 +92,15 @@ async function kirimWA(wa: string | null, m: { judul: string; teks: string }) {
   if (!WA_TOKEN) return "wa-belum-aktif";
   const target = normalWa(wa);
   if (!target) return "skip-no-wa";
-  const pesan = `*${m.judul}*\n\n${m.teks}\n\n${PORTAL_URL}`;
+  // Branding di ISI pesan: walau pengirim tampil sbg nomor (batasan WA utk
+  // non-kontak), penerima langsung mengenali ini dari KATONG SKPP.
+  const pesan =
+    `*KATONG SKPP*\n` +
+    `_Badan Keuangan Daerah Provinsi NTT_\n` +
+    `━━━━━━━━━━━━━━━\n` +
+    `*${m.judul}*\n${m.teks}\n\n` +
+    `Pantau status: ${PORTAL_URL}\n` +
+    `_Pesan otomatis — mohon tidak dibalas._`;
   try {
     const r = await fetch("https://api.fonnte.com/send", {
       method: "POST",
