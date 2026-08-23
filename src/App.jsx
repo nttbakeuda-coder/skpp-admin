@@ -430,9 +430,13 @@ const TAHAPAN_B_OFFLINE = [
 const TAHAPAN_A = TAHAPAN_A_OFFLINE;
 const TAHAPAN_B = TAHAPAN_B_OFFLINE;
 // Pilih urutan tahap yang sesuai sumber pengajuan (online vs luring/manual).
-const tahapanUntuk = p => p.jalur==="A"
-  ? (p.sumber==="online" ? TAHAPAN_A_ONLINE : TAHAPAN_A_OFFLINE)
-  : (p.sumber==="online" ? TAHAPAN_B_ONLINE : TAHAPAN_B_OFFLINE);
+// Jalur belum ditetapkan (null, mis. pengajuan online yang baru diterima loket
+// dan belum diverifikasi) memakai seri A sebagai basis — dua tahap awal (Berkas
+// Diterima di Loket + Verifikasi Kelengkapan Berkas) identik pada kedua jalur
+// (A1/A2 == B1/B2). Seri B hanya dipakai bila jalur eksplisit "B".
+const tahapanUntuk = p => p.jalur==="B"
+  ? (p.sumber==="online" ? TAHAPAN_B_ONLINE : TAHAPAN_B_OFFLINE)
+  : (p.sumber==="online" ? TAHAPAN_A_ONLINE : TAHAPAN_A_OFFLINE);
 
 const cekIzinProses = (userRole, pelaksanaTahapan) => {
   if (userRole === "admin") return true;
@@ -3827,6 +3831,9 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
     dok: DP_DOKUMEN_FLAT.map(()=>({status:"",ket:""})),
     hutang: DP_HUTANG.map(()=>({status: hutangLunasAwal ? "tidak" : "", ket: hutangLunasAwal ? "Sudah dilunasi & diverifikasi pada proses sebelumnya" : ""})),
     kesimpulanHutang: hutangLunasAwal ? "bebas" : "", kesimpulan:"", catatan:"",
+    // Jalur proses ditetapkan di tahap Verifikasi Kelengkapan Berkas (jika belum
+    // ada). Prefill dari data bila sudah pernah ditetapkan.
+    jalur: p.jalur || "",
     tempat:"Kupang", tanggal:hariIni,
     stafLoketNama:"", stafLoketNIP:"", stafLoketUser:"",
     // Pengampu OPD otomatis dari akun yang sedang login (NIP = username).
@@ -3874,7 +3881,7 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
           <div>
             <div style={{fontFamily:"var(--mono)",fontSize:10,color:"var(--primary)",fontWeight:700,marginBottom:2,letterSpacing:"0.05em"}}>{p.id}</div>
             <div style={{fontWeight:800,fontSize:15,color:"var(--on-surface)",letterSpacing:"-0.4px"}}>{p.nama}</div>
-            <div style={{fontSize:11,color:"var(--on-surface-variant)",marginTop:2}}>{p.opd} · {p.alasan} · {p.jalur==="A"?"Jalur A":"Jalur B"}</div>
+            <div style={{fontSize:11,color:"var(--on-surface-variant)",marginTop:2}}>{p.opd} · {p.alasan} · {p.jalur==="A"?"Jalur A":p.jalur==="B"?"Jalur B":"Jalur belum ditetapkan"}</div>
           </div>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             <SBadge p={p}/>
@@ -4195,12 +4202,23 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
         onTolakBukti={onTolakBukti}
         onClose={()=>setShowDaftarPeriksa(false)}
         onCetak={()=>cetakDaftarPeriksa({p, dpData})}
-        onSelesai={()=>{
-          cetakDaftarPeriksa({p, dpData});
-          const idx = tahapan.findIndex(t=>t.id===stepAktif.id);
-          const nextStepId = idx < tahapan.length-1 ? tahapan[idx+1].id : "";
+        onSelesai={(jalurPilih)=>{
+          // Jalur proses (A/B) ditetapkan DI TAHAP INI. Tentukan seri tahapan
+          // sesuai jalur terpilih -> tahap verifikasi + tahap berikutnya pada
+          // seri itu, dan petakan id tahap awal (A1/A2 <-> B1/B2).
+          const seri = tahapanUntuk({ ...p, jalur: jalurPilih });
+          const verifId = jalurPilih==="A" ? "A2" : "B2";
+          const firstId = jalurPilih==="A" ? "A1" : "B1";
+          const vIdx = seri.findIndex(t=>t.id===verifId);
+          const nextStepId = vIdx>=0 && vIdx < seri.length-1 ? seri[vIdx+1].id : "";
+          cetakDaftarPeriksa({p:{...p, jalur:jalurPilih}, dpData});
           const catatanStr = `Verifikasi berkas: berkas lengkap & bebas hutang.${dpData.catatan?` — ${dpData.catatan}`:""}`;
-          onUpdate({pengajuanId:p.id, stepId:stepAktif.id, nextStepId, isKembali:false, catatan:catatanStr, isFinal:false});
+          onUpdate({
+            pengajuanId:p.id, stepId:verifId, nextStepId, isKembali:false,
+            catatan:catatanStr,
+            catatanInternal:`Jalur proses ${jalurPilih} ditetapkan pada Verifikasi Kelengkapan Berkas.`,
+            isFinal:false, jalur:jalurPilih, tahapSelesaiSet:`${firstId},${verifId}`,
+          });
           setShowDaftarPeriksa(false);
         }}
         onKembalikan={()=>{
@@ -4785,7 +4803,8 @@ function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuLi
   const adaDokTidakAda = isOnline
     ? relevantDokItems.some(it => !(p.berkas||[]).some(b=>b.jenis===it.t))
     : dpData.dok.some(d => d && d.status === "tidak");
-  const canSelesai = dpData.kesimpulan === "lengkap";
+  // Selesai verifikasi mensyaratkan jalur proses sudah ditetapkan (A/B).
+  const canSelesai = dpData.kesimpulan === "lengkap" && !!dpData.jalur;
   const canKembali = dpData.kesimpulan === "kembali";
 
   return (
@@ -4871,6 +4890,23 @@ function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuLi
 
           {/* C. Kesimpulan verifikasi */}
           <div style={{fontWeight:800,fontSize:12.5,color:"var(--on-surface)",margin:"16px 0 8px"}}>C. Kesimpulan Verifikasi & Tindak Lanjut</div>
+
+          {/* Penetapan Jalur Proses — dipindahkan dari loket ke tahap verifikasi ini. */}
+          <div style={{background:"var(--surface-container-low,#f6f8fc)",border:"1px solid var(--outline-variant,#e2e8f0)",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
+            <div className="form-group" style={{marginBottom:0}}>
+              <label className="form-label">Jalur Proses *</label>
+              <select className="form-control" value={dpData.jalur||""} onChange={e=>set("jalur",e.target.value)}>
+                <option value="">— Pilih jalur proses —</option>
+                <option value="A">Jalur A – Tanpa Pangkat Pengabdian</option>
+                <option value="B">Jalur B – Ada Pangkat Pengabdian</option>
+              </select>
+              <div style={{fontSize:11,color:"var(--on-surface-variant)",marginTop:6,lineHeight:1.5}}>
+                Ditetapkan berdasarkan hasil verifikasi berkas. <strong>Jalur B</strong> hanya bila SK Pangkat Pengabdian belum berlaku pada tanggal pensiun (memerlukan proses kekurangan via SIMgaji &amp; SP2D).
+              </div>
+              {dpData.kesimpulan==="lengkap" && !dpData.jalur && <div style={{fontSize:11,color:"#dc2626",marginTop:4}}>* Wajib dipilih sebelum menyelesaikan verifikasi</div>}
+            </div>
+          </div>
+
           <div
             onClick={()=>{ if (!adaDokTidakAda) set("kesimpulan","lengkap"); }}
             style={{display:"flex",gap:10,alignItems:"flex-start",padding:"11px 13px",marginBottom:8,borderRadius:10,
@@ -4931,8 +4967,8 @@ function DaftarPeriksaModal({ p, dpData, setDpData, stafLoketList=[], pengampuLi
               {saving?"Memproses…":"Cetak & Kembalikan Berkas"}
             </button>
           ) : (
-            <button className="btn btn-primary" disabled={saving||!canSelesai} onClick={onSelesai}>
-              {saving?"Menyimpan…":!dpData.kesimpulan?"Pilih kesimpulan dahulu":"Selesai Verifikasi & Cetak"}
+            <button className="btn btn-primary" disabled={saving||!canSelesai} onClick={()=>onSelesai(dpData.jalur)}>
+              {saving?"Menyimpan…":!dpData.kesimpulan?"Pilih kesimpulan dahulu":!dpData.jalur?"Pilih jalur proses dahulu":"Selesai Verifikasi & Cetak"}
             </button>
           )}
         </div>
@@ -5930,7 +5966,7 @@ function PagePengajuan({ data, loading, onRefresh, onDetail, onInputBaru, onExpo
                       <td style={{fontFamily:"var(--mono)",fontSize:12.5,color:"var(--outline)"}}>{p.nip}</td>
                       <td style={{fontSize:13.5,maxWidth:140,color:"var(--on-surface-variant)"}}>{p.opd}</td>
                       <td><span className="chip" style={{fontSize:12.5}}>{p.alasan}</span></td>
-                      <td><span style={{fontSize:12.5,fontWeight:700,padding:"4px 11px",borderRadius:999,whiteSpace:"nowrap",background:p.jalur==="A"?"var(--primary-fixed)":"#f5f3ff",color:p.jalur==="A"?"var(--primary)":"#5b21b6"}}>Jalur {p.jalur}</span></td>
+                      <td>{p.jalur ? <span style={{fontSize:12.5,fontWeight:700,padding:"4px 11px",borderRadius:999,whiteSpace:"nowrap",background:p.jalur==="A"?"var(--primary-fixed)":"#f5f3ff",color:p.jalur==="A"?"var(--primary)":"#5b21b6"}}>Jalur {p.jalur}</span> : <span style={{fontSize:12,color:"var(--on-surface-variant)"}}>—</span>}</td>
                       <td>
                         <div style={{display:"flex",alignItems:"center",gap:6}}>
                           <div className="progress-wrap" style={{flex:1,height:6}}>
@@ -6494,7 +6530,7 @@ function PageLaporan({ data, loading, onDetail }) {
                       <td style={{fontFamily:"var(--mono)",fontSize:12.5,color:"var(--outline)"}}>{p.nip}</td>
                       <td style={{fontSize:13.5,maxWidth:160,color:"var(--on-surface-variant)"}}>{p.opd}</td>
                       <td><span className="chip" style={{fontSize:12.5}}>{p.alasan}</span></td>
-                      <td><span style={{fontSize:12.5,fontWeight:700,padding:"4px 11px",borderRadius:999,whiteSpace:"nowrap",background:p.jalur==="A"?"var(--primary-fixed)":"#f5f3ff",color:p.jalur==="A"?"var(--primary)":"#5b21b6"}}>Jalur {p.jalur}</span></td>
+                      <td>{p.jalur ? <span style={{fontSize:12.5,fontWeight:700,padding:"4px 11px",borderRadius:999,whiteSpace:"nowrap",background:p.jalur==="A"?"var(--primary-fixed)":"#f5f3ff",color:p.jalur==="A"?"var(--primary)":"#5b21b6"}}>Jalur {p.jalur}</span> : <span style={{fontSize:12,color:"var(--on-surface-variant)"}}>—</span>}</td>
                       <td style={{fontSize:13,color:"var(--on-surface-variant)"}}>
                         {jenis==="selesai" ? <span style={{color:"var(--success)",fontWeight:700}}>{fmtDate(p.tanggalSelesai)}</span>
                           : jenis==="kembali"||jenis==="semua" ? <SBadge p={p}/>
@@ -7773,7 +7809,6 @@ function AntreanBerkasList({ berkas }) {
 
 function AntreanDetailModal({ p, onClose, onTerima, onKembalikan, onTolak, saving }) {
   const [aksi, setAksi] = useState(""); // "" | "terima" | "kembalikan" | "tolak"
-  const [jalur, setJalur] = useState("");
   const [kasubid, setKasubid] = useState(p.kasubid || "");
   const [subjenis, setSubjenis] = useState(p.subjenis || "");
   const [catatan, setCatatan] = useState("");
@@ -7790,7 +7825,7 @@ function AntreanDetailModal({ p, onClose, onTerima, onKembalikan, onTolak, savin
 
   return (
     <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget && !saving) onClose();}}>
-      <div className="modal" style={{maxWidth:640}}>
+      <div className="modal" style={{maxWidth:780}}>
         <div className="modal-header">
           <div>
             <div style={{fontWeight:800,fontSize:14,color:"var(--primary)",letterSpacing:"-0.4px"}}>{p.id}</div>
@@ -7812,14 +7847,8 @@ function AntreanDetailModal({ p, onClose, onTerima, onKembalikan, onTolak, savin
 
           {p.status==="diajukan" && (
             <div style={{marginTop:4,marginBottom:14,padding:"12px 14px",background:"var(--surface-container-low)",borderRadius:10,border:"1px solid var(--outline-variant)"}}>
-              <div className="form-group" style={{marginBottom:12}}>
-                <label className="form-label">Jalur Proses *</label>
-                <select className="form-control" value={jalur} onChange={e=>setJalur(e.target.value)}>
-                  <option value="">— Pilih jalur proses —</option>
-                  <option value="A">Jalur A – Tanpa Pangkat Pengabdian</option>
-                  <option value="B">Jalur B – Ada Pangkat Pengabdian</option>
-                </select>
-                {!jalur && <div style={{fontSize:11,color:"#dc2626",marginTop:4}}>* Wajib dipilih</div>}
+              <div style={{fontSize:11,color:"var(--on-surface-variant)",marginBottom:12,lineHeight:1.5}}>
+                Jalur proses (A/B) ditetapkan oleh Staf Pengampu OPD pada tahap <strong>Verifikasi Kelengkapan Berkas</strong>, bukan di loket.
               </div>
 
               <div className="form-group" style={{marginBottom:0}}>
@@ -7872,14 +7901,14 @@ function AntreanDetailModal({ p, onClose, onTerima, onKembalikan, onTolak, savin
             <div style={{marginTop:18,paddingTop:14,borderTop:"1px solid var(--outline-variant)"}}>
               {aksi==="" && (
                 <div>
-                  {(!jalur || !kasubid || (isMD && !subjenis)) && (
+                  {(!kasubid || (isMD && !subjenis)) && (
                     <div style={{fontSize:11,color:"#dc2626",marginBottom:6}}>
-                      * Lengkapi dulu Jalur Proses, Kasubid Pembayaran{isMD?", & Kategori Ahli Waris":""} di atas sebelum menerima.
+                      * Lengkapi dulu Kasubid Pembayaran{isMD?" & Kategori Ahli Waris":""} di atas sebelum menerima.
                     </div>
                   )}
                   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                    <button className="btn btn-success btn-sm" disabled={saving||!jalur||!kasubid||(isMD&&!subjenis)}
-                      onClick={()=>onTerima(p,{jalur,kasubid,subjenis:isMD?subjenis:""})}>
+                    <button className="btn btn-success btn-sm" disabled={saving||!kasubid||(isMD&&!subjenis)}
+                      onClick={()=>onTerima(p,{kasubid,subjenis:isMD?subjenis:""})}>
                       {saving?"Memproses…":"Terima"}
                     </button>
                     <button className="btn btn-secondary btn-sm" onClick={()=>setAksi("kembalikan")}>Kembalikan</button>
@@ -7942,7 +7971,7 @@ function PageAntreanOnline({ onToast, onCount, onRefreshMain }) {
   const jalankan = async (aksi, p, arg) => {
     setSaving(true);
     try {
-      const res = aksi==="terima" ? await terimaPengajuanOnline({ id:p.id, jalur:arg.jalur, kasubid:arg.kasubid, subjenis:arg.subjenis })
+      const res = aksi==="terima" ? await terimaPengajuanOnline({ id:p.id, kasubid:arg.kasubid, subjenis:arg.subjenis })
                 : aksi==="kembalikan" ? await kembalikanPengajuanOnline({ id:p.id, catatan:arg })
                 : await tolakPengajuanOnline({ id:p.id, alasan:arg });
       if (res.ok) {

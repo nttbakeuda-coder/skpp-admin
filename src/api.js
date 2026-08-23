@@ -339,7 +339,7 @@ export async function inputBulk({ data: bulkData }) {
 }
 
 export async function updateTahap({ data: updateData }) {
-  const { pengajuanId, stepId, nextStepId, isKembali, isResume, catatan, catatanInternal, nomorSKPP } = updateData;
+  const { pengajuanId, stepId, nextStepId, isKembali, isResume, catatan, catatanInternal, nomorSKPP, jalur, tahapSelesaiSet } = updateData;
 
   const { data: p } = await supabase
     .from("Pengajuan").select("tahapSelesai, tahapAktif").eq("id", pengajuanId).maybeSingle();
@@ -354,12 +354,17 @@ export async function updateTahap({ data: updateData }) {
   if (!isKembali && !isResume && !tahapSelesai.includes(stepId)) tahapSelesai.push(stepId);
 
   const updates = {
-    tahapSelesai: tahapSelesai.join(","),
+    // tahapSelesaiSet: override eksplisit — dipakai saat Verifikasi Kelengkapan
+    // Berkas menetapkan jalur, agar id tahap awal ikut dipetakan ke seri jalur
+    // terpilih (A1/A2 <-> B1/B2).
+    tahapSelesai: tahapSelesaiSet != null ? tahapSelesaiSet : tahapSelesai.join(","),
     // isResume: buka kembali tahap yang sama (tetap di stepId), jangan maju.
     tahapAktif:   (isKembali || isResume) ? stepId : (nextStepId || p.tahapAktif),
     status:       isKembali ? "kembali" : "proses",
   };
   if (nomorSKPP) updates.nomorSKPP = nomorSKPP;
+  // Penetapan jalur proses (A/B) saat tahap Verifikasi Kelengkapan Berkas.
+  if (jalur) updates.jalur = jalur;
 
   const { error } = await supabase.from("Pengajuan").update(updates).eq("id", pengajuanId);
   if (error) return err("Gagal update tahap: " + error.message);
@@ -601,32 +606,33 @@ export async function listAntreanOnline() {
   return ok({ data });
 }
 
-// Terima: pengajuan online masuk alur normal — persis pola inputBaru (tahap A1/B1
-// langsung selesai, tahap aktif pindah ke A2/B2), bedanya baris sudah ada (update, bukan insert).
+// Terima: pengajuan online masuk alur normal. Loket TIDAK lagi menentukan jalur
+// proses — jalur ditetapkan Staf Pengampu OPD saat "Verifikasi Kelengkapan
+// Berkas" (tahap A2/B2). Loket hanya menandai "Berkas Diterima di Loket" (A1)
+// selesai & memindahkan tahap aktif ke Verifikasi Kelengkapan Berkas (A2).
+// Basis A dipakai untuk id tahap awal yang SAMA pada kedua jalur (A1/A2 == B1/B2);
+// seri tahapan final ditetapkan begitu jalur dipilih di tahap verifikasi.
 // kasubid & subjenis dipakai nanti saat penomoran SKPP (lihat generateTemplateNomor).
-export async function terimaPengajuanOnline({ id, jalur, kasubid, subjenis }) {
-  if (!["A", "B"].includes(jalur)) return err("Jalur proses wajib dipilih (A atau B).");
+export async function terimaPengajuanOnline({ id, kasubid, subjenis }) {
   if (!kasubid) return err("Kasubid pembayaran wajib dipilih.");
   const est = new Date(); est.setDate(est.getDate() + 7);
   const estimasiSelesai = est.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
-  const firstStep = jalur === "A" ? "A1" : "B1";
-  const nextStep  = jalur === "A" ? "A2" : "B2";
 
   const { error } = await supabase.from("Pengajuan").update({
-    jalur, estimasiSelesai, tahapAktif: nextStep, tahapSelesai: firstStep,
+    jalur: null, estimasiSelesai, tahapAktif: "A2", tahapSelesai: "A1",
     status: "proses", catatan: null, kasubid, subjenis: subjenis || null,
   }).eq("id", id);
   if (error) return err("Gagal menerima pengajuan: " + error.message);
 
   const aktor = await aktorSekarang();
   await supabase.from("Riwayat").insert({
-    pengajuanId: id, tahap: firstStep,
+    pengajuanId: id, tahap: "A1",
     waktu: new Date().toLocaleString("id-ID"),
     catatan: "Berkas diterima di loket (pengajuan online)", isKembali: false,
     oleh: aktor.oleh, olehNama: aktor.olehNama,
   });
 
-  return ok({ id, pesan: "Pengajuan diterima & masuk ke alur proses." });
+  return ok({ id, pesan: "Pengajuan diterima & masuk ke tahap Verifikasi Kelengkapan Berkas." });
 }
 
 // Kembalikan: tetap berstatus "diajukan" (antrean) + catatan agar pemohon
