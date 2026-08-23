@@ -5168,11 +5168,10 @@ function SkppFinalBox({ p }) {
   const [path, setPath] = useState(p.skppFinalPath || null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef(null);
 
-  const onFile = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
+  const prosesFile = async (file) => {
     if (!file) return;
     if (file.type !== "application/pdf" && !/\.pdf$/i.test(file.name)) { setMsg("File harus berformat PDF."); return; }
     if (file.size > 20 * 1024 * 1024) { setMsg("Ukuran file maksimal 20 MB."); return; }
@@ -5182,6 +5181,7 @@ function SkppFinalBox({ p }) {
     if (res.ok) { setPath(res.path); setMsg("Dokumen SKPP terunggah & siap diunduh pemohon."); }
     else setMsg(res.pesan || "Gagal mengunggah dokumen.");
   };
+  const onFile = (e) => { const file = e.target.files?.[0]; e.target.value = ""; prosesFile(file); };
   const lihat = async () => {
     const url = await skppFinalUrl(path);
     if (url) window.open(url, "_blank"); else alert("Dokumen SKPP tidak dapat diakses.");
@@ -5196,11 +5196,27 @@ function SkppFinalBox({ p }) {
           : "Unggah dokumen SKPP yang telah ditandatangani agar dapat diunduh pemohon."}
       </div>
       <input ref={fileRef} type="file" accept="application/pdf,.pdf" style={{display:"none"}} onChange={onFile}/>
-      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-        {path && <button className="btn btn-secondary btn-sm" onClick={lihat} disabled={busy}>Lihat / Unduh</button>}
-        <button className="btn btn-primary btn-sm" onClick={()=>fileRef.current?.click()} disabled={busy}>
-          {busy ? "Mengunggah…" : (path ? "Ganti File" : "Unggah SKPP")}
-        </button>
+      <div
+        onDragOver={e=>{ e.preventDefault(); if(!busy) setDragOver(true); }}
+        onDragLeave={e=>{ e.preventDefault(); setDragOver(false); }}
+        onDrop={e=>{ e.preventDefault(); setDragOver(false); if(busy) return; prosesFile(e.dataTransfer.files?.[0]); }}
+        onClick={()=>{ if(!busy) fileRef.current?.click(); }}
+        style={{
+          border:`1.5px dashed ${dragOver?"#1e40af":"#bfdbfe"}`,
+          background:dragOver?"rgba(30,64,175,0.06)":"#fff",
+          borderRadius:10, padding:"14px 16px", textAlign:"center",
+          cursor:busy?"default":"pointer", transition:"border-color .15s, background .15s",
+        }}
+      >
+        <div style={{fontSize:12,color:"#1e40af",marginBottom:10}}>
+          {dragOver ? "Lepaskan berkas PDF untuk mengunggah" : "Tarik & letakkan berkas PDF di sini, atau"}
+        </div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center"}}>
+          {path && <button className="btn btn-secondary btn-sm" onClick={e=>{ e.stopPropagation(); lihat(); }} disabled={busy}>Lihat / Unduh</button>}
+          <button className="btn btn-primary btn-sm" onClick={e=>{ e.stopPropagation(); fileRef.current?.click(); }} disabled={busy}>
+            {busy ? "Mengunggah…" : (path ? "Ganti File" : "Unggah SKPP")}
+          </button>
+        </div>
       </div>
       {msg && <div style={{fontSize:11.5,color:"#1e40af",marginTop:8,fontWeight:600}}>{msg}</div>}
     </div>
