@@ -178,11 +178,7 @@ function dpGrupTampil(alasan) {
 }
 const DP_HUTANG = [
   "Kelebihan pembayaran gaji dan tunjangan",
-  "Kelebihan pembayaran tunjangan kinerja / tambahan penghasilan",
-  "Kelebihan pembayaran honorarium atau penghasilan lainnya",
-  "Uang muka perjalanan dinas yang belum dipertanggungjawabkan",
-  "Pinjaman / talangan daerah yang belum dilunasi",
-  "Kewajiban finansial lain yang tercatat dalam sistem penggajian OPD",
+  "Temuan keuangan lainnya oleh APIP",
 ];
 
 const KODE_KASUBID = {
