@@ -3487,6 +3487,7 @@ function DraftSkppBlock({ p, stepAktif, disabledKirim, onSelesai }) {
   const [hasil, setHasil] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [override, setOverride] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const ref = useRef(null);
   const existing = (p.berkas||[]).find(b => b.jenis === "Draft SKPP");
 
@@ -3541,11 +3542,27 @@ function DraftSkppBlock({ p, stepAktif, disabledKirim, onSelesai }) {
       )}
       <input ref={ref} type="file" accept="application/pdf,.pdf" style={{display:"none"}}
         onChange={e=>{ const f=e.target.files?.[0]; if (f) pilihFile(f); e.target.value=""; }}/>
-      <button type="button" className="btn btn-secondary btn-sm" disabled={checking||uploading}
-        onClick={()=>ref.current?.click()}>
-        {file ? "Ganti Berkas" : "Pilih Berkas Draft SKPP"}
-      </button>
-      {file && <div style={{fontSize:12,marginTop:8,color:"var(--on-surface-variant)"}}>{file.name}</div>}
+      <div
+        onDragOver={e=>{ e.preventDefault(); if(!checking&&!uploading) setDragOver(true); }}
+        onDragLeave={e=>{ e.preventDefault(); setDragOver(false); }}
+        onDrop={e=>{ e.preventDefault(); setDragOver(false); if(checking||uploading) return; const f=e.dataTransfer.files?.[0]; if (f) pilihFile(f); }}
+        onClick={()=>{ if(!checking&&!uploading) ref.current?.click(); }}
+        style={{
+          border:`1.5px dashed ${dragOver?"var(--primary)":"var(--outline-variant,#cbd5e1)"}`,
+          background:dragOver?"rgba(14,124,123,0.06)":"var(--surface-container-lowest,#fff)",
+          borderRadius:10, padding:"18px 16px", textAlign:"center",
+          cursor:(checking||uploading)?"default":"pointer", transition:"border-color .15s, background .15s",
+        }}
+      >
+        <div style={{fontSize:12.5,color:"var(--on-surface-variant)",marginBottom:10}}>
+          {dragOver ? "Lepaskan berkas PDF untuk mengunggah" : "Tarik & letakkan berkas PDF di sini, atau"}
+        </div>
+        <button type="button" className="btn btn-secondary btn-sm" disabled={checking||uploading}
+          onClick={e=>{ e.stopPropagation(); ref.current?.click(); }}>
+          {file ? "Ganti Berkas" : "Pilih Berkas Draft SKPP"}
+        </button>
+        {file && <div style={{fontSize:12,marginTop:10,color:"var(--on-surface)",fontWeight:600,wordBreak:"break-all"}}>{file.name}</div>}
+      </div>
       {checking && <div style={{fontSize:12,marginTop:8,color:"var(--on-surface-variant)"}}>Memeriksa isi berkas…</div>}
       {hasil && !checking && (
         <div style={{marginTop:10,padding:"10px 12px",borderRadius:8,background:"var(--surface-container-low)",display:"flex",flexDirection:"column",gap:6}}>
