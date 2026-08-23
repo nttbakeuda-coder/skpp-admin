@@ -393,7 +393,7 @@ const TAHAPAN_A_ONLINE = [
   { id:"A4", label:"Pembuatan Draft SKPP",          icon:"📝", pelaksana:"Staf Perbendaharaan" },
   { id:"A6", label:"Penempelan Foto & Penomoran",   icon:"📸", pelaksana:"Staf Loket" },
   { id:"A5", label:"Verifikasi & Proses Tanda Tangan Pimpinan", icon:"✅", pelaksana:"Staf Pengampu OPD → Kasubid → Kuasa BUD" },
-  { id:"A7", label:"SKPP Siap Diserahkan",          icon:"🎉", pelaksana:"Staf Loket", final:true },
+  { id:"A7", label:"SKPP Telah Diterbitkan",          icon:"🎉", pelaksana:"Staf Loket", final:true },
 ];
 const TAHAPAN_A_OFFLINE = [
   { id:"A1", label:"Berkas Diterima di Loket",      icon:"📥", pelaksana:"Staf Loket" },
@@ -401,7 +401,7 @@ const TAHAPAN_A_OFFLINE = [
   { id:"A4", label:"Pembuatan Draft SKPP",          icon:"📝", pelaksana:"Staf Perbendaharaan" },
   { id:"A5", label:"Verifikasi & Proses Tanda Tangan Pimpinan", icon:"✅", pelaksana:"Staf Pengampu OPD → Kasubid → Kuasa BUD" },
   { id:"A6", label:"Penempelan Foto & Penomoran",   icon:"📸", pelaksana:"Staf Loket" },
-  { id:"A7", label:"SKPP Siap Diserahkan",          icon:"🎉", pelaksana:"Staf Loket", final:true },
+  { id:"A7", label:"SKPP Telah Diterbitkan",          icon:"🎉", pelaksana:"Staf Loket", final:true },
 ];
 const TAHAPAN_B_ONLINE = [
   { id:"B1",  label:"Berkas Diterima di Loket",            icon:"📥", pelaksana:"Staf Loket" },
@@ -413,7 +413,7 @@ const TAHAPAN_B_ONLINE = [
   { id:"B8",  label:"Pembuatan Draft SKPP",               icon:"📝", pelaksana:"Staf Perbendaharaan" },
   { id:"B10", label:"Penempelan Foto & Penomoran",        icon:"📸", pelaksana:"Staf Loket" },
   { id:"B9",  label:"Verifikasi & Proses Tanda Tangan Pimpinan", icon:"✅", pelaksana:"Staf Pengampu OPD → Kasubid → Kuasa BUD" },
-  { id:"B11", label:"SKPP Siap Diserahkan",               icon:"🎉", pelaksana:"Staf Loket", final:true },
+  { id:"B11", label:"SKPP Telah Diterbitkan",               icon:"🎉", pelaksana:"Staf Loket", final:true },
 ];
 const TAHAPAN_B_OFFLINE = [
   { id:"B1",  label:"Berkas Diterima di Loket",            icon:"📥", pelaksana:"Staf Loket" },
@@ -425,7 +425,7 @@ const TAHAPAN_B_OFFLINE = [
   { id:"B8",  label:"Pembuatan Draft SKPP",               icon:"📝", pelaksana:"Staf Perbendaharaan" },
   { id:"B9",  label:"Verifikasi & Proses Tanda Tangan Pimpinan", icon:"✅", pelaksana:"Staf Pengampu OPD → Kasubid → Kuasa BUD" },
   { id:"B10", label:"Penempelan Foto & Penomoran",        icon:"📸", pelaksana:"Staf Loket" },
-  { id:"B11", label:"SKPP Siap Diserahkan",               icon:"🎉", pelaksana:"Staf Loket", final:true },
+  { id:"B11", label:"SKPP Telah Diterbitkan",               icon:"🎉", pelaksana:"Staf Loket", final:true },
 ];
 // Array gabungan hanya utk LOOKUP by id (label/pelaksana sama di kedua versi,
 // jadi order tidak relevan di sini) -- JANGAN dipakai utk timeline/progress.
@@ -3725,7 +3725,7 @@ function TempelFotoBlock({ p }) {
   );
 }
 
-// Tahap akhir "SKPP Siap Diserahkan" (A7/B11): cetak berkas SKPP final --
+// Tahap akhir "SKPP Telah Diterbitkan" (A7/B11): cetak berkas SKPP final --
 // utamakan "SKPP (Foto Ditempel)" (hasil tempel foto), fallback ke "Draft
 // SKPP" polos bila belum sempat ditempel fotonya.
 function CetakSkppFinalButton({ p }) {
@@ -4008,7 +4008,25 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
                 );
               })()}
               {(p.status==="selesai"||prog===100) ? (
-                <div className="alert alert-green"><IcoCheck size={16}/><span>SKPP sudah selesai dan diserahkan. Tidak ada tahap yang perlu diupdate.</span></div>
+                <div>
+                  <div className="alert alert-green"><IcoCheck size={16}/><span>SKPP telah diterbitkan &amp; pengajuan selesai. Scan SKPP dapat diunduh pemohon melalui portal.</span></div>
+                  <SkppFinalBox p={p} onUploaded={()=>setSkppUploaded(true)}/>
+                  {p.tanggalSerahTerima ? (
+                    <div className="nbox-green" style={{borderRadius:10,padding:"11px 14px",marginBottom:12,fontSize:12,lineHeight:1.5}}>
+                      Serah terima SKPP asli sudah dicatat{p.penerimaNama?` — diterima oleh ${p.penerimaNama}`:""}. Bukti dapat dilihat di tab Data Pegawai.
+                    </div>
+                  ) : (
+                    <div style={{fontSize:12,color:"var(--on-surface-variant)",marginBottom:10,lineHeight:1.5}}>
+                      Bila pemohon mengambil SKPP asli (fisik) di kantor, catat serah terima &amp; buktinya di sini.
+                    </div>
+                  )}
+                  {cekIzinProses(user?.role, "Staf Loket") && (
+                    <button className="btn btn-primary" style={{width:"100%",justifyContent:"center",fontWeight:700}} disabled={saving}
+                      onClick={()=>setShowSerahTerima(true)}>
+                      {p.tanggalSerahTerima ? "Perbarui Bukti Serah Terima" : "Catat Serah Terima SKPP Asli"}
+                    </button>
+                  )}
+                </div>
               ) : p.status==="kembali" ? (
                 <div>
                   <div style={{background:"#fffbeb",border:"2px solid #f59e0b",borderRadius:12,padding:"18px",marginBottom:16}}>
@@ -4169,15 +4187,11 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
                         });
                       }}
                     >
-                      {saving ? "Menyimpan..." : !izinOk ? `Khusus: ${stepAktif.pelaksana}` : "Selesaikan — Serah Terima Fisik Menyusul"}
+                      {saving ? "Menyimpan..." : !izinOk ? `Khusus: ${stepAktif.pelaksana}` : "Selesaikan Pengajuan (SKPP Terbit)"}
                     </button>
-                    <button
-                      className="btn btn-secondary" style={{width:"100%",justifyContent:"center",fontWeight:700,opacity:nonaktif?0.6:1}}
-                      disabled={nonaktif}
-                      onClick={() => setShowSerahTerima(true)}
-                    >
-                      Selesaikan &amp; Catat Bukti Serah Terima
-                    </button>
+                    <div style={{fontSize:11,color:"var(--on-surface-variant)",marginTop:2,lineHeight:1.5}}>
+                      Setelah selesai, tombol <strong>serah terima &amp; bukti</strong> tetap tersedia untuk mencatat pengambilan SKPP asli oleh pemohon di kantor.
+                    </div>
                   </>
                     );
                   })() : (() => {
