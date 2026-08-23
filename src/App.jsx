@@ -1705,6 +1705,9 @@ const S = `
   .modal {
     background: var(--surface-container-lowest);
     border-radius: var(--r-lg);
+    /* Klip isi ke sudut membulat — tanpa ini, body yang bisa di-scroll
+       (mis. modal detail tanpa footer) menutupi sudut kanan-bawah membulat. */
+    overflow: hidden;
     width: 100%;
     max-width: 680px;
     box-shadow: var(--shadow-modal);
