@@ -7950,7 +7950,7 @@ function AntreanDetailModal({ p, onClose, onTerima, onKembalikan, onTolak, savin
 
   return (
     <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget && !saving) onClose();}}>
-      <div className="modal" style={{maxWidth:780}}>
+      <div className="modal" style={{maxWidth:960}}>
         <div className="modal-header">
           <div>
             <div style={{fontWeight:800,fontSize:14,color:"var(--primary)",letterSpacing:"-0.4px"}}>{p.id}</div>
