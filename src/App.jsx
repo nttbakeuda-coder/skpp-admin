@@ -6932,18 +6932,19 @@ function PageUsers({ onToast }) {
 
   // ── Tambah akun ──
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ username:"", password:"", nama:"", role:"staf" });
+  const [form, setForm] = useState({ username:"", password:"", nama:"", role:"staf", opd:"" });
   const [savingAdd, setSavingAdd] = useState(false);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
   const simpanAkun = async () => {
     if (!form.username.trim() || !form.password || !form.nama.trim()) return onToast("Username, password, dan nama wajib diisi.");
     if (form.password.length < 6 || !/[A-Z]/.test(form.password)) return onToast("Password minimal 6 karakter & 1 huruf kapital.");
+    if (form.role === "staf" && !form.opd) return onToast("Pilih OPD yang diampu untuk Staf Pengampu OPD.");
     setSavingAdd(true);
     try {
-      const res = await tambahAkun({ username: form.username.trim(), password: form.password, nama: form.nama.trim(), role: form.role });
+      const res = await tambahAkun({ username: form.username.trim(), password: form.password, nama: form.nama.trim(), role: form.role, opd: form.role === "staf" ? form.opd : null });
       if (res && res.ok) {
         onToast(res.pesan || "Akun berhasil ditambahkan.");
-        setForm({username:"",password:"",nama:"",role:"staf"});
+        setForm({username:"",password:"",nama:"",role:"staf",opd:""});
         setShowForm(false);
         muat();
       } else onToast((res && res.pesan) || "Gagal menambah akun.");
@@ -6953,14 +6954,15 @@ function PageUsers({ onToast }) {
 
   // ── Edit akun ──
   const [editTarget, setEditTarget] = useState(null);
-  const [editForm, setEditForm] = useState({ nama:"", role:"staf" });
+  const [editForm, setEditForm] = useState({ nama:"", role:"staf", opd:"" });
   const [savingEdit, setSavingEdit] = useState(false);
-  const bukaEdit = (u) => { setEditTarget(u); setEditForm({ nama: u.nama, role: u.role }); };
+  const bukaEdit = (u) => { setEditTarget(u); setEditForm({ nama: u.nama, role: u.role, opd: u.opd || "" }); };
   const simpanEdit = async () => {
     if (!editForm.nama.trim()) return onToast("Nama tidak boleh kosong.");
+    if (editForm.role === "staf" && !editForm.opd) return onToast("Pilih OPD yang diampu untuk Staf Pengampu OPD.");
     setSavingEdit(true);
     try {
-      const res = await editAkun({ username: editTarget.username, nama: editForm.nama.trim(), role: editForm.role });
+      const res = await editAkun({ username: editTarget.username, nama: editForm.nama.trim(), role: editForm.role, opd: editForm.role === "staf" ? editForm.opd : null });
       if (res && res.ok) { onToast(res.pesan || "Akun diperbarui."); setEditTarget(null); muat(); }
       else onToast((res && res.pesan) || "Gagal memperbarui akun.");
     } catch { onToast("Gagal terhubung ke server."); }
@@ -7126,9 +7128,9 @@ function PageUsers({ onToast }) {
       {/* Modal Tambah Akun */}
       {showForm && (
         <div className="modal-overlay">
-          <div className="modal" style={{maxWidth:500}}>
+          <div className="modal" style={{maxWidth:560,zoom:1}}>
             <div className="modal-header">
-              <div style={{fontWeight:800,fontSize:14,color:"var(--primary)",letterSpacing:"-0.4px"}}>Tambah Akun Staf Baru</div>
+              <div style={{fontWeight:800,fontSize:16,color:"var(--primary)",letterSpacing:"-0.4px"}}>Tambah Akun Staf Baru</div>
               <button className="modal-close" onClick={()=>setShowForm(false)}>✕</button>
             </div>
             <div className="modal-body">
@@ -7145,6 +7147,16 @@ function PageUsers({ onToast }) {
                   <option value="admin">Admin</option>
                 </select>
               </div>
+              {form.role === "staf" && (
+                <div className="form-group">
+                  <label className="form-label">OPD yang Diampu *</label>
+                  <select className="form-control" value={form.opd} onChange={e=>set("opd",e.target.value)}>
+                    <option value="">— Pilih OPD —</option>
+                    {DAFTAR_OPD.map(o=><option key={o} value={o}>{o}</option>)}
+                  </select>
+                  <div style={{fontSize:12,color:"var(--on-surface-variant)",marginTop:5}}>Staf ini hanya menerima notifikasi push untuk pengajuan dari OPD tersebut.</div>
+                </div>
+              )}
             </div>
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={()=>setShowForm(false)}>Batal</button>
@@ -7157,9 +7169,9 @@ function PageUsers({ onToast }) {
       {/* Modal Reset Password */}
       {resetTarget && (
         <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setResetTarget(null);}}>
-          <div className="modal" style={{maxWidth:440}}>
+          <div className="modal" style={{maxWidth:500,zoom:1}}>
             <div className="modal-header">
-              <div style={{fontWeight:800,fontSize:14,color:"var(--primary)",letterSpacing:"-0.4px"}}>Reset Kata Sandi</div>
+              <div style={{fontWeight:800,fontSize:16,color:"var(--primary)",letterSpacing:"-0.4px"}}>Reset Kata Sandi</div>
               <button className="modal-close" onClick={()=>setResetTarget(null)}>✕</button>
             </div>
             <div className="modal-body">
@@ -7189,9 +7201,9 @@ function PageUsers({ onToast }) {
       {/* Modal Edit Akun */}
       {editTarget && (
         <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setEditTarget(null);}}>
-          <div className="modal" style={{maxWidth:440}}>
+          <div className="modal" style={{maxWidth:540,zoom:1}}>
             <div className="modal-header">
-              <div style={{fontWeight:800,fontSize:14,color:"var(--primary)",letterSpacing:"-0.4px"}}>Edit Akun</div>
+              <div style={{fontWeight:800,fontSize:16,color:"var(--primary)",letterSpacing:"-0.4px"}}>Edit Akun</div>
               <button className="modal-close" onClick={()=>setEditTarget(null)}>✕</button>
             </div>
             <div className="modal-body">
@@ -7211,6 +7223,16 @@ function PageUsers({ onToast }) {
                   <option value="admin">Admin</option>
                 </select>
               </div>
+              {editForm.role === "staf" && (
+                <div className="form-group" style={{marginBottom:0}}>
+                  <label className="form-label">OPD yang Diampu *</label>
+                  <select className="form-control" value={editForm.opd} onChange={e=>setEditForm(f=>({...f,opd:e.target.value}))}>
+                    <option value="">— Pilih OPD —</option>
+                    {DAFTAR_OPD.map(o=><option key={o} value={o}>{o}</option>)}
+                  </select>
+                  <div style={{fontSize:12,color:"var(--on-surface-variant)",marginTop:5}}>Staf ini hanya menerima notifikasi push untuk pengajuan dari OPD tersebut.</div>
+                </div>
+              )}
             </div>
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={()=>setEditTarget(null)}>Batal</button>

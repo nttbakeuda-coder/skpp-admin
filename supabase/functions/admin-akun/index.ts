@@ -101,7 +101,9 @@ Deno.serve(async (req) => {
     const isAdmin = prof?.role === "admin";
 
     // 2) Jalankan aksi
-    const { action, username, password, nama, role, passwordBaru, userId, akunStatus } = await req.json();
+    const { action, username, password, nama, role, opd, passwordBaru, userId, akunStatus } = await req.json();
+    // OPD hanya relevan untuk Staf Pengampu OPD (role 'staf'); role lain -> null.
+    const opdVal = role === "staf" ? (opd || null) : null;
 
     // Aksi "list" (baca daftar nama) diizinkan untuk semua user yang login —
     // dibutuhkan form verifikasi untuk memilih nama staf loket / pengampu OPD.
@@ -138,7 +140,7 @@ Deno.serve(async (req) => {
               : error.message,
           });
         const { error: pe } = await admin
-          .from("profiles").insert({ id: created.user.id, username, nama, role });
+          .from("profiles").insert({ id: created.user.id, username, nama, role, opd: opdVal });
         if (pe) {
           // rollback auth user agar tidak yatim
           await admin.auth.admin.deleteUser(created.user.id);
@@ -149,7 +151,7 @@ Deno.serve(async (req) => {
 
       case "edit": {
         const { error } = await admin
-          .from("profiles").update({ nama, role }).eq("username", username);
+          .from("profiles").update({ nama, role, opd: opdVal }).eq("username", username);
         if (error) return json({ ok: false, pesan: error.message });
         const id = await findId(username);
         if (id) await admin.auth.admin.updateUserById(id, {

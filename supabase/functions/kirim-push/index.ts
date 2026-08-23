@@ -38,7 +38,7 @@ async function bangunNotif(p: any) {
     const now = rec.tahapAktif, before = old.tahapAktif;
     if ((now === "A2" || now === "B2") && before !== now) {
       return { roles: ["staf", "admin"], title: "Berkas menunggu verifikasi",
-        body: `${rec.nama || "Pemohon"} · ${rec.id}`, url: "/", tag: `ver-${rec.id}` };
+        body: `${rec.nama || "Pemohon"} · ${rec.id}`, url: "/", tag: `ver-${rec.id}`, opd: rec.opd || null };
     }
     return null;
   }
@@ -58,7 +58,7 @@ async function bangunNotif(p: any) {
     const { data: uploader } = await sb.from("profiles").select("role").eq("id", rec.uploadedBy).maybeSingle();
     if (uploader && STAF_ROLES.has(uploader.role)) return null; // unggahan staf -> lewati
     const { data: pj } = await sb.from("Pengajuan")
-      .select("id,nama,status,catatan").eq("id", rec.pengajuanId).maybeSingle();
+      .select("id,nama,status,catatan,opd").eq("id", rec.pengajuanId).maybeSingle();
     // "Pengembalian" = pengajuan sedang dikembalikan ke pemohon untuk dilengkapi:
     //   - status 'kembali'   -> dikembalikan saat proses (mis. bukti pelunasan), atau
     //   - masih di antrean loket ('diajukan') tapi 'catatan' pengembalian terisi
@@ -69,7 +69,7 @@ async function bangunNotif(p: any) {
     if (!dikembalikan) return null;
     return { roles: ["staf", "admin"], title: "Dokumen pengembalian diunggah",
       body: `${pj?.nama || "Pemohon"} · ${rec.pengajuanId}${rec.jenis ? " — " + rec.jenis : ""}`,
-      url: "/", tag: `dok-${rec.pengajuanId}` };
+      url: "/", tag: `dok-${rec.pengajuanId}`, opd: pj?.opd || null };
   }
 
   return null;
@@ -90,9 +90,17 @@ Deno.serve(async (req) => {
   const notif = await bangunNotif(payload);
   if (!notif) return new Response(JSON.stringify({ ok: true, skip: true }), { headers: { "Content-Type": "application/json" } });
 
-  // Ambil id staf sesuai role, lalu langganan push mereka.
-  const { data: users } = await sb.from("profiles").select("id").in("role", notif.roles);
-  const ids = (users || []).map((u: any) => u.id);
+  // Ambil id staf sesuai role (+ opd utk penyaringan pengampu), lalu langganan.
+  const { data: users } = await sb.from("profiles").select("id, role, opd").in("role", notif.roles);
+  // Staf Pengampu OPD ('staf') HANYA menerima notifikasi untuk OPD yang diampunya.
+  // Admin/operator tanpa filter. Staf tanpa OPD ATAU notif tanpa OPD -> tetap
+  // diterima (catch-all, kompatibilitas mundur untuk akun lama belum di-set OPD).
+  const eligible = (users || []).filter((u: any) => {
+    if (u.role !== "staf") return true;
+    if (!u.opd || !notif.opd) return true;
+    return u.opd === notif.opd;
+  });
+  const ids = eligible.map((u: any) => u.id);
   if (ids.length === 0) return new Response(JSON.stringify({ ok: true, terkirim: 0 }), { headers: { "Content-Type": "application/json" } });
 
   const { data: subs } = await sb.from("PushSubscription").select("*").in("userId", ids);

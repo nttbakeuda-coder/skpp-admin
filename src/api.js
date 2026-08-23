@@ -130,12 +130,12 @@ export async function daftarAkun() {
   return ok({ data: data || [] });
 }
 
-export async function tambahAkun({ username, password, nama, role }) {
-  return await adminAkun({ action: "create", username, password, nama, role });
+export async function tambahAkun({ username, password, nama, role, opd }) {
+  return await adminAkun({ action: "create", username, password, nama, role, opd });
 }
 
-export async function editAkun({ username, nama, role }) {
-  return await adminAkun({ action: "edit", username, nama, role });
+export async function editAkun({ username, nama, role, opd }) {
+  return await adminAkun({ action: "edit", username, nama, role, opd });
 }
 
 export async function hapusAkun({ username }) {
