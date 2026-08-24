@@ -5743,6 +5743,7 @@ const D2ICONS = {
   archive: <><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4"/></>,
   staff: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></>,
   doc: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></>,
+  download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></>,
   bell: <><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></>,
   user: <><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>,
   logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></>,
@@ -8839,6 +8840,14 @@ export default function App() {
                       <div className="d2-profile-actions">
                         <button className="d2-profile-item" role="menuitem" onClick={()=>{setShowProfile(false);setPage("profil");}}>
                           <D2Ico d={D2ICONS.user} size={19}/><span>Profil</span>
+                        </button>
+                        <button className="d2-profile-item" role="menuitem" onClick={()=>{
+                          setShowProfile(false);
+                          const a=document.createElement("a");
+                          a.href="/panduan-katong-skpp.pdf"; a.download="Panduan KATONG SKPP.pdf";
+                          document.body.appendChild(a); a.click(); a.remove();
+                        }}>
+                          <D2Ico d={D2ICONS.download} size={19}/><span>Download Panduan</span>
                         </button>
                         <PushToggle onToast={showToast}/>
                         <button className="d2-profile-item danger" role="menuitem" onClick={()=>{setShowProfile(false);handleLogout();}}>
