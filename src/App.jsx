@@ -8317,10 +8317,17 @@ function D2Ticker() {
 }
 
 // ─── APP ROOT ─────────────────────────────────────────────────────────────────
+// Halaman yang bisa di-deep-link lewat hash URL (mis. #users, #pengajuan) —
+// dipakai untuk navigasi berbasis hash (back/forward browser + tautan langsung).
+const HALAMAN_VALID = new Set(["dashboard","pengajuan","input","riwayat","survei","laporan","profil","antrean","users","aktivitas","persetujuan"]);
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [booting, setBooting] = useState(true);
-  const [page, setPage] = useState("dashboard");
+  const [page, setPage] = useState(() => {
+    const h = (typeof window !== "undefined" ? window.location.hash.slice(1) : "");
+    return HALAMAN_VALID.has(h) ? h : "dashboard";
+  });
   const [sideCollapsed, setSideCollapsed] = useState(false);
   const [mobileNav, setMobileNav] = useState(false); // drawer navigasi di layar kecil
   const [data, setData] = useState([]);
@@ -8338,6 +8345,22 @@ export default function App() {
   const [akunPendingCount, setAkunPendingCount] = useState(0);
   const profileRef = useRef(null);
   const notifRef = useRef(null);
+
+  // ── Navigasi berbasis hash: sinkronkan halaman aktif <-> hash URL, dan
+  //    dengarkan back/forward browser (juga menopang deep-link & skrip capture). ──
+  useEffect(() => {
+    if (window.location.hash.slice(1) !== page) {
+      window.location.hash = page; // menambah entri history -> tombol back berpindah halaman
+    }
+  }, [page]);
+  useEffect(() => {
+    const onHash = () => {
+      const h = window.location.hash.slice(1);
+      if (HALAMAN_VALID.has(h)) setPage(h);
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
 
   // ── Tema terang / gelap (disimpan di localStorage, kelas dipasang di <html>
   //    agar ikut menjangkau modal yang dirender di luar .d2-root). ──
