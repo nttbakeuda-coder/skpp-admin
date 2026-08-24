@@ -8697,7 +8697,9 @@ export default function App() {
         let foto = "";
         try { foto = (JSON.parse(localStorage.getItem(`skpp_profil_${u.username}`)||"{}").foto) || ""; } catch {}
         setUser({ ...u, foto });
-        setPage("dashboard");
+        // Hormati hash URL bila ada (deep-link, mis. #users) -> tak selalu ke dashboard.
+        const h = window.location.hash.slice(1);
+        setPage(HALAMAN_VALID.has(h) ? h : "dashboard");
       }} />
     </>
   );
