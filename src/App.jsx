@@ -8843,9 +8843,7 @@ export default function App() {
                         </button>
                         <button className="d2-profile-item" role="menuitem" onClick={()=>{
                           setShowProfile(false);
-                          const a=document.createElement("a");
-                          a.href="/panduan-katong-skpp.pdf"; a.download="Panduan KATONG SKPP.pdf";
-                          document.body.appendChild(a); a.click(); a.remove();
+                          window.open("https://phxyrferpnylgbbghgsn.supabase.co/storage/v1/object/public/panduan/dasbor-internal.pdf?download", "_blank", "noopener");
                         }}>
                           <D2Ico d={D2ICONS.download} size={19}/><span>Download Panduan</span>
                         </button>
