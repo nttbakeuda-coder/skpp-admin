@@ -3131,6 +3131,31 @@ function SBadge({ s, p }) {
 }
 
 // Tampilan rapi untuk catatan Formulir Pengembalian (menggantikan dump JSON mentah).
+// Catatan pengembalian berkas disimpan sebagai JSON formulir (FORMULIR_KEMBALI).
+// Di Jejak Aktivitas JSON mentah tidak terbaca petugas, jadi diringkas jadi satu
+// kalimat. Formulir lengkapnya tetap tampil utuh di lini masa pengajuan lewat
+// komponen CatatanKembali di bawah. Teks non-JSON dikembalikan apa adanya.
+function ringkasCatatan(teks) {
+  if (typeof teks !== "string" || !teks.trim().startsWith("{")) return teks || "";
+  let d = null;
+  try { d = JSON.parse(teks); } catch { return teks; }
+  if (!d || d._type !== "FORMULIR_KEMBALI") return teks;
+
+  const bagian = [];
+  const al = d.alasan || {};
+  const sebab = [al.dokumen && "Dokumen belum lengkap", al.hutang && "Terdapat hutang"].filter(Boolean);
+  if (sebab.length) bagian.push(sebab.join(" & "));
+
+  const dok = (d.rincian || []).filter(r => r.dokumen)
+    .map(r => r.dokumen + (r.tindakan ? ` (${r.tindakan})` : ""));
+  if (dok.length) bagian.push(dok.join("; "));
+
+  const hut = (d.rincianHutang || []).filter(r => r.jenis).map(r => r.jenis);
+  if (hut.length) bagian.push(hut.join("; "));
+
+  return bagian.join(" — ") || "Formulir pengembalian berkas";
+}
+
 function CatatanKembali({ data }) {
   const al = data.alasan || {};
   const rincian = (data.rincian || []).filter(r=>r.dokumen);
@@ -7554,7 +7579,7 @@ function TabAktivitas({ data, loading }) {
     _ts: parseWaktu(r.waktu),
     _pengNama: p.nama, _pengId: p.id, _opd: p.opd,
     _user: r.olehNama || r.oleh || "",
-    _note: r.catatanInternal || r.catatan || "",
+    _note: ringkasCatatan(r.catatanInternal || r.catatan || ""),
   }))).sort((a,b)=>b._ts - a._ts);
 
   const users = [...new Set(semua.map(a=>a._user).filter(Boolean))].sort();
