@@ -3131,6 +3131,38 @@ function SBadge({ s, p }) {
 }
 
 // Tampilan rapi untuk catatan Formulir Pengembalian (menggantikan dump JSON mentah).
+// Memuat modul yang dipisah (code-split: pdfStamp, pdfCheck).
+//
+// Nama berkas potongan mengandung sidik versi, mis. "pdfStamp-BURP0XMQ.js", dan
+// berubah setiap kali aplikasi dideploy ulang; berkas versi lama TIDAK lagi
+// disajikan server. Jadi tab/peramban yang masih memegang versi lama -- lazim di
+// komputer kantor yang jarang ditutup atau ber-cache agresif -- akan meminta
+// berkas yang sudah tak ada dan gagal dengan "Failed to fetch dynamically
+// imported module".
+//
+// Penanganannya: muat ulang halaman SEKALI agar peramban mengambil versi
+// terbaru. Penanda di sessionStorage mencegah muat ulang berulang bila ternyata
+// sebabnya bukan versi basi (mis. jaringan terputus), sehingga galat aslinya
+// tetap sampai ke pengguna.
+async function muatModul(importir, penanda) {
+  try {
+    return await importir();
+  } catch (e) {
+    const kunci = "muat-ulang-modul-" + penanda;
+    let sudah = false;
+    try { sudah = !!sessionStorage.getItem(kunci); } catch { /* penyimpanan diblokir */ }
+    if (!sudah) {
+      try { sessionStorage.setItem(kunci, "1"); } catch { /* abaikan */ }
+      window.location.reload();
+      await new Promise(() => {});   // tahan alur; halaman sedang dimuat ulang
+    }
+    throw new Error(
+      "Modul aplikasi gagal dimuat. Versi aplikasi mungkin baru diperbarui — " +
+      "tekan Ctrl+Shift+R untuk memuat ulang tanpa cache."
+    );
+  }
+}
+
 // Catatan pengembalian berkas disimpan sebagai JSON formulir (FORMULIR_KEMBALI).
 // Di Jejak Aktivitas JSON mentah tidak terbaca petugas, jadi diringkas jadi satu
 // kalimat. Formulir lengkapnya tetap tampil utuh di lini masa pengajuan lewat
@@ -3557,7 +3589,7 @@ function DraftSkppBlock({ p, stepAktif, disabledKirim, onSelesai }) {
     setOverride(false);
     setChecking(true);
     try {
-      const { extractPdfText, cocokkanNama, cocokkanNip } = await import("./pdfCheck");
+      const { extractPdfText, cocokkanNama, cocokkanNip } = await muatModul(() => import("./pdfCheck"), "pdfCheck");
       const teks = await extractPdfText(f);
       const adaTeks = teks.trim().length > 0;
       setHasil({
@@ -3692,7 +3724,7 @@ function TempelFotoBlock({ p }) {
       const [fotoRes, draftRes] = await Promise.all([fetch(fotoUrl), fetch(draftUrl)]);
       const fotoBlob = await fotoRes.blob();
       const draftBlob = await draftRes.blob();
-      const { tempelFotoKeDraft } = await import("./pdfStamp");
+      const { tempelFotoKeDraft } = await muatModul(() => import("./pdfStamp"), "pdfStamp");
       const res = await tempelFotoKeDraft({
         pdfFile: new File([draftBlob], "draft.pdf", { type: "application/pdf" }),
         fotoFile: new File([fotoBlob], "foto", { type: fotoBlob.type }),
