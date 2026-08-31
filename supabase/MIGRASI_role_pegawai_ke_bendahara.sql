@@ -7,10 +7,22 @@
 --
 --  ⚠️ PENTING — pemicu trg_protect_profile_fields MENOLAK perubahan kolom role
 --  kecuali pemanggilnya service_role. Di SQL Editor pemanggilnya 'postgres',
---  sehingga UPDATE biasa akan gagal dengan "Tidak diizinkan mengubah role.".
---  BLOK 2 menyiasatinya dengan SET LOCAL ROLE service_role di dalam transaksi
---  -- pemicunya TIDAK dimatikan, jadi perlindungan tetap utuh bagi pengguna
---  biasa.
+--  sehingga UPDATE biasa gagal dengan "Tidak diizinkan mengubah role.".
+--
+--  Pemicu itu punya DUA syarat lolos:
+--      current_user = 'service_role'
+--   OR current_setting('request.jwt.claim.role') = 'service_role'
+--
+--  Syarat PERTAMA (SET ROLE service_role) tidak dipakai: service_role tidak
+--  punya izin baca auth.users, sehingga pencarian berdasarkan email gagal
+--  dengan "permission denied for table users". Memberi GRANT pada service_role
+--  hanya untuk ini berarti memperluas hak akses permanen demi tindakan sekali
+--  jalan -- tidak sepadan.
+--
+--  Dipakai syarat KEDUA: menyetel penanda request.jwt.claim.role sebatas satu
+--  transaksi (SET LOCAL). Peran tetap 'postgres', jadi auth.users tetap
+--  terbaca, dan pemicunya TIDAK dimatikan sehingga perlindungan bagi pengguna
+--  biasa tetap utuh.
 --
 --  Jalankan di: Supabase -> SQL Editor, satu blok setiap kali "Run".
 -- ============================================================================
@@ -39,7 +51,8 @@ where u.email = 'thaocalvin0@gmail.com';
 -- ── BLOK 2 — Ubah role menjadi bendahara ────────────────────────────────────
 begin;
 
-  set local role service_role;   -- melewati pemicu penjaga kolom role
+  -- Berlaku HANYA di transaksi ini; otomatis hilang setelah commit.
+  set local request.jwt.claim.role = 'service_role';
 
   update public.profiles
      set role = 'bendahara'
@@ -52,12 +65,14 @@ commit;
 --  Hapus tanda komentar dan ganti nama OPD sesuai instansi yang bersangkutan.
 --  Nama harus PERSIS sama dengan daftar OPD di aplikasi.
 
--- begin;
---   set local role service_role;
---   update public.profiles
---      set opd = 'Dinas Kesehatan Provinsi NTT'
---    where id = (select id from auth.users where email = 'thaocalvin0@gmail.com');
--- commit;
+--  CATATAN: untuk thaocalvin0@gmail.com blok ini TIDAK PERLU -- kolom opd sudah
+--  terisi "Dinas Lingkungan Hidup dan Kehutanan Provinsi NTT".
+--
+--  Kolom opd tidak dijaga pemicu, jadi tidak butuh penanda apa pun.
+
+-- update public.profiles
+--    set opd = 'Dinas Kesehatan Provinsi NTT'
+--  where id = (select id from auth.users where email = 'thaocalvin0@gmail.com');
 
 
 -- ── BLOK 4 — Verifikasi ─────────────────────────────────────────────────────
