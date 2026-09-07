@@ -6451,7 +6451,25 @@ function cetakLaporan({ jenis, items }) {
 }
 
 // Parse tanggal "DD Mon YYYY" (mis. "12 Jun 2026") menjadi Date untuk filter rentang.
-const BULAN_MAP = { jan:0,feb:1,mar:2,apr:3,mei:4,jun:5,jul:6,agu:7,agt:7,ags:7,sep:8,okt:9,nov:10,des:11 };
+// Singkatan bulan Indonesia DAN Inggris.
+// Penting: tanggal ditulis ke basis data oleh Postgres lewat
+// to_char(now(),'DD Mon YYYY') yang menghasilkan singkatan INGGRIS
+// (May, Aug, Oct, Dec). Tanpa keempatnya, tanggal pada bulan-bulan itu gagal
+// dibaca dan aging tampil "—" -- sepertiga tahun tidak terhitung.
+const BULAN_MAP = {
+  jan:0,
+  feb:1,
+  mar:2,
+  apr:3,
+  mei:4,  may:4,
+  jun:5,
+  jul:6,
+  agu:7,  agt:7, ags:7, aug:7,
+  sep:8,
+  okt:9,  oct:9,
+  nov:10,
+  des:11, dec:11,
+};
 function parseTglMasuk(s){
   if(!s) return null;
   const m = String(s).trim().match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);
