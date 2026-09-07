@@ -5833,12 +5833,35 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
 }
 
 // ─── HELPER: hitung usia dokumen dari tanggal masuk ──────────────────────────
+// Selisih HARI KERJA (Senin-Jumat) antara dua tanggal; akhir pekan dilewati.
+// Dipakai seluruh perhitungan aging supaya angkanya sejalan dengan SLA yang
+// memang dinyatakan dalam hari kerja. Hari libur nasional BELUM diperhitungkan
+// -- itu perlu daftar hari libur tersendiri.
+function selisihHariKerja(mulai, akhir) {
+  const a = new Date(mulai);  a.setHours(0, 0, 0, 0);
+  const b = new Date(akhir);  b.setHours(0, 0, 0, 0);
+  if (!(a instanceof Date) || isNaN(a) || isNaN(b) || b <= a) return 0;
+
+  const hariTotal  = Math.round((b - a) / 86400000);
+  const pekanPenuh = Math.floor(hariTotal / 7);
+  const sisa       = hariTotal % 7;
+
+  let n = pekanPenuh * 5;                       // tiap pekan penuh = 5 hari kerja
+  const kursor = new Date(a);
+  kursor.setDate(kursor.getDate() + pekanPenuh * 7);
+  for (let i = 0; i < sisa; i++) {              // sisa hari, paling banyak 6x
+    kursor.setDate(kursor.getDate() + 1);
+    const h = kursor.getDay();
+    if (h !== 0 && h !== 6) n++;
+  }
+  return n;
+}
+
 function hitungHariKe(tanggalMasuk) {
   if (!tanggalMasuk) return null;
-  const masuk = new Date(tanggalMasuk);
-  if (isNaN(masuk)) return null;
-  const diff = Math.floor((Date.now() - masuk.getTime()) / (1000 * 60 * 60 * 24));
-  return diff;
+  const masuk = parseTglMasuk(tanggalMasuk);
+  if (!masuk) return null;
+  return selisihHariKerja(masuk, new Date());
 }
 
 function AgingBadge({ tanggalMasuk, status, progress }) {
@@ -6539,17 +6562,16 @@ function hitungLaporan(base) {
   };
 }
 
-// Umur/aging berkas: yang SUDAH SELESAI = total hari proses (masuk→selesai);
-// yang MASIH BERJALAN = hari sejak berkas masuk hingga hari ini.
+// Umur/aging berkas dalam HARI KERJA: yang SUDAH SELESAI = total hari kerja
+// proses (masuk→selesai); yang MASIH BERJALAN = hari kerja sejak berkas masuk
+// hingga hari ini. Akhir pekan tidak dihitung (lihat selisihHariKerja).
 function agingPengajuan(p) {
   const dM = parseTglMasuk(p.tanggalMasuk);
   if (!dM) return null;
   const sel = p.status==="selesai" || getProgress(p)===100;
   const akhir = sel ? parseTglMasuk(p.tanggalSelesai) : new Date();
   if (!akhir) return null;
-  const a0 = new Date(dM);    a0.setHours(0,0,0,0);
-  const b0 = new Date(akhir); b0.setHours(0,0,0,0);
-  return { hari: Math.max(0, Math.round((b0 - a0) / 86400000)), selesai: sel };
+  return { hari: selisihHariKerja(dM, akhir), selesai: sel };
 }
 
 // Badge umur berwarna: selesai (hijau) · overdue (merah) · menua >7 hr (kuning) · normal.
