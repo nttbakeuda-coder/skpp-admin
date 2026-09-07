@@ -3163,6 +3163,80 @@ async function muatModul(importir, penanda) {
   }
 }
 
+// Tab "Dokumen" pada modal detail pengajuan: seluruh berkas yang terunggah,
+// lengkap dengan siapa pengunggahnya. Berkas kerja internal (Draft SKPP, SKPP
+// Foto Ditempel) SENGAJA ikut ditampilkan di sini -- ini sisi internal, dan
+// justru berkas itu yang perlu ditelusuri Admin bila terjadi kekeliruan.
+function TabDokumen({ p }) {
+  const [bukaId, setBukaId] = useState(null);
+  const [unduhId, setUnduhId] = useState(null);
+  const daftar = [...(p.berkas || [])].sort(
+    (a, b) => new Date(a.created_at) - new Date(b.created_at)
+  );
+
+  async function lihat(b) {
+    setBukaId(b.id);
+    const url = await berkasPengajuanUrl(b.path);
+    setBukaId(null);
+    if (url) window.open(url, "_blank", "noopener");
+    else alert("Gagal membuka berkas. Kemungkinan berkas sudah tidak ada di penyimpanan.");
+  }
+  async function unduh(b) {
+    setUnduhId(b.id);
+    const ext = (b.path.match(/\.[a-z0-9]+$/i) || [""])[0];
+    const ok = await unduhBerkasPengajuan(b.path, (b.jenis || "berkas") + ext);
+    setUnduhId(null);
+    if (!ok) alert("Gagal mengunduh berkas.");
+  }
+
+  if (!daftar.length) {
+    return (
+      <div style={{padding:"28px 16px",textAlign:"center",color:"var(--text-muted)",fontSize:13}}>
+        Belum ada dokumen yang diunggah untuk pengajuan ini.
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+        <div style={{fontSize:12.5,fontWeight:800,color:"var(--on-surface,#111)"}}>Dokumen Terunggah</div>
+        <span className="chip chip-blue" style={{fontSize:11}}>{daftar.length} berkas</span>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:7}}>
+        {daftar.map((b) => {
+          const pdf = /\.pdf$/i.test(b.path);
+          return (
+            <div key={b.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",
+              border:"1px solid var(--outline-variant)",borderRadius:10,background:"var(--surface-container-low)"}}>
+              <span style={{flex:"none",fontSize:10,fontWeight:800,letterSpacing:"0.04em",
+                padding:"3px 7px",borderRadius:5,background:"var(--surface-container)",
+                color:"var(--text-muted)",fontFamily:"var(--mono, monospace)"}}>
+                {pdf ? "PDF" : "IMG"}
+              </span>
+              <div style={{minWidth:0,flex:1}}>
+                <div style={{fontSize:12.5,fontWeight:600,color:"var(--on-surface,#222)",
+                  overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                  {b.jenis || "Dokumen tanpa label"}
+                </div>
+                <div style={{fontSize:10.5,color:"var(--text-muted)",fontFamily:"var(--mono, monospace)",marginTop:2}}>
+                  {b.created_at ? new Date(b.created_at).toLocaleString("id-ID") : "—"}
+                </div>
+              </div>
+              <button className="btn btn-secondary btn-sm" disabled={bukaId===b.id} onClick={()=>lihat(b)}>
+                {bukaId===b.id ? "⟳" : "Lihat"}
+              </button>
+              <button className="btn btn-ghost btn-sm" disabled={unduhId===b.id} onClick={()=>unduh(b)}>
+                {unduhId===b.id ? "⟳" : "Unduh"}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // Catatan pengembalian berkas disimpan sebagai JSON formulir (FORMULIR_KEMBALI).
 // Di Jejak Aktivitas JSON mentah tidak terbaca petugas, jadi diringkas jadi satu
 // kalimat. Formulir lengkapnya tetap tampil utuh di lini masa pengajuan lewat
@@ -4000,12 +4074,17 @@ function DetailModal({ p, onClose, onUpdate, onSerah, saving, onCetak, onDelete,
 
         <div className="modal-body">
           <div className="tabs">
-            {["info","proses","riwayat"].map(t => (
+            {["info","proses",...(user?.role==="admin" ? ["dokumen"] : []),"riwayat"].map(t => (
               <div key={t} className={`tab ${tab===t?"active":""}`} onClick={() => setTab(t)}>
-                {t==="info"?"Data Pegawai":t==="proses"?"Update Proses":"Riwayat Lengkap"}
+                {t==="info" ? "Data Pegawai"
+                  : t==="proses" ? "Update Proses"
+                  : t==="dokumen" ? `Dokumen${(p.berkas||[]).length ? " (" + p.berkas.length + ")" : ""}`
+                  : "Riwayat Lengkap"}
               </div>
             ))}
           </div>
+
+          {tab==="dokumen" && user?.role==="admin" && <TabDokumen p={p}/>}
 
           {tab==="info" && (
             <div>
