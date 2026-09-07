@@ -5833,10 +5833,42 @@ function InputBaru({ onClose, onSave, onSaveBulk, saving }) {
 }
 
 // ─── HELPER: hitung usia dokumen dari tanggal masuk ──────────────────────────
-// Selisih HARI KERJA (Senin-Jumat) antara dua tanggal; akhir pekan dilewati.
-// Dipakai seluruh perhitungan aging supaya angkanya sejalan dengan SLA yang
-// memang dinyatakan dalam hari kerja. Hari libur nasional BELUM diperhitungkan
-// -- itu perlu daftar hari libur tersendiri.
+// ── HARI LIBUR NASIONAL & CUTI BERSAMA ──────────────────────────────────────
+// Format "YYYY-MM-DD". Tanggal yang jatuh pada Sabtu/Minggu boleh tetap ditulis
+// -- tidak dihitung dua kali.
+//
+// ⚠️ WAJIB DIPERBARUI SETIAP TAHUN dan dicocokkan dengan SKB 3 Menteri.
+// Libur keagamaan mengikuti penanggalan bulan/gerejawi dan cuti bersama
+// ditetapkan lewat keputusan pemerintah, sehingga tanggalnya berubah tiap tahun
+// dan TIDAK dapat dihitung sendiri oleh aplikasi.
+const HARI_LIBUR = new Set([
+  // ── 2026 · tanggal tetap (tidak berubah tiap tahun) ──
+  "2026-01-01",   // Tahun Baru Masehi
+  "2026-05-01",   // Hari Buruh Internasional
+  "2026-06-01",   // Hari Lahir Pancasila
+  "2026-08-17",   // Hari Kemerdekaan Republik Indonesia
+  "2026-12-25",   // Hari Raya Natal
+
+  // ── 2026 · tanggal mengikuti penanggalan — PERIKSA terhadap SKB 3 Menteri ──
+  "2026-01-16",   // Isra Mikraj Nabi Muhammad SAW
+  "2026-02-17",   // Tahun Baru Imlek
+  "2026-03-19",   // Hari Suci Nyepi
+  "2026-03-20",   // Hari Raya Idul Fitri (hari ke-1)
+  "2026-03-21",   // Hari Raya Idul Fitri (hari ke-2)
+  "2026-04-03",   // Wafat Isa Almasih
+  "2026-05-14",   // Kenaikan Isa Almasih
+  "2026-05-27",   // Hari Raya Idul Adha
+  "2026-05-31",   // Hari Raya Waisak
+  "2026-06-16",   // Tahun Baru Islam (1 Muharram)
+  "2026-08-25",   // Maulid Nabi Muhammad SAW
+
+  // ── Cuti bersama — ISI SESUAI KEPUTUSAN PEMERINTAH ──
+  // Belum diisi. Tambahkan di sini begitu SKB terbit, mis. "2026-03-23".
+]);
+
+// Selisih HARI KERJA antara dua tanggal: Sabtu, Minggu, dan hari libur pada
+// daftar di atas tidak dihitung. Dipakai seluruh perhitungan aging supaya
+// angkanya sejalan dengan SLA yang memang dinyatakan dalam hari kerja.
 function selisihHariKerja(mulai, akhir) {
   const a = new Date(mulai);  a.setHours(0, 0, 0, 0);
   const b = new Date(akhir);  b.setHours(0, 0, 0, 0);
@@ -5854,7 +5886,20 @@ function selisihHariKerja(mulai, akhir) {
     const h = kursor.getDay();
     if (h !== 0 && h !== 6) n++;
   }
-  return n;
+
+  // Kurangi hari libur yang jatuh pada HARI KERJA di dalam rentang (a, b].
+  // Ditelusuri lewat daftar libur (belasan tanggal), bukan lewat rentang
+  // harinya, sehingga rentang tanggal yang panjang tidak memperlambat.
+  for (const iso of HARI_LIBUR) {
+    const d = new Date(iso + "T00:00:00");
+    if (isNaN(d)) continue;
+    if (d > a && d <= b) {
+      const h = d.getDay();
+      if (h !== 0 && h !== 6) n--;
+    }
+  }
+
+  return Math.max(0, n);
 }
 
 function hitungHariKe(tanggalMasuk) {
@@ -6564,7 +6609,8 @@ function hitungLaporan(base) {
 
 // Umur/aging berkas dalam HARI KERJA: yang SUDAH SELESAI = total hari kerja
 // proses (masuk→selesai); yang MASIH BERJALAN = hari kerja sejak berkas masuk
-// hingga hari ini. Akhir pekan tidak dihitung (lihat selisihHariKerja).
+// hingga hari ini. Akhir pekan dan hari libur nasional tidak dihitung
+// (lihat HARI_LIBUR dan selisihHariKerja).
 function agingPengajuan(p) {
   const dM = parseTglMasuk(p.tanggalMasuk);
   if (!dM) return null;
