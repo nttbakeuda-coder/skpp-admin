@@ -6593,7 +6593,9 @@ function hitungLaporan(base) {
       stage.selesai++;
       const dS = parseTglMasuk(p.tanggalSelesai);
       if (dS) bump(mk(dS), "selesai");
-      if (dM && dS) { const d = Math.round((dS - dM) / 86400000); if (d >= 0) leads.push(d); }
+      // Lama penyelesaian dihitung dalam HARI KERJA, sama seperti kolom aging
+      // -- akhir pekan dan hari libur tidak ikut dihitung.
+      if (dM && dS && dS >= dM) leads.push(selisihHariKerja(dM, dS));
     } else if (p.status === "kembali") stage.kembali++;
     else if (p.status === "ditolak") stage.ditolak++;
     else if (p.status === "diajukan") stage.diajukan++;
